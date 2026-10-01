@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seed - 328 Ingredientes Padrão</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .log div {
+            margin: 4px 0;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info-log { color: #2196f3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌱 Seed - 328 Ingredientes Padrão</h1>
+        <div class="description">
+            <p><strong>O que faz:</strong> Popula o PostgreSQL com 328 ingredientes padrão usando endpoint protegido.</p>
+            <p><strong>Quando usar:</strong> Na primeira configuração do sistema ou para restaurar ingredientes padrão.</p>
+        </div>
+
+        <div class="info">
+            <strong>ℹ️ Como funciona:</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Usa endpoint seguro: <code>/api/seed/default-ingredients</code></li>
+                <li>Protegido por chave secreta (não precisa login)</li>
+                <li>Evita duplicatas automaticamente</li>
+                <li>Importa para: <strong>rafael@chefazambuja.com</strong></li>
+            </ul>
+        </div>
+
+        <button id="btnSeed" onclick="runSeed()">
+            🚀 Importar 328 Ingredientes para PostgreSQL
+        </button>
+
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const btnSeed = document.getElementById('btnSeed');
+        const API_URL = 'https://precificacao-api-production.up.railway.app/api/seed/default-ingredients';
+        const SECRET_KEY = 'SEED_MASTER_KEY_2025';
+
+        function addLog(message, type = 'info-log') {
+            log.style.display = 'block';
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function runSeed() {
+            btnSeed.disabled = true;
+            log.innerHTML = '';
+
+            addLog('🔄 Iniciando seed de ingredientes...', 'info-log');
+            addLog(`📡 Endpoint: ${API_URL}`, 'info-log');
+            addLog('🔑 Usando chave secreta de autenticação', 'info-log');
+            addLog('', 'info-log');
+
+            try {
+                addLog('⏳ Enviando requisição... (isso pode levar 30-60 segundos)', 'info-log');
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        secretKey: SECRET_KEY
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP ${response.status}`);
+                }
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Erro desconhecido');
+                }
+
+                addLog('', 'info-log');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                addLog('✅ SEED CONCLUÍDO COM SUCESSO!', 'success');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                addLog('', 'info-log');
+                addLog(`📊 Estatísticas:`, 'info-log');
+                addLog(`   Total de ingredientes: ${data.stats.total}`, 'info-log');
+                addLog(`   ✅ Importados: ${data.stats.imported}`, 'success');
+                addLog(`   ⏭️  Já existiam (pulados): ${data.stats.skipped}`, 'info-log');
+                addLog(`   ❌ Erros: ${data.stats.errors}`, data.stats.errors > 0 ? 'error' : 'info-log');
+                addLog('', 'info-log');
+                addLog(`👤 Usuário: ${data.user.email}`, 'info-log');
+                addLog('', 'info-log');
+                addLog('💡 Próximos passos:', 'info-log');
+                addLog('   1. Os ingredientes estão agora no PostgreSQL', 'info-log');
+                addLog('   2. Acesse a aplicação principal', 'info-log');
+                addLog('   3. Crie cardápios e gere listas de compras', 'info-log');
+                addLog('   4. A Picanha terá 15% de loss automaticamente!', 'success');
+
+                btnSeed.textContent = '✅ Seed Concluído!';
+                btnSeed.style.background = '#4caf50';
+
+            } catch (error) {
+                addLog('', 'error');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                addLog('❌ ERRO AO FAZER SEED', 'error');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                addLog('', 'error');
+                addLog(`Mensagem: ${error.message}`, 'error');
+                addLog('', 'error');
+                addLog('💡 Possíveis causas:', 'info-log');
+                addLog('   1. Deploy do Railway ainda não completou (aguarde 2-3 min)', 'info-log');
+                addLog('   2. Endpoint /api/seed não está ativo', 'info-log');
+                addLog('   3. Erro de conexão com banco de dados', 'info-log');
+                addLog('', 'info-log');
+                addLog('🔧 Solução: Aguarde alguns minutos e tente novamente', 'info-log');
+
+                btnSeed.disabled = false;
+                btnSeed.textContent = '🔄 Tentar Novamente';
+            }
+        }
+
+        // Log inicial
+        addLog('👋 Pronto para importar os 328 ingredientes padrão!', 'info-log');
+        addLog('💡 Clique no botão para iniciar.', 'info-log');
+    </script>
+</body>
+</html>

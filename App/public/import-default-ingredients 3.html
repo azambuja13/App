@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importar Ingredientes Padrão</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #2196f3;
+        }
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .log div {
+            margin: 4px 0;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        .warning-text { color: #ff9800; }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 Importar Ingredientes Padrão para PostgreSQL</h1>
+        <div class="description">
+            <p><strong>O que faz:</strong> Importa os 328 ingredientes padrão (DEFAULT_INGREDIENTS) para o banco de dados PostgreSQL.</p>
+            <p><strong>Quando usar:</strong> Na primeira vez que você acessa o sistema, ou se os ingredientes padrão não estão aparecendo.</p>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Importante:</strong>
+            <ul>
+                <li>Se você já fez login na aplicação principal, o token será detectado automaticamente</li>
+                <li>Caso contrário, cole seu token de autenticação abaixo (formato: NOME-email-PRM-...)</li>
+                <li>Apenas ingredientes que <strong>ainda não existem</strong> no banco serão importados (evita duplicatas)</li>
+                <li>Este processo pode levar alguns segundos</li>
+            </ul>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <label for="manualToken" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                🔑 Token de Autenticação (opcional):
+            </label>
+            <input
+                type="text"
+                id="manualToken"
+                placeholder="RAFAEL-cmFmYWVsQGNoZWZhemFtYnVqYS5jb20=-PRM-99991231-..."
+                style="width: 100%; padding: 10px; font-family: 'Courier New', monospace; font-size: 12px; border: 1px solid #ddd; border-radius: 4px;"
+            />
+            <small style="color: #666; display: block; margin-top: 4px;">
+                💡 Deixe em branco para detectar automaticamente do localStorage/sessionStorage
+            </small>
+        </div>
+
+        <button id="btnImport" onclick="runImport()">▶️ Importar Ingredientes Padrão</button>
+        <button class="secondary" onclick="checkIngredients()">🔍 Verificar Ingredientes no Banco</button>
+        <button onclick="window.location.reload()">🔄 Recarregar Página</button>
+
+        <div id="log" class="log" style="display: none;"></div>
+        <div id="summary" class="summary" style="display: none;"></div>
+    </div>
+
+    <script src="config/default-ingredients.js"></script>
+    <script>
+        const log = document.getElementById('log');
+        const summaryDiv = document.getElementById('summary');
+        const btnImport = document.getElementById('btnImport');
+
+        // Configuração da API
+        const API_BASE_URL = 'https://precificacao-api-production.up.railway.app/api';
+
+        function addLog(message, type = 'info') {
+            log.style.display = 'block';
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showSummary(stats) {
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = `
+                <h3>📊 Resumo</h3>
+                <p><strong>Total de ingredientes DEFAULT:</strong> ${stats.total}</p>
+                <p><strong>✅ Importados:</strong> ${stats.imported}</p>
+                <p><strong>⏭️ Já existiam (pulados):</strong> ${stats.skipped}</p>
+                <p><strong>❌ Erros:</strong> ${stats.errors}</p>
+            `;
+        }
+
+        // Buscar token de autenticação
+        function getAuthToken() {
+            // 1. Verificar se há token manual inserido
+            const manualToken = document.getElementById('manualToken')?.value?.trim();
+            if (manualToken) {
+                console.log('🔑 Usando token manual inserido');
+                return manualToken;
+            }
+
+            // 2. Tentar encontrar token automaticamente
+            const sessionLicense = sessionStorage.getItem('temp_license');
+            if (sessionLicense) {
+                console.log('🔑 Token encontrado em sessionStorage.temp_license');
+                return sessionLicense;
+            }
+
+            const appState = localStorage.getItem('appState');
+            if (appState) {
+                try {
+                    const state = JSON.parse(appState);
+                    if (state.licenseKey) {
+                        console.log('🔑 Token encontrado em localStorage.appState.licenseKey');
+                        return state.licenseKey;
+                    }
+                } catch (e) {
+                    console.error('Erro ao parsear appState:', e);
+                }
+            }
+
+            const sessionState = localStorage.getItem('sessionState');
+            if (sessionState) {
+                try {
+                    const state = JSON.parse(sessionState);
+                    if (state.token) {
+                        console.log('🔑 Token encontrado em localStorage.sessionState.token');
+                        return state.token;
+                    }
+                } catch (e) {
+                    console.error('Erro ao parsear sessionState:', e);
+                }
+            }
+
+            const directLicense = localStorage.getItem('licenseKey') || localStorage.getItem('authToken');
+            if (directLicense) {
+                console.log('🔑 Token encontrado em localStorage direto');
+                return directLicense;
+            }
+
+            const sessionToken = sessionStorage.getItem('licenseKey') || sessionStorage.getItem('authToken');
+            if (sessionToken) {
+                console.log('🔑 Token encontrado em sessionStorage direto');
+                return sessionToken;
+            }
+
+            console.error('❌ Token não encontrado em nenhum local');
+            return null;
+        }
+
+        // Fazer chamada à API
+        async function apiCall(endpoint, options = {}) {
+            const token = getAuthToken();
+            if (!token) {
+                throw new Error('Token de autenticação não encontrado');
+            }
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function checkIngredients() {
+            log.innerHTML = '';
+            summaryDiv.style.display = 'none';
+
+            addLog('🔍 Verificando ingredientes no banco de dados...', 'info');
+
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    addLog('❌ ERRO: Token de autenticação não encontrado!', 'error');
+                    addLog('', 'info');
+                    addLog('💡 Solução:', 'info');
+                    addLog('1. Abra https://precificacao-cloud-production.up.railway.app', 'info');
+                    addLog('2. Faça login normalmente', 'info');
+                    addLog('3. Volte aqui e tente novamente', 'info');
+                    return;
+                }
+
+                addLog(`🔑 Token encontrado: ${token.substring(0, 20)}...`, 'success');
+
+                const response = await apiCall('/ingredients');
+                const ingredients = response.data || [];
+
+                addLog(`📊 Total de ingredientes no banco: ${ingredients.length}`, ingredients.length > 0 ? 'success' : 'warning-text');
+
+                if (ingredients.length === 0) {
+                    addLog('', 'info');
+                    addLog('⚠️ Nenhum ingrediente encontrado no banco!', 'warning-text');
+                    addLog('💡 Clique em "Importar Ingredientes Padrão" para adicionar os 328 ingredientes padrão.', 'info');
+                } else {
+                    addLog('', 'info');
+                    addLog(`✅ Banco de dados possui ingredientes!`, 'success');
+
+                    // Verificar se Picanha existe
+                    const picanha = ingredients.find(ing => ing.name.toLowerCase().includes('picanha'));
+                    if (picanha) {
+                        addLog('', 'info');
+                        addLog('🔍 Exemplo - Picanha:', 'info');
+                        addLog(`   Nome: ${picanha.name}`, 'success');
+                        addLog(`   Categoria: ${picanha.category}`, 'success');
+                        addLog(`   Custo unitário: R$ ${picanha.unitCost}/g`, 'success');
+                        addLog(`   Perda: ${picanha.lossPercentage}%`, 'success');
+                    }
+                }
+
+            } catch (error) {
+                addLog(`❌ ERRO: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function runImport() {
+            btnImport.disabled = true;
+            log.innerHTML = '';
+            summaryDiv.style.display = 'none';
+
+            addLog('🔄 Iniciando importação...', 'info');
+
+            try {
+                // Verificar autenticação
+                const token = getAuthToken();
+                if (!token) {
+                    addLog('❌ ERRO: Token de autenticação não encontrado!', 'error');
+                    addLog('', 'info');
+                    addLog('💡 Solução:', 'info');
+                    addLog('1. Abra https://precificacao-cloud-production.up.railway.app', 'info');
+                    addLog('2. Faça login normalmente', 'info');
+                    addLog('3. Volte aqui e tente novamente', 'info');
+                    return;
+                }
+
+                addLog(`🔑 Token encontrado: ${token.substring(0, 20)}...`, 'success');
+                addLog('', 'info');
+
+                // Verificar se DEFAULT_INGREDIENTS está disponível
+                if (!window.DEFAULT_INGREDIENTS || window.DEFAULT_INGREDIENTS.length === 0) {
+                    addLog('❌ ERRO: DEFAULT_INGREDIENTS não encontrado!', 'error');
+                    addLog('Recarregue a página e tente novamente.', 'error');
+                    return;
+                }
+
+                addLog(`📦 DEFAULT_INGREDIENTS carregado: ${window.DEFAULT_INGREDIENTS.length} ingredientes`, 'success');
+                addLog('', 'info');
+
+                // Preparar dados para importação
+                const ingredientsToImport = window.DEFAULT_INGREDIENTS.map(ing => ({
+                    name: ing.name,
+                    category: ing.category,
+                    unit: ing.unit,
+                    unitType: ing.unitType,
+                    unitCost: ing.unitCost,
+                    lossPercentage: ing.loss
+                }));
+
+                addLog('📤 Enviando ingredientes para o banco de dados...', 'info');
+                addLog('⏳ Aguarde, isto pode levar alguns segundos...', 'info');
+                addLog('', 'info');
+
+                // Fazer importação em lote
+                const response = await apiCall('/ingredients/import-bulk', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        ingredients: ingredientsToImport
+                    })
+                });
+
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                addLog('✅ Importação concluída!', 'success');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                addLog('', 'info');
+                addLog(`✅ ${response.count} ingredientes importados com sucesso`, 'success');
+                addLog(`⏭️ ${response.skipped} ingredientes já existiam (pulados)`, 'info');
+
+                showSummary({
+                    total: window.DEFAULT_INGREDIENTS.length,
+                    imported: response.count,
+                    skipped: response.skipped,
+                    errors: 0
+                });
+
+                if (response.count > 0) {
+                    addLog('', 'info');
+                    addLog('💡 Agora você pode usar a aplicação normalmente!', 'info');
+                    addLog('💡 Os ingredientes padrão estão disponíveis no banco de dados.', 'info');
+                    addLog('💡 Você pode criar cardápios e gerar listas de compras.', 'info');
+                }
+
+            } catch (error) {
+                addLog(`❌ ERRO FATAL: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                btnImport.disabled = false;
+            }
+        }
+
+        // Log inicial
+        addLog('👋 Pronto para importar. Clique no botão para iniciar.', 'info');
+        addLog('💡 Ou clique em "Verificar" para ver quantos ingredientes já existem.', 'info');
+    </script>
+</body>
+</html>

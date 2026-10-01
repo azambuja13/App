@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix: Ingredientes em Cardápios Salvos</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #ff5722;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .log div {
+            margin: 4px 0;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        .warning { color: #ff9800; }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix: Ingredientes em Cardápios Salvos</h1>
+        <div class="description">
+            <p><strong>Problema:</strong> Cardápios salvos antigos não têm os ingredientes dos pratos, então a lista de compras aparece "Sem nome" com R$ 0,00.</p>
+            <p><strong>Solução:</strong> Este script vai buscar os ingredientes de cada prato no banco de dados PostgreSQL e atualizar os cardápios salvos.</p>
+            <p><strong>⚠️ Importante:</strong> Você precisa ter feito login na aplicação principal pelo menos uma vez.</p>
+        </div>
+
+        <button id="btnFix" onclick="runFix()">▶️ Corrigir Cardápios</button>
+        <button onclick="window.location.reload()">🔄 Recarregar Página</button>
+
+        <div id="log" class="log" style="display: none;"></div>
+        <div id="summary" class="summary" style="display: none;"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const summaryDiv = document.getElementById('summary');
+        const btnFix = document.getElementById('btnFix');
+
+        // Configuração da API
+        const API_BASE_URL = 'https://precificacao-api-production.up.railway.app/api';
+
+        function addLog(message, type = 'info') {
+            log.style.display = 'block';
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showSummary(stats) {
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = `
+                <h3>📊 Resumo</h3>
+                <p><strong>Total de cardápios:</strong> ${stats.total}</p>
+                <p><strong>✅ Atualizados:</strong> ${stats.updated}</p>
+                <p><strong>⏭️ Ignorados:</strong> ${stats.skipped}</p>
+                <p><strong>❌ Erros:</strong> ${stats.errors}</p>
+            `;
+        }
+
+        // Buscar token de autenticação do localStorage e sessionStorage
+        function getAuthToken() {
+            // 1. Tentar pegar do sessionStorage primeiro (usado após login)
+            const sessionLicense = sessionStorage.getItem('temp_license');
+            if (sessionLicense) {
+                console.log('🔑 Token encontrado em sessionStorage.temp_license');
+                return sessionLicense;
+            }
+
+            // 2. Tentar pegar do appState (localStorage)
+            const appState = localStorage.getItem('appState');
+            if (appState) {
+                try {
+                    const state = JSON.parse(appState);
+                    if (state.licenseKey) {
+                        console.log('🔑 Token encontrado em localStorage.appState.licenseKey');
+                        return state.licenseKey;
+                    }
+                } catch (e) {
+                    console.error('Erro ao parsear appState:', e);
+                }
+            }
+
+            // 3. Tentar pegar do sessionState (localStorage)
+            const sessionState = localStorage.getItem('sessionState');
+            if (sessionState) {
+                try {
+                    const state = JSON.parse(sessionState);
+                    if (state.token) {
+                        console.log('🔑 Token encontrado em localStorage.sessionState.token');
+                        return state.token;
+                    }
+                } catch (e) {
+                    console.error('Erro ao parsear sessionState:', e);
+                }
+            }
+
+            // 4. Tentar pegar direto do localStorage
+            const directLicense = localStorage.getItem('licenseKey') || localStorage.getItem('authToken');
+            if (directLicense) {
+                console.log('🔑 Token encontrado em localStorage direto');
+                return directLicense;
+            }
+
+            // 5. Tentar pegar do sessionStorage direto
+            const sessionToken = sessionStorage.getItem('licenseKey') || sessionStorage.getItem('authToken');
+            if (sessionToken) {
+                console.log('🔑 Token encontrado em sessionStorage direto');
+                return sessionToken;
+            }
+
+            console.error('❌ Token não encontrado em nenhum local:', {
+                sessionStorage_temp_license: !!sessionStorage.getItem('temp_license'),
+                localStorage_appState: !!localStorage.getItem('appState'),
+                localStorage_licenseKey: !!localStorage.getItem('licenseKey'),
+                sessionStorage_licenseKey: !!sessionStorage.getItem('licenseKey')
+            });
+
+            return null;
+        }
+
+        // Fazer chamada à API
+        async function apiCall(endpoint, options = {}) {
+            const token = getAuthToken();
+            if (!token) {
+                throw new Error('Token de autenticação não encontrado');
+            }
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function runFix() {
+            btnFix.disabled = true;
+            log.innerHTML = '';
+            summaryDiv.style.display = 'none';
+
+            addLog('🔄 Iniciando correção...', 'info');
+
+            try {
+                // Verificar autenticação
+                const token = getAuthToken();
+                if (!token) {
+                    addLog('❌ ERRO: Token de autenticação não encontrado!', 'error');
+                    addLog('', 'info');
+                    addLog('💡 Solução:', 'info');
+                    addLog('1. Abra https://precificacao-cloud-production.up.railway.app', 'info');
+                    addLog('2. Faça login normalmente', 'info');
+                    addLog('3. Volte aqui e tente novamente', 'info');
+                    return;
+                }
+
+                addLog(`🔑 Token encontrado: ${token.substring(0, 20)}...`, 'success');
+                addLog('', 'info');
+
+                // Buscar cardápios
+                addLog(`📂 Buscando cardápios salvos...`, 'info');
+                const menusResponse = await apiCall('/saved-menus');
+                const menus = menusResponse.data || [];
+
+                addLog(`📊 Total de cardápios encontrados: ${menus.length}`, 'info');
+                addLog('', 'info');
+
+                let stats = {
+                    total: menus.length,
+                    updated: 0,
+                    skipped: 0,
+                    errors: 0
+                };
+
+                // Processar cada cardápio
+                for (const menu of menus) {
+                    try {
+                        const menuName = menu.name || 'Sem nome';
+
+                        // Extrair dishes do menuData
+                        let dishes = menu.menuData?.dishes || menu.dishes || [];
+
+                        if (!dishes || dishes.length === 0) {
+                            addLog(`⏭️  "${menuName}" - Sem pratos - SKIP`, 'warning');
+                            stats.skipped++;
+                            continue;
+                        }
+
+                        addLog(`🍽️  "${menuName}" - ${dishes.length} pratos`, 'info');
+
+                        let needsUpdate = false;
+                        const updatedDishes = [];
+
+                        // Processar cada prato
+                        for (const dish of dishes) {
+                            const dishIngredients = dish.dishIngredients || [];
+
+                            // Se já tem ingredientes, manter como está
+                            if (dishIngredients.length > 0) {
+                                addLog(`   ✓ "${dish.dishName}" - Já tem ${dishIngredients.length} ingredientes`, 'success');
+                                updatedDishes.push(dish);
+                                continue;
+                            }
+
+                            // Buscar ingredientes do prato original
+                            if (dish.dishId) {
+                                addLog(`   🔍 "${dish.dishName}" - Buscando ingredientes...`, 'info');
+                                try {
+                                    const dishResponse = await apiCall(`/dishes/${dish.dishId}`);
+                                    const originalDish = dishResponse.data;
+
+                                    if (originalDish && originalDish.ingredients && originalDish.ingredients.length > 0) {
+                                        dish.dishIngredients = originalDish.ingredients;
+                                        dish.totalWeight = originalDish.totalWeight || dish.totalWeight || 0;
+                                        dish.dishCost = originalDish.totalCost || dish.dishCost || 0;
+                                        dish.servings = originalDish.servings || dish.servings || 1;
+
+                                        addLog(`   ✅ "${dish.dishName}" - ${originalDish.ingredients.length} ingredientes recuperados`, 'success');
+                                        needsUpdate = true;
+                                    } else {
+                                        addLog(`   ⚠️  "${dish.dishName}" - Prato sem ingredientes no banco`, 'warning');
+                                    }
+                                } catch (error) {
+                                    addLog(`   ⚠️  "${dish.dishName}" - Erro: ${error.message}`, 'warning');
+                                }
+                            } else {
+                                addLog(`   ⚠️  "${dish.dishName}" - Sem dishId`, 'warning');
+                            }
+
+                            updatedDishes.push(dish);
+                        }
+
+                        // Se precisa atualizar, salvar cardápio
+                        if (needsUpdate) {
+                            const updatedMenuData = {
+                                ...menu.menuData,
+                                dishes: updatedDishes
+                            };
+
+                            const updateData = {
+                                name: menu.name,
+                                description: menu.description,
+                                menuData: updatedMenuData
+                            };
+
+                            await apiCall(`/saved-menus/${menu.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify(updateData)
+                            });
+
+                            addLog(`✅ "${menuName}" - Atualizado com sucesso!`, 'success');
+                            stats.updated++;
+                        } else {
+                            addLog(`⏭️  "${menuName}" - Nada a atualizar - SKIP`, 'warning');
+                            stats.skipped++;
+                        }
+
+                        addLog('', 'info');
+
+                    } catch (error) {
+                        addLog(`❌ Erro ao processar "${menu.name}": ${error.message}`, 'error');
+                        stats.errors++;
+                    }
+                }
+
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                addLog('✅ Correção concluída!', 'success');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+
+                showSummary(stats);
+
+                if (stats.updated > 0) {
+                    addLog('', 'info');
+                    addLog('💡 Agora você pode gerar a lista de compras normalmente!', 'info');
+                }
+
+            } catch (error) {
+                addLog(`❌ ERRO FATAL: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                btnFix.disabled = false;
+            }
+        }
+
+        // Log inicial
+        addLog('👋 Pronto para corrigir. Clique no botão para iniciar.', 'info');
+    </script>
+</body>
+</html>

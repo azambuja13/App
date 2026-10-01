@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Calculadora de Precificação</title>
+
+    <!-- Tailwind CSS (Compiled via PostCSS) -->
+    <link rel="stylesheet" href="styles/output.css">
+
+    <!-- Mobile Optimizations CSS -->
+    <link rel="stylesheet" href="mobile-optimizations.css">
+
+    <!-- React 18 (PRODUCTION BUILD) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js?v=1761859321"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js?v=1761859321"></script>
+
+    <!-- jsPDF e html2canvas: SEMPRE CARREGADOS (necessário para WhatsApp) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js?v=1761859321"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js?v=1761859321"></script>
+    <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1761859321"></script> -->
+
+    <!-- Socket.io para WebSocket -->
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js?v=1761859321"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <!-- Container Principal -->
+    <div id="root"></div>
+
+    <!-- ===== INDEXEDDB BLOCKER (MUST BE FIRST!) ===== -->
+    <!-- CRITICAL: Este script DEVE ser o primeiro para interceptar todas as chamadas de IndexedDB -->
+    <script src="config/indexeddb-blocker.js?v=1761859321"></script>
+
+    <!-- ===== CORE MODULES ===== -->
+    <script src="config/app-config.js?v=1761859321"></script>
+
+    <!-- ===== CONDITIONAL LOADING - default-ingredients.js ===== -->
+    <!-- Carregado APENAS em modo OFFLINE, após app-config.js estar pronto -->
+    <script>
+        (function() {
+            // Aguardar window.APP_CONFIG estar disponível
+            function checkAndLoadIngredients() {
+                if (window.APP_CONFIG && window.APP_CONFIG.appMode) {
+                    console.log(`📋 [Conditional Load] Modo detectado: ${window.APP_CONFIG.appMode}`);
+
+                    if (window.APP_CONFIG.appMode === 'OFFLINE') {
+                        console.log('✅ [Conditional Load] OFFLINE - carregando default-ingredients.js');
+                        const script = document.createElement('script');
+                        script.src = 'config/default-ingredients.js';
+                        document.head.appendChild(script);
+                    } else {
+                        console.log('⏭️ [Conditional Load] ONLINE/CLOUD - default-ingredients.js NÃO carregado');
+                    }
+                } else {
+                    // APP_CONFIG ainda não disponível, tentar novamente
+                    setTimeout(checkAndLoadIngredients, 10);
+                }
+            }
+
+            checkAndLoadIngredients();
+        })();
+    </script>
+
+    <!-- API Client - Backend Integration (CLOUD only) -->
+    <script src="api-client.js?v=1761859321"></script>
+
+    <!-- Storage Adapters - Sistema de storage por plano -->
+    <script src="adapters/StorageAdapter.js?v=1761859321"></script>
+    <script src="adapters/LocalStorageAdapter.js?v=1761859321"></script>
+    <script src="adapters/IndexedDBAdapter.js?v=1761859321"></script>
+    <script src="adapters/CloudStorageAdapter.js?v=1761859321"></script>
+    <script src="adapters/StorageManager.js?v=1761859321"></script>
+
+    <!-- IndexedDB Storage Helper -->
+    <!-- Smart Storage - Roteador inteligente de storage por licença -->
+    <script type="module" src="utils/smart-storage.js?v=1761859321"></script>
+    <script src="utils/indexeddb-storage-helper.js?v=1761859321"></script>
+
+    <!-- Manager Helper - Prioriza backend sobre local -->
+    <script src="utils/manager-helper.js?v=1761859321"></script>
+
+    <!-- Lazy Loader - Carrega jsPDF/XLSX sob demanda -->
+    <script src="utils/lazy-loader.js?v=1761859321"></script>
+
+    <!-- Markdown to PDF Converter -->
+    <script src="utils/markdown-to-pdf.js?v=1761859321"></script>
+
+    <!-- IMPORTANTE: IndexedDBStorageService DEVE ser carregado ANTES de session-auth.js -->
+    <script src="adapters/IndexedDBStorageService.js?v=1761859321"></script>
+
+    <!-- Ingredients Service - Híbrido (API + Fallback) -->
+    <script type="module" src="services/IngredientsService.js?v=1761859321"></script>
+    <script src="utils/ingredients-loader.js?v=1761859321"></script>
+
+    <!-- WebSocket Service - Sincronização em tempo real -->
+    <script type="module" src="services/websocket.js?v=1761859321"></script>
+
+    <script src="core/security-check.js?v=1761859321"></script>
+    <script src="core/formatters.js?v=1761859321"></script>
+
+    <!-- Máscara de Telefone -->
+    <script type="module" src="utils/phone-mask.js?v=1761859321"></script>
+
+    <!-- IMPORTANTE: PasswordManager e LicenseValidator devem ser carregados ANTES de session-auth.js -->
+    <script src="core/PasswordManager.js?v=1761859321"></script>
+    <script src="core/LicenseValidator.js?v=1761859321"></script>
+
+    <script src="machine-fingerprint.js?v=1761859321"></script>
+    <script src="session-auth.js?t=1761570586"></script>
+    <!-- <script src="add-password-fields.js?v=1761859321"></script> --> <!-- Desabilitado - LicenseActivation.jsx já gerencia senha -->
+
+    <!-- ===== UTILITY MODULES ===== -->
+    <!-- Módulos utilitários centralizados para evitar duplicação -->
+    <script type="module">
+        // Carregar módulos de utilidades
+        import * as lossCalculations from './core/utils/lossCalculations.js';
+        import * as unitConversions from './core/utils/unitConversions.js';
+        import * as dataTransform from './core/utils/dataTransform.js';
+        import { isDishPortionBased } from './core/calculations.js';
+
+        // Expor no window para uso global
+        window.lossCalculations = lossCalculations;
+        window.unitConversions = unitConversions;
+        window.dataTransform = dataTransform;
+        window.isDishPortionBased = isDishPortionBased;
+
+        console.log('✅ Módulos utilitários carregados:');
+        console.log('  - lossCalculations (cálculos de perda)');
+        console.log('  - unitConversions (conversão de unidades)');
+        console.log('  - dataTransform (normalização de dados)');
+        console.log('  - isDishPortionBased (detecção de prato por porção)');
+    </script>
+
+    <!-- Sistema de Eventos Salvos - Carregado via módulo -->
+    <script>
+        // SavedEventsManager será carregado via core/index.js pelos componentes
+        console.log('⏳ Aguardando carregamento dos módulos...');
+    </script>
+
+    <!-- Managers Premium -->
+    <script type="module" src="init-managers.js?v=1761859321"></script>
+    <script src="core/MenuManager-standalone.js?v=1761859321"></script>
+    <!-- ClientManager carregado via init-managers.js -->
+    <!-- <script src="core/ClientManager.js?v=1761859321"></script> -->
+    <script src="core/CustomTemplateManager.js?v=1761859321"></script>
+
+    <!-- ===== UI COMPONENTS - PREMIUM ===== -->
+    <script src="ui-compiled/FeatureGate.js?v=1761859321"></script>
+    <script src="ui-compiled/UpgradeModal.js?v=1761859321"></script>
+    <script src="ui-compiled/DishForm.js?v=1761859321"></script>
+    <script src="ui-compiled/DishList.js?v=1761859321"></script>
+    <script src="ui-compiled/DishesPage.js?v=1761859321"></script>
+    <script src="ui-compiled/SaveMenuModal.js?v=1761859321"></script>
+    <script src="ui-compiled/MenuPreview.js?v=1761859321"></script>
+    <script src="ui-compiled/MenuPage.js?v=1761936022"></script>
+    <script src="ui-compiled/SavedMenusList.js?v=1761859321"></script>
+    <script src="ui-compiled/ProposalBuilder.js?v=1761859321"></script>
+    <script src="ui-compiled/ClientsPage.js?v=1761859321"></script>
+    <script src="ui-compiled/EventsPage.js?v=1761859321"></script>
+    <script src="ui-compiled/ProposalBuilderSimple.js?v=1761859321"></script>
+    <script src="ui-compiled/ProposalPreview.js?v=1761859321"></script>
+    <script src="ui-compiled/ProposalList-v2.js?v=1761859321"></script>
+    <script src="ui-compiled/WhatsAppSettings.js?v=1761859321"></script>
+    <script src="ui-compiled/UnitConverter.js?v=1761859321"></script>
+
+    <!-- ===== UI COMPONENTS - MAIN ===== -->
+    <script src="ui-compiled/components/Icon.js?v=1761859321"></script>
+    <script src="ui-compiled/components/PDFButton.js?v=1761859321"></script>
+    <script src="ui-compiled/components/EventForm.js?v=1761859321"></script>
+    <script src="ui-compiled/components/CostsSummary.js?v=1761859321"></script>
+    <script src="ui-compiled/components/ItemsList.js?v=1761859321"></script>
+    <script src="ui-compiled/components/IngredientTemplates.js?v=1761859321"></script>
+    <script src="ui-compiled/components/RecipeImporter.js?v=1761859321"></script>
+    <script src="ui-compiled/components/MenuGenerator.js?v=1761938961"></script>
+    <script src="ui-compiled/components/IngredientsDatabase.js?v=1761859321"></script>
+    <script src="ui-compiled/components/SupportList.js?v=1761859321"></script>
+    <script src="ui-compiled/components/TransportForm.js?v=1761859321"></script>
+    <script src="ui-compiled/components/LaborForm.js?v=1761859321"></script>
+    <script src="ui-compiled/components/SavedEventsList.js?v=1761859321"></script>
+    <script src="ui-compiled/components/LicenseActivation.js?v=1761859321"></script>
+    <script src="ui-compiled/components/PasswordLock.js?v=1761859321"></script>
+    <script src="ui-compiled/components/PasswordSetup.js?v=1761859321"></script>
+    <script src="ui-compiled/components/PasswordLogin.js?v=1761859321"></script>
+    <script src="ui-compiled/components/LoadingScreen.js?v=1761859321"></script>
+
+    <!-- ===== HOOKS ===== -->
+    <script src="ui/hooks/useEventState.js?v=1761859321"></script>
+    <script src="ui/hooks/useCalculations.js?v=1761859321"></script>
+
+    <!-- ===== APP FULL ===== -->
+    <script src="ui-compiled/App-Full.js?v=1761859321"></script>
+
+    <!-- Renderizar App -->
+    <script>
+        // Função para renderizar o app
+        function renderApp() {
+            console.log('🚀 Tentando renderizar AppFull...');
+
+            if (window.AppFull && window.ReactDOM && document.getElementById('root')) {
+                console.log('✅ Todos os componentes disponíveis, renderizando...');
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(React.createElement(window.AppFull));
+                console.log('✅ AppFull renderizado com sucesso!');
+            } else {
+                console.log('⏳ Aguardando componentes...', {
+                    AppFull: !!window.AppFull,
+                    ReactDOM: !!window.ReactDOM,
+                    rootElement: !!document.getElementById('root')
+                });
+                setTimeout(renderApp, 100);
+            }
+        }
+
+        // Iniciar renderização
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderApp);
+        } else {
+            renderApp();
+        }
+    </script>
+
+    <!-- Comandos úteis para o console -->
+    <script>
+        // Função para listar todas as propostas
+        window.listarPropostas = async function() {
+            console.log('📋 Listando todas as propostas...');
+
+            try {
+                if (!window.proposalManager) {
+                    console.error('❌ ProposalManager não encontrado. Aguarde o carregamento da página.');
+                    return;
+                }
+
+                const all = await window.proposalManager.getAll(false);
+
+                if (all.length === 0) {
+                    console.log('✅ Não há propostas cadastradas!');
+                    return;
+                }
+
+                console.log(`\n📊 Total: ${all.length} proposta(s):\n`);
+                all.forEach((p, index) => {
+                    console.log(`${index + 1}. ${p.proposalName || 'Sem nome'}`);
+                    console.log(`   ID: ${p.id}`);
+                    console.log(`   Tipo: ${p.proposalType || 'N/A'}`);
+                    console.log(`   Valor: R$ ${(p.finalTotal || 0).toFixed(2)}`);
+                    console.log(`   Criada em: ${p.createdAt || 'data desconhecida'}`);
+                    console.log('');
+                });
+
+            } catch (error) {
+                console.error('❌ Erro ao listar propostas:', error);
+            }
+        };
+
+        // Função para normalizar todas as categorias de ingredientes
+        window.normalizarCategorias = async function() {
+            console.log('🔄 Normalizando categorias de todos os ingredientes...');
+
+            try {
+                if (!window.eventState) {
+                    console.error('❌ eventState não encontrado');
+                    return;
+                }
+
+                // Descobrir onde os ingredientes estão armazenados
+                let ingredients = null;
+                let setIngredients = null;
+
+                // Tentar diferentes possíveis localizações
+                if (window.eventState.ingredients) {
+                    ingredients = window.eventState.ingredients;
+                    setIngredients = window.eventState.setIngredients;
+                } else if (window.eventState.eventData && window.eventState.eventData.ingredients) {
+                    ingredients = window.eventState.eventData.ingredients;
+                    setIngredients = (newIngredients) => {
+                        window.eventState.setEventData({
+                            ...window.eventState.eventData,
+                            ingredients: newIngredients
+                        });
+                    };
+                } else {
+                    // Tentar encontrar automaticamente procurando por arrays
+                    console.log('🔍 Procurando ingredientes no eventState...');
+                    for (const key of Object.keys(window.eventState)) {
+                        const value = window.eventState[key];
+                        if (Array.isArray(value) && value.length > 0 && value[0].name && value[0].category) {
+                            console.log(`✅ Encontrado em: eventState.${key}`);
+                            ingredients = value;
+                            const setterName = 'set' + key.charAt(0).toUpperCase() + key.slice(1);
+                            setIngredients = window.eventState[setterName];
+                            break;
+                        }
+                    }
+                }
+
+                if (!ingredients || ingredients.length === 0) {
+                    console.error('❌ Ingredientes não encontrados no eventState');
+                    console.log('💡 Execute: Object.keys(window.eventState) para ver propriedades disponíveis');
+                    return;
+                }
+
+                console.log(`📊 Total de ingredientes: ${ingredients.length}`);
+
+                // Importar função de normalização
+                if (!window.normalizeCategory) {
+                    console.error('❌ normalizeCategory não encontrada. Aguarde o carregamento completo da página.');
+                    return;
+                }
+
+                let changed = 0;
+                const normalized = ingredients.map(ing => {
+                    const oldCategory = ing.category;
+                    const newCategory = window.normalizeCategory(oldCategory);
+
+                    if (oldCategory !== newCategory) {
+                        console.log(`  🔄 "${ing.name}": "${oldCategory}" → "${newCategory}"`);
+                        changed++;
+                    }
+
+                    return {
+                        ...ing,
+                        category: newCategory
+                    };
+                });
+
+                if (changed === 0) {
+                    console.log('✅ Todas as categorias já estão normalizadas!');
+                    return;
+                }
+
+                console.log(`\n📊 Resumo: ${changed} ingredientes serão atualizados`);
+
+                const confirm = window.confirm(`Deseja normalizar ${changed} categoria(s)?\n\nIsso vai atualizar as categorias para os valores padrão.`);
+
+                if (!confirm) {
+                    console.log('❌ Operação cancelada');
+                    return;
+                }
+
+                // Atualizar no estado
+                if (setIngredients) {
+                    setIngredients(normalized);
+                    console.log('✅ Categorias normalizadas com sucesso!');
+                    console.log('💾 Salvando automaticamente...');
+                } else {
+                    console.error('❌ Função setter não encontrada para atualizar ingredientes');
+                }
+
+            } catch (error) {
+                console.error('❌ Erro ao normalizar categorias:', error);
+            }
+        };
+
+        // Função para inspecionar cardápio
+        window.inspecionarCardapio = async function() {
+            console.log('🔍 Inspecionando cardápio...\n');
+
+            const menuManager = window.menuManager;
+            if (!menuManager) {
+                console.error('❌ MenuManager não encontrado');
+                return;
+            }
+
+            const menu = await menuManager.getActiveMenu();
+            console.log(`📊 Total de pratos no cardápio: ${menu.length}\n`);
+
+            menu.forEach((item, index) => {
+                console.log(`${index + 1}. ${item.dishName}`);
+                console.log(`   💰 dishCost: R$ ${item.dishCost}`);
+                console.log(`   🍽️ servings: ${item.servings || item.dishServings || 'não definido'}`);
+                console.log(`   ⚖️ totalWeight: ${item.totalWeight}g`);
+                console.log(`   👤 portionsPerPerson: ${item.portionsPerPerson}`);
+                console.log('');
+            });
+        };
+
+        // Função para inspecionar cardápio salvo
+        window.inspecionarCardapioSalvo = async function(menuId) {
+            console.log('🔍 Inspecionando cardápio salvo...\n');
+
+            const savedMenusManager = window.savedMenusManager;
+            if (!savedMenusManager) {
+                console.error('❌ SavedMenusManager não encontrado');
+                return;
+            }
+
+            let menu;
+            if (menuId) {
+                menu = await savedMenusManager.getById(menuId);
+            } else {
+                const all = await savedMenusManager.getAll();
+                menu = all[all.length - 1]; // Pegar o último salvo
+            }
+
+            if (!menu) {
+                console.error('❌ Cardápio não encontrado');
+                return;
+            }
+
+            console.log(`📊 Cardápio: ${menu.name}`);
+            console.log(`📊 Total de pratos: ${menu.dishes?.length || 0}\n`);
+
+            if (menu.dishes) {
+                menu.dishes.forEach((dish, index) => {
+                    console.log(`${index + 1}. ${dish.dishName}`);
+                    console.log(`   💰 dishCost: R$ ${dish.dishCost}`);
+                    console.log(`   🍽️ servings: ${dish.servings || 'não definido'}`);
+                    console.log(`   ⚖️ totalWeight: ${dish.totalWeight}g`);
+                    console.log(`   👤 portionsPerPerson: ${dish.portionsPerPerson}`);
+                    console.log('');
+                });
+            }
+        };
+
+        console.log('✅ Comandos disponíveis:');
+        console.log('  📋 listarPropostas() - Lista todas as propostas');
+        console.log('  🏷️ normalizarCategorias() - Normaliza categorias de ingredientes');
+        console.log('  🔍 inspecionarCardapio() - Mostra dados dos pratos no cardápio');
+        console.log('  🔍 inspecionarCardapioSalvo() - Mostra dados do último cardápio salvo');
+    </script>
+</body>
+</html>

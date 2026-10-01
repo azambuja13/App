@@ -1,0 +1,27 @@
+{
+	"appId": "com.precificacao.app",
+	"appName": "Calculadora Precificação",
+	"webDir": "www",
+	"bundledWebRuntime": false,
+	"server": {
+		"cleartext": true,
+		"allowNavigation": [
+			"precificacao-cloud.pages.dev",
+			"precificacao-api-production.up.railway.app"
+		]
+	},
+	"ios": {
+		"contentInset": "automatic",
+		"backgroundColor": "#f3f4f6"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#f3f4f6",
+			"androidSplashResourceName": "splash",
+			"showSpinner": true,
+			"spinnerColor": "#3b82f6"
+		}
+	},
+	"packageClassList": []
+}

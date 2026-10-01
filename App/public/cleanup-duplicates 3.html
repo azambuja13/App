@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpeza de Eventos Duplicados</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #c0392b;
+        }
+        button.safe {
+            background: #3498db;
+        }
+        button.safe:hover {
+            background: #2980b9;
+        }
+        #log {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .info {
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpeza de Eventos Duplicados</h1>
+        <p>Esta ferramenta irá remover eventos duplicados do backend.</p>
+
+        <div>
+            <label for="email">Email:</label><br>
+            <input type="email" id="email" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px;"
+                   placeholder="seu@email.com">
+        </div>
+
+        <div>
+            <label for="password">Senha:</label><br>
+            <input type="password" id="password" style="width: 100%; padding: 8px; margin-top: 5px;"
+                   placeholder="Sua senha">
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button class="safe" onclick="listEvents()">📋 Listar Eventos</button>
+            <button onclick="cleanupDuplicates()">🧹 Limpar Duplicados</button>
+        </div>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://precificacao-api-production.up.railway.app';
+        let token = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logDiv.innerHTML += `<div class="${className}">${new Date().toLocaleTimeString()} - ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function authenticate() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!email || !password) {
+                log('❌ Por favor, preencha email e senha', 'error');
+                return false;
+            }
+
+            try {
+                log('🔐 Autenticando...', 'info');
+                log(`📡 Enviando para: ${API_URL}/api/auth/login`, 'info');
+
+                const response = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                log(`📊 Status HTTP: ${response.status} ${response.statusText}`, 'info');
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    log(`❌ Erro HTTP ${response.status}: ${text.substring(0, 200)}`, 'error');
+
+                    if (response.status === 400) {
+                        log('💡 Dica: Verifique se a chave de licença está correta', 'info');
+                    } else if (response.status === 429) {
+                        log('💡 Dica: Aguarde alguns minutos e tente novamente', 'info');
+                    }
+                    return false;
+                }
+
+                const result = await response.json();
+                if (result.success && result.data) {
+                    token = result.data.accessToken;
+                    log('✅ Autenticado com sucesso', 'success');
+                    log(`👤 Usuário: ${result.data.user.email}`, 'info');
+                    return true;
+                } else {
+                    log(`❌ Erro na autenticação: ${result.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Erro ao autenticar: ${error.message}`, 'error');
+                log(`📋 Stack: ${error.stack}`, 'error');
+                return false;
+            }
+        }
+
+        async function listEvents() {
+            if (!await authenticate()) return;
+
+            try {
+                log('📋 Carregando eventos...', 'info');
+                const response = await fetch(`${API_URL}/api/events`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    const events = result.data || result.events || [];
+                    log(`✅ ${events.length} eventos encontrados:`, 'success');
+
+                    // Agrupar por nome
+                    const grouped = {};
+                    events.forEach(event => {
+                        const name = event.name || event.eventName || 'Sem nome';
+                        if (!grouped[name]) grouped[name] = [];
+                        grouped[name].push(event);
+                    });
+
+                    // Mostrar agrupados
+                    Object.keys(grouped).forEach(name => {
+                        const count = grouped[name].length;
+                        const ids = grouped[name].map(e => e.id).join(', ');
+                        const style = count > 1 ? 'color: orange; font-weight: bold;' : '';
+                        log(`  <span style="${style}">• ${name} (${count}x)</span>`, 'info');
+                        if (count > 1) {
+                            log(`    IDs: ${ids}`, 'info');
+                        }
+                    });
+                } else {
+                    log(`❌ Erro ao listar eventos: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function cleanupDuplicates() {
+            if (!confirm('⚠️ ATENÇÃO: Esta ação irá remover eventos duplicados, mantendo apenas o mais recente de cada grupo.\n\nDeseja continuar?')) {
+                return;
+            }
+
+            if (!await authenticate()) return;
+
+            try {
+                log('🧹 Iniciando limpeza de duplicados...', 'info');
+
+                // Carregar eventos
+                const response = await fetch(`${API_URL}/api/events`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    log(`❌ Erro ao carregar eventos: ${result.message}`, 'error');
+                    return;
+                }
+
+                const events = result.data || result.events || [];
+                log(`📊 ${events.length} eventos encontrados`, 'info');
+
+                // Agrupar por nome
+                const grouped = {};
+                events.forEach(event => {
+                    const name = event.name || event.eventName || 'Sem nome';
+                    if (!grouped[name]) grouped[name] = [];
+                    grouped[name].push(event);
+                });
+
+                // Processar cada grupo
+                let deletedCount = 0;
+                for (const [name, group] of Object.entries(grouped)) {
+                    if (group.length > 1) {
+                        log(`🔍 Processando grupo "${name}" (${group.length} eventos)`, 'info');
+
+                        // Ordenar por data de criação (mais recente primeiro)
+                        group.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                        // Manter o primeiro (mais recente), deletar os outros
+                        const toKeep = group[0];
+                        const toDelete = group.slice(1);
+
+                        log(`  ✅ Mantendo: ${toKeep.id} (${new Date(toKeep.createdAt).toLocaleString()})`, 'success');
+
+                        for (const event of toDelete) {
+                            try {
+                                const deleteResponse = await fetch(`${API_URL}/api/events/${event.id}`, {
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+
+                                const deleteResult = await deleteResponse.json();
+                                if (deleteResult.success) {
+                                    log(`  🗑️ Deletado: ${event.id} (${new Date(event.createdAt).toLocaleString()})`, 'info');
+                                    deletedCount++;
+                                } else {
+                                    log(`  ❌ Erro ao deletar ${event.id}: ${deleteResult.message}`, 'error');
+                                }
+                            } catch (error) {
+                                log(`  ❌ Erro ao deletar ${event.id}: ${error.message}`, 'error');
+                            }
+                        }
+                    }
+                }
+
+                log(`✅ Limpeza concluída! ${deletedCount} eventos duplicados removidos`, 'success');
+                log('💡 Recarregue a página da aplicação para ver as mudanças', 'info');
+
+            } catch (error) {
+                log(`❌ Erro na limpeza: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

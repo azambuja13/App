@@ -1,0 +1,14 @@
+{
+  "name": "calculadora-precificacao-cloud",
+  "version": "1.0.18",
+  "description": "Calculadora de Precificação - Versão CLOUD",
+  "type": "module",
+  "scripts": {
+    "dev": "npx http-server . -p 8000 -o",
+    "start": "npx http-server . -p ${PORT:-8000}"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "http-server": "^14.1.1"
+  }
+}

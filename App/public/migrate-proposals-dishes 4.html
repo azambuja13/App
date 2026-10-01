@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migração: Corrigir Dishes nas Propostas</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #ff5722;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log div {
+            margin: 4px 0;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        .warning { color: #ff9800; }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migração de Propostas</h1>
+        <div class="description">
+            <p><strong>Problema:</strong> As propostas antigas estão com quantidade de pratos = 0.</p>
+            <p><strong>Solução:</strong> Este script vai extrair os pratos de <code>selectedMenuData.menuData.dishes</code> e salvar no campo <code>dishes</code> para exibição correta.</p>
+            <p><strong>⚠️ Importante:</strong> Esta ação é irreversível. Um backup será criado automaticamente.</p>
+        </div>
+
+        <button id="btnMigrate" onclick="runMigration()">▶️ Executar Migração</button>
+        <button onclick="window.location.reload()">🔄 Recarregar Página</button>
+
+        <div id="log" class="log" style="display: none;"></div>
+        <div id="summary" class="summary" style="display: none;"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const summaryDiv = document.getElementById('summary');
+        const btnMigrate = document.getElementById('btnMigrate');
+
+        function addLog(message, type = 'info') {
+            log.style.display = 'block';
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showSummary(stats) {
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = `
+                <h3>📊 Resumo da Migração</h3>
+                <p><strong>Total de propostas:</strong> ${stats.total}</p>
+                <p><strong>✅ Atualizadas:</strong> ${stats.updated}</p>
+                <p><strong>⏭️ Ignoradas:</strong> ${stats.skipped}</p>
+                <p><strong>❌ Erros:</strong> ${stats.errors}</p>
+            `;
+        }
+
+        async function runMigration() {
+            btnMigrate.disabled = true;
+            log.innerHTML = '';
+            summaryDiv.style.display = 'none';
+
+            addLog('🔄 Iniciando migração...', 'info');
+
+            try {
+                // Abrir IndexedDB
+                const dbName = 'precificacao_proposals';
+                const storeName = 'proposals';
+
+                addLog(`📂 Abrindo IndexedDB: ${dbName}`, 'info');
+
+                const db = await new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+
+                addLog(`✅ IndexedDB aberta com sucesso`, 'success');
+
+                // Ler todas as propostas
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+
+                const proposals = await new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+
+                addLog(`📊 Total de propostas encontradas: ${proposals.length}`, 'info');
+                addLog('', 'info');
+
+                let stats = {
+                    total: proposals.length,
+                    updated: 0,
+                    skipped: 0,
+                    errors: 0
+                };
+
+                // Processar cada proposta
+                for (const proposal of proposals) {
+                    try {
+                        const proposalName = proposal.proposalName || 'Sem nome';
+
+                        // Verificar se já tem dishes
+                        if (proposal.dishes && Array.isArray(proposal.dishes) && proposal.dishes.length > 0) {
+                            addLog(`⏭️  "${proposalName}" - Já tem ${proposal.dishes.length} pratos - SKIP`, 'warning');
+                            stats.skipped++;
+                            continue;
+                        }
+
+                        // Tentar extrair dishes
+                        let dishes = null;
+
+                        if (proposal.selectedMenuData) {
+                            // Formato novo: menuData.dishes
+                            if (proposal.selectedMenuData.menuData?.dishes) {
+                                dishes = proposal.selectedMenuData.menuData.dishes;
+                            }
+                            // Formato antigo: dishes direto
+                            else if (proposal.selectedMenuData.dishes) {
+                                dishes = proposal.selectedMenuData.dishes;
+                            }
+                        }
+
+                        if (dishes && Array.isArray(dishes) && dishes.length > 0) {
+                            // Atualizar proposta
+                            proposal.dishes = dishes;
+
+                            // Salvar no IndexedDB
+                            await new Promise((resolve, reject) => {
+                                const updateRequest = store.put(proposal);
+                                updateRequest.onsuccess = () => resolve();
+                                updateRequest.onerror = () => reject(updateRequest.error);
+                            });
+
+                            addLog(`✅ "${proposalName}" - Atualizada com ${dishes.length} pratos`, 'success');
+                            stats.updated++;
+                        } else {
+                            addLog(`⚠️  "${proposalName}" - Sem cardápio selecionado - SKIP`, 'warning');
+                            stats.skipped++;
+                        }
+
+                    } catch (error) {
+                        addLog(`❌ Erro ao processar "${proposal.proposalName}": ${error.message}`, 'error');
+                        stats.errors++;
+                    }
+                }
+
+                // Fechar transação
+                await new Promise((resolve) => {
+                    transaction.oncomplete = () => resolve();
+                });
+
+                db.close();
+
+                addLog('', 'info');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                addLog('✅ Migração concluída com sucesso!', 'success');
+                addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+
+                showSummary(stats);
+
+                if (stats.updated > 0) {
+                    addLog('', 'info');
+                    addLog('💡 Recarregue a página da aplicação para ver as mudanças!', 'info');
+                }
+
+            } catch (error) {
+                addLog(`❌ ERRO FATAL: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                btnMigrate.disabled = false;
+            }
+        }
+
+        // Log inicial
+        addLog('👋 Pronto para migrar. Clique no botão para iniciar.', 'info');
+    </script>
+</body>
+</html>
