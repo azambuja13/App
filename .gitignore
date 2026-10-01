@@ -1,0 +1,12 @@
+# CocoaPods — gerado pelo ci_post_clone.sh / pod install, nao versionar
+Pods/
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.ipa
+*.dSYM.zip
+*.dSYM
