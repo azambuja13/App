@@ -907,7 +907,7 @@ function DishCard({
     className: "w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium",
     title: "Imprimir Ficha T\xE9cnica"
   }, "\uD83D\uDDA8\uFE0F Imprimir Ficha T\xE9cnica"), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => onToggleFavorite(dish.id),
     className: "flex-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"

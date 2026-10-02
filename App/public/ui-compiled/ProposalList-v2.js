@@ -625,7 +625,7 @@ function ProposalCard({
   }, "+", proposal.dishes.length - 5, " mais"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-2 pt-4 border-t"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, proposal.status === 'draft' && /*#__PURE__*/React.createElement("button", {
     onClick: () => onUpdateStatus(proposal.id, 'sent'),
     className: "px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -636,7 +636,7 @@ function ProposalCard({
     onClick: () => onUpdateStatus(proposal.id, 'rejected'),
     className: "px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
   }, "\u274C Rejeitar"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onPreview,
     className: "px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 text-sm font-medium"
