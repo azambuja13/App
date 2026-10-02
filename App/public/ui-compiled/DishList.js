@@ -602,9 +602,9 @@ function DishList({
   })() : '-')))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-4"
+    className: "flex flex-wrap items-center justify-between gap-3 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 max-w-md"
+    className: "flex-1 min-w-[200px] max-w-md"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: searchTerm,
@@ -612,22 +612,22 @@ function DishList({
     placeholder: "\uD83D\uDD0D Buscar pratos...",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   })), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex border border-gray-300 rounded-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setViewMode('grid'),
     className: `px-3 py-2 ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`
-  }, "\u25A6"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement(Icon, { type: "grid", className: "w-5 h-5" })), /*#__PURE__*/React.createElement("button", {
     onClick: () => setViewMode('list'),
     className: `px-3 py-2 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`
-  }, "\u2630")), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement(Icon, { type: "list", className: "w-5 h-5" }))), /*#__PURE__*/React.createElement("button", {
     onClick: handleExport,
     className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
   }, "\uD83D\uDCE5 Exportar"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-4"
+    className: "flex flex-wrap items-center gap-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, categories.map(cat => /*#__PURE__*/React.createElement("button", {
     key: cat.value,
     onClick: () => setCategoryFilter(cat.value),

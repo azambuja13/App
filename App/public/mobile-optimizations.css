@@ -140,9 +140,13 @@
        TABELAS E LISTAS
        ============================================ */
 
-    /* Tabelas - Scroll horizontal */
+    /* Tabelas - o scroll horizontal fica por conta do wrapper
+       .overflow-x-auto de cada componente. Nao forcamos mais
+       "display: block" na table: isso quebrava o alinhamento de
+       colunas entre thead e tbody (cada linha virava uma "tabela
+       anonima" independente no WebKit), bagunçando o cabecalho em
+       varias telas (Apoio & Logistica, Itens do Evento, etc). */
     table {
-        display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         font-size: 14px !important;
@@ -155,9 +159,10 @@
         white-space: nowrap;
     }
 
-    /* Primeira coluna (nome) */
+    /* Primeira coluna: fica fixa ao rolar tabelas largas horizontalmente,
+       mas sem forcar uma largura minima de 140px - isso quebrava tabelas
+       cuja 1a coluna e so um checkbox (ex: Apoio & Logistica) */
     td:first-child, th:first-child {
-        min-width: 140px !important;
         position: sticky;
         left: 0;
         background: white;
