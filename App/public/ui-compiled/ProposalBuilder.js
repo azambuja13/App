@@ -276,7 +276,7 @@ function ProposalBuilder({
   }, errors.proposalName)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Tipo de Proposta *"), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-3 gap-4"
+    className: "grid grid-cols-1 sm:grid-cols-3 gap-4"
   }, proposalTypes.map(type => /*#__PURE__*/React.createElement("button", {
     key: type.value,
     onClick: () => handleChange('proposalType', type.value),
@@ -304,7 +304,7 @@ function ProposalBuilder({
     key: dish.id,
     className: "border border-gray-200 rounded-lg p-4 bg-gray-50"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-3"
+    className: "flex flex-wrap items-center justify-between gap-2 mb-3"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
     className: "font-bold text-gray-800"
   }, index + 1, ". ", dish.dishName), /*#__PURE__*/React.createElement("p", {
@@ -313,7 +313,7 @@ function ProposalBuilder({
     onClick: () => handleRemoveDish(dish.id),
     className: "text-red-500 hover:text-red-700 font-bold"
   }, "\uD83D\uDDD1\uFE0F Remover")), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-4 gap-3"
+    className: "grid grid-cols-2 sm:grid-cols-4 gap-3"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "text-xs text-gray-600 font-medium"
   }, "Por\xE7\xF5es"), /*#__PURE__*/React.createElement("input", {
@@ -363,7 +363,7 @@ function ProposalBuilder({
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-semibold text-gray-700 mb-4"
   }, "\uD83D\uDCB0 Custos Adicionais"), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-3 gap-4"
+    className: "grid grid-cols-1 sm:grid-cols-3 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-1"
   }, "\uD83D\uDE9A Transporte (R$)"), /*#__PURE__*/React.createElement("input", {

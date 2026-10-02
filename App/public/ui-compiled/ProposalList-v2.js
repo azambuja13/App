@@ -377,7 +377,7 @@ function ProposalList({
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold mb-4"
   }, "\uD83D\uDCCB Minhas Propostas"), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-4 gap-4"
+    className: "grid grid-cols-2 md:grid-cols-4 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Total de Propostas"), /*#__PURE__*/React.createElement("p", {
@@ -439,7 +439,7 @@ function ProposalList({
   }), /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-medium text-gray-700"
   }, "Selecionar todas (", filteredProposals.length, ")"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-2"
+    className: "flex flex-wrap items-center gap-2"
   }, statuses.map(status => /*#__PURE__*/React.createElement("button", {
     key: status.value,
     onClick: () => setStatusFilter(status.value),
@@ -576,7 +576,7 @@ function ProposalCard({
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center space-x-3 mb-2"
+    className: "flex flex-wrap items-center gap-3 mb-2"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold text-gray-800"
   }, proposal.proposalName), /*#__PURE__*/React.createElement("span", {
@@ -586,7 +586,7 @@ function ProposalCard({
   }, typeBadge.icon, " ", typeBadge.label)), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600"
   }, "\uD83D\uDCCB ", proposal.proposalNumber, " \u2022 \uD83D\uDCC5 ", window.formatDate(proposal.createdAt))))), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-4 gap-4 mb-4"
+    className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-50 rounded-lg p-3"
   }, /*#__PURE__*/React.createElement("p", {

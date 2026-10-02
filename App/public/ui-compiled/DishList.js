@@ -579,7 +579,7 @@ function DishList({
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold mb-4"
   }, "\uD83C\uDF7D\uFE0F Meus Pratos"), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-4 gap-4"
+    className: "grid grid-cols-2 md:grid-cols-4 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Total de Pratos"), /*#__PURE__*/React.createElement("p", {

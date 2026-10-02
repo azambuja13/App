@@ -311,7 +311,7 @@ function MenuPage({
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold mb-4"
   }, "\uD83C\uDF7D\uFE0F Card\xE1pio do Evento"), stats && /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-3 gap-4"
+    className: "grid grid-cols-1 sm:grid-cols-3 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-sm"
   }, "Pratos no Card\xE1pio"), /*#__PURE__*/React.createElement("p", {
@@ -336,7 +336,7 @@ function MenuPage({
     key: item.id,
     className: "bg-white rounded-lg shadow-md p-6 border border-gray-200"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-start justify-between"
+    className: "flex flex-wrap items-start justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -344,7 +344,7 @@ function MenuPage({
   }, item.dishName), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mb-3"
   }, item.dishCategory), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-3 gap-4 mb-4"
+    className: "grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500"
   }, (() => {
@@ -426,7 +426,7 @@ function MenuPage({
     console.log(`   ⚖️ [PESO] R$ ${dishCost.toFixed(2)} ÷ ${totalWeight}g × ${gramsPerPerson}g × ${state.guests} pessoas = R$ ${totalCost.toFixed(2)}`);
     return totalCost.toFixed(2);
   })()))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-4"
+    className: "flex flex-wrap items-center gap-4"
   }, /*#__PURE__*/React.createElement("label", {
     className: "text-sm font-medium text-gray-700"
   }, (() => {
