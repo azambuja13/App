@@ -397,7 +397,7 @@ function ProposalList({
   }, "R$ ", stats.avgTicket?.toFixed(2) || '0.00')))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-4"
+    className: "flex flex-wrap items-center justify-between gap-3 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 max-w-md"
   }, /*#__PURE__*/React.createElement("input", {
@@ -407,7 +407,7 @@ function ProposalList({
     placeholder: "\uD83D\uDD0D Buscar propostas...",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   })), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-3"
+    className: "flex flex-wrap items-center gap-3"
   }, selectedProposals.length > 0 && /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowDeleteSelectedConfirm(true),
     className: "px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold shadow-md flex items-center gap-2"
