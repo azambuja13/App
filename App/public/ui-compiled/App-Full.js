@@ -1905,7 +1905,7 @@ window.AppFull = function AppFull() {
     strokeLinejoin: "round",
     strokeWidth: 2,
     d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-  })), "Ver")))))), /*#__PURE__*/React.createElement("div", {
+  })), "Ver")))))), !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden p-4 border-t border-gray-200 bg-gradient-to-br from-green-50 to-emerald-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-green-300"
@@ -2352,7 +2352,7 @@ window.AppFull = function AppFull() {
     totalCost: costs?.totalCost || 0,
     pricePerPerson: costs?.pricePerPerson || 0,
     guests: state.guests
-  })), state.activeTab !== 'whatsapp' && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab !== 'whatsapp' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-lg"
