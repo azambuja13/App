@@ -623,7 +623,7 @@ function ProposalCard({
   }, dish.dishName, " (", dish.quantity, "x)")), proposal.dishes.length > 5 && /*#__PURE__*/React.createElement("span", {
     className: "px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-medium"
   }, "+", proposal.dishes.length - 5, " mais"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between pt-4 border-t"
+    className: "flex flex-wrap items-center justify-between gap-2 pt-4 border-t"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center space-x-2"
   }, proposal.status === 'draft' && /*#__PURE__*/React.createElement("button", {

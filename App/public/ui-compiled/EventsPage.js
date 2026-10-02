@@ -386,9 +386,9 @@ function EventsPage({
     key: event.id,
     className: "p-6 hover:bg-gray-50 transition"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-start justify-between"
+    className: "flex flex-col sm:flex-row sm:items-start justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1"
+    className: "flex-1 min-w-0"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "text-xl font-bold text-gray-800 mb-2"
   }, event.name), /*#__PURE__*/React.createElement("div", {
@@ -410,13 +410,13 @@ function EventsPage({
   }, "Salvo em"), /*#__PURE__*/React.createElement("p", {
     className: "font-semibold text-gray-700"
   }, formatDate(event.createdAt))))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 ml-4"
+    className: "flex gap-2 w-full sm:w-auto sm:ml-4 flex-shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => handleLoadEvent(event),
-    className: "px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-medium"
+    className: "flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-medium whitespace-nowrap"
   }, "\uD83D\uDCC2 Carregar"), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDeleteEvent(event.id, event.name),
-    className: "px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition font-medium"
+    className: "flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition font-medium whitespace-nowrap"
   }, "\uD83D\uDDD1\uFE0F Excluir"))))))));
 }
 

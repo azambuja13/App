@@ -728,7 +728,7 @@ function DishCard({
   if (viewMode === 'list') {
     // Visualização em lista (compacta)
     return /*#__PURE__*/React.createElement("div", {
-      className: "bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-4 flex items-center justify-between"
+      className: "bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-4 flex flex-wrap items-center justify-between gap-3"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-center space-x-4 flex-1"
     }, /*#__PURE__*/React.createElement("div", {
@@ -768,7 +768,7 @@ function DishCard({
     }, dish.description), /*#__PURE__*/React.createElement("div", {
       className: "flex items-center space-x-4 mt-2 text-sm text-gray-500"
     }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCB0 R$ ", dish.totalCost?.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")))), /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center space-x-2"
+      className: "flex flex-wrap items-center justify-end gap-2"
     }, selectMode ? /*#__PURE__*/React.createElement("button", {
       onClick: () => onSelect(dish),
       className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

@@ -204,6 +204,53 @@
 
     <!-- Renderizar App -->
     <script>
+        // Error Boundary global - evita que um erro de render em QUALQUER aba
+        // derrube o app inteiro (tela travada/branca sem nenhum log).
+        // Em vez disso mostra uma tela de recuperação com "Tentar novamente".
+        class GlobalErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false };
+            }
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
+            componentDidCatch(error, info) {
+                // error (objeto Error) não serializa direito nesse console bridge (vira "{}"),
+                // então logamos message/stack como string pra dar pra debugar de verdade.
+                console.error('🧯 [GlobalErrorBoundary] Erro capturado:', (error && (error.message || String(error))) || 'erro desconhecido');
+                if (error && error.stack) console.error('🧯 [GlobalErrorBoundary] Stack:', error.stack);
+                if (info && info.componentStack) console.error('🧯 [GlobalErrorBoundary] Component stack:', info.componentStack);
+            }
+            render() {
+                if (this.state.hasError) {
+                    return React.createElement('div', {
+                        style: {
+                            position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', padding: '24px',
+                            background: '#ffffff', zIndex: 999999, textAlign: 'center',
+                            fontFamily: '-apple-system, system-ui, sans-serif'
+                        }
+                    },
+                        React.createElement('div', { style: { fontSize: '48px', marginBottom: '12px' } }, '⚠️'),
+                        React.createElement('h2', { style: { fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' } }, 'Ops, algo deu errado nesta tela'),
+                        React.createElement('p', { style: { fontSize: '14px', color: '#6b7280', marginBottom: '20px', maxWidth: '320px' } }, 'Seus dados estão salvos. Toque abaixo para tentar novamente.'),
+                        React.createElement('div', { style: { display: 'flex', gap: '10px' } },
+                            React.createElement('button', {
+                                onClick: () => this.setState({ hasError: false }),
+                                style: { padding: '12px 20px', borderRadius: '8px', background: '#ea580c', color: '#fff', fontWeight: '600', border: 'none', fontSize: '15px' }
+                            }, 'Tentar novamente'),
+                            React.createElement('button', {
+                                onClick: () => window.location.reload(),
+                                style: { padding: '12px 20px', borderRadius: '8px', background: '#374151', color: '#fff', fontWeight: '600', border: 'none', fontSize: '15px' }
+                            }, 'Recarregar app')
+                        )
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
         // Função para renderizar o app
         function renderApp() {
             console.log('🚀 Tentando renderizar AppFull...');
@@ -211,7 +258,7 @@
             if (window.AppFull && window.ReactDOM && document.getElementById('root')) {
                 console.log('✅ Todos os componentes disponíveis, renderizando...');
                 const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(React.createElement(window.AppFull));
+                root.render(React.createElement(GlobalErrorBoundary, null, React.createElement(window.AppFull)));
                 console.log('✅ AppFull renderizado com sucesso!');
             } else {
                 console.log('⏳ Aguardando componentes...', {

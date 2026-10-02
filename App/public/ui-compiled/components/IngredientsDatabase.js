@@ -222,11 +222,14 @@ function IngredientsDatabase({
 
   // Função para filtrar ingredientes baseado no termo de busca
   const filterIngredients = ingredients => {
-    if (!searchTerm.trim()) return ingredients;
+    // Blindagem: descarta entradas nulas/indefinidas (dados corrompidos) para
+    // nao derrubar a tela inteira de Ingredientes com um TypeError
+    const validIngredients = Array.isArray(ingredients) ? ingredients.filter(Boolean) : [];
+    if (!searchTerm.trim()) return validIngredients;
 
     // Normalizar termo de busca (remover acentos, converter para minúsculas)
     const searchNormalized = normalizeText(searchTerm);
-    return ingredients.filter(ing => {
+    return validIngredients.filter(ing => {
       // Normalizar campos do ingrediente
       const nameNormalized = normalizeText(ing.name || '');
       const categoryNormalized = normalizeText(ing.category || '');
@@ -322,11 +325,11 @@ function IngredientsDatabase({
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between"
+    className: "flex flex-wrap items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-bold text-gray-800"
   }, "Cadastro de Ingredientes"), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 no-print"
+    className: "flex flex-wrap gap-2 no-print"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: handleExportExcel,
     className: "flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:shadow-lg transition",
@@ -588,7 +591,7 @@ function IngredientsDatabase({
     className: "px-4 py-3 text-left text-xs font-semibold text-gray-600"
   }, "Custo Unit."), /*#__PURE__*/React.createElement("th", {
     className: "px-4 py-3 text-center text-xs font-semibold text-gray-600 no-print"
-  }, "A\xE7\xF5es"))), /*#__PURE__*/React.createElement("tbody", null, ingredients.map((ing, idx) => /*#__PURE__*/React.createElement("tr", {
+  }, "A\xE7\xF5es"))), /*#__PURE__*/React.createElement("tbody", null, ingredients.filter(Boolean).map((ing, idx) => /*#__PURE__*/React.createElement("tr", {
     key: ing.id,
     className: `border-b hover:bg-orange-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
   }, editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("td", {
@@ -765,9 +768,9 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "trash",
     className: "w-5 h-5"
-  }))))))))))), /*#__PURE__*/React.createElement("div", {
+  })))))))))), React.createElement("div", {
     className: "ingredients-mobile-cards"
-  }, ingredients.map(ing => editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement("div", {
+  }, ingredients.filter(Boolean).map(ing => editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement("div", {
     key: ing.id,
     className: "ingredient-card ingredient-edit-card"
   }, /*#__PURE__*/React.createElement("div", {
@@ -893,7 +896,7 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {type: "edit", className: "w-5 h-5"}), "Editar"), /*#__PURE__*/React.createElement("button", {
     onClick: () => onDeleteIngredient(ing.id),
     style: {background: '#ef4444', color: 'white'}
-  }, /*#__PURE__*/React.createElement(Icon, {type: "trash", className: "w-5 h-5"}), "Excluir")))))), window.IngredientTemplates && /*#__PURE__*/React.createElement(window.IngredientTemplates, {
+  }, /*#__PURE__*/React.createElement(Icon, {type: "trash", className: "w-5 h-5"}), "Excluir"))))))), window.IngredientTemplates && /*#__PURE__*/React.createElement(window.IngredientTemplates, {
     isOpen: showTemplates,
     onClose: () => setShowTemplates(false),
     onSelectTemplate: handleSelectTemplate
