@@ -165,8 +165,19 @@
     td:first-child, th:first-child {
         position: sticky;
         left: 0;
-        background: white;
         z-index: 2;
+    }
+
+    /* So a celula de dados (td) recebe fundo branco solido, pra tapar
+       as colunas que passam por baixo dela ao rolar. A celula de
+       cabecalho (th) NAO pode receber fundo forcado: cabecalhos
+       coloridos (gradiente laranja com texto branco, ex: Itens do
+       Evento, Apoio & Logistica) ficavam com o texto branco invisivel
+       sobre esse fundo branco forcado. Sem o override, o th herda o
+       fundo do proprio <tr>/<thead> (gradiente ou cinza), que e o
+       comportamento correto. */
+    td:first-child {
+        background: white;
     }
 
     /* Linhas de tabela */
