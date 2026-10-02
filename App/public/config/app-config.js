@@ -58,9 +58,16 @@ const APP_CONFIG = {
                 return 'https://precificacao-api-production.up.railway.app';
             }
 
+            // App nativo (Capacitor - iOS/Android): window.location.hostname
+            // é sempre "localhost" dentro do WebView nativo, então a detecção
+            // por hostname não serve aqui - forçaria sempre staging.
+            if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+                return 'https://precificacao-api-production.up.railway.app';
+            }
+
             const hostname = window.location.hostname;
 
-            // STAGING: Se URL contém "staging" ou é localhost
+            // STAGING: Se URL contém "staging" ou é localhost (ambiente web/navegador)
             if (hostname.includes('staging') || hostname.includes('localhost')) {
                 return 'https://precificacao-api-staging.up.railway.app';
             }
@@ -75,6 +82,9 @@ const APP_CONFIG = {
     // Detectar se é ambiente de produção
     get isProduction() {
         if (typeof window === 'undefined') return true;
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+            return true;
+        }
         const hostname = window.location.hostname;
         return !hostname.includes('staging') && !hostname.includes('localhost');
     },
