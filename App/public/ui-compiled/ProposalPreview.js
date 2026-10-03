@@ -218,54 +218,66 @@ function ProposalPreview({
           return response.blob();
         })
         .then(blob => {
-          const objectUrl = URL.createObjectURL(blob);
+          // WKWebView costuma falhar em renderizar blob: URLs dentro de
+          // <iframe> (fica tudo preto, mesmo com o blob válido) - por isso
+          // convertemos pra um data: URI base64 via FileReader, que o
+          // WKWebView renderiza de forma confiável no visualizador nativo
+          // de PDF embutido no iframe.
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUri = reader.result;
 
-          const overlay = document.createElement('div');
-          overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#111827;display:flex;flex-direction:column;';
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#111827;display:flex;flex-direction:column;';
 
-          const toolbar = document.createElement('div');
-          toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));background:#1f2937;flex-shrink:0;';
+            const toolbar = document.createElement('div');
+            toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));background:#1f2937;flex-shrink:0;';
 
-          const cleanup = () => {
-            if (overlay.parentNode) {
-              overlay.parentNode.removeChild(overlay);
-            }
-            URL.revokeObjectURL(objectUrl);
-          };
-
-          const closeBtn = document.createElement('button');
-          closeBtn.textContent = '✕ Fechar';
-          closeBtn.style.cssText = 'color:#fff;background:transparent;border:none;font-size:16px;padding:8px;';
-          closeBtn.onclick = cleanup;
-
-          const shareBtn = document.createElement('button');
-          shareBtn.textContent = '↗ Compartilhar / Salvar';
-          shareBtn.style.cssText = 'color:#fff;background:#3b82f6;border:none;border-radius:8px;font-size:15px;padding:10px 16px;font-weight:600;';
-          shareBtn.onclick = async () => {
-            try {
-              const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
-              if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'Proposta' });
-              } else {
-                alert('Compartilhamento de arquivo não disponível neste dispositivo.');
+            const cleanup = () => {
+              if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
               }
-            } catch (shareErr) {
-              if (shareErr && shareErr.name !== 'AbortError') {
-                console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
+            };
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕ Fechar';
+            closeBtn.style.cssText = 'color:#fff;background:transparent;border:none;font-size:16px;padding:8px;';
+            closeBtn.onclick = cleanup;
+
+            const shareBtn = document.createElement('button');
+            shareBtn.textContent = '↗ Compartilhar / Salvar';
+            shareBtn.style.cssText = 'color:#fff;background:#3b82f6;border:none;border-radius:8px;font-size:15px;padding:10px 16px;font-weight:600;';
+            shareBtn.onclick = async () => {
+              try {
+                const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                  await navigator.share({ files: [file], title: 'Proposta' });
+                } else {
+                  alert('Compartilhamento de arquivo não disponível neste dispositivo.');
+                }
+              } catch (shareErr) {
+                if (shareErr && shareErr.name !== 'AbortError') {
+                  console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
+                }
               }
-            }
+            };
+
+            toolbar.appendChild(closeBtn);
+            toolbar.appendChild(shareBtn);
+
+            const iframe = document.createElement('iframe');
+            iframe.src = dataUri;
+            iframe.style.cssText = 'flex:1;border:none;background:#fff;width:100%;';
+
+            overlay.appendChild(toolbar);
+            overlay.appendChild(iframe);
+            document.body.appendChild(overlay);
           };
-
-          toolbar.appendChild(closeBtn);
-          toolbar.appendChild(shareBtn);
-
-          const iframe = document.createElement('iframe');
-          iframe.src = objectUrl;
-          iframe.style.cssText = 'flex:1;border:none;background:#fff;width:100%;';
-
-          overlay.appendChild(toolbar);
-          overlay.appendChild(iframe);
-          document.body.appendChild(overlay);
+          reader.onerror = () => {
+            console.error('❌ [handlePrint] Erro ao ler PDF (FileReader)');
+            alert('❌ Erro ao gerar o PDF. Tente novamente.');
+          };
+          reader.readAsDataURL(blob);
         })
         .catch(err => {
           console.error('❌ [handlePrint] Erro ao baixar PDF:', err);
