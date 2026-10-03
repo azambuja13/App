@@ -181,6 +181,37 @@ function ProposalPreview({
       return;
     }
 
+    // No app nativo (Capacitor/WKWebView), window.open('', '_blank', ...) não
+    // funciona como num navegador normal - o WKWebView tenta repassar pro iOS
+    // abrir uma URL vazia como link externo e falha ("Failed to open URL",
+    // "invalid input parameters"). Nesse caso, imprime a própria janela atual
+    // em vez de abrir uma nova.
+    const isNativeApp = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
+    if (isNativeApp) {
+      const nativePrintStyle = document.createElement('style');
+      nativePrintStyle.setAttribute('data-native-print', 'true');
+      nativePrintStyle.innerHTML = `
+                @media print {
+                    body > *:not(.native-print-clone) { display: none !important; }
+                    .native-print-clone { display: block !important; }
+                    @page { size: A4; margin: 0; }
+                    .page-break { page-break-after: always; page-break-inside: avoid; }
+                    .page-break:last-child { page-break-after: auto; }
+                }
+            `;
+      const printClone = proposalContent.cloneNode(true);
+      printClone.classList.add('native-print-clone');
+      printClone.style.display = 'none';
+      document.body.appendChild(printClone);
+      document.head.appendChild(nativePrintStyle);
+      window.print();
+      setTimeout(() => {
+        printClone.remove();
+        nativePrintStyle.remove();
+      }, 1000);
+      return;
+    }
+
     // Criar nova janela
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
 
