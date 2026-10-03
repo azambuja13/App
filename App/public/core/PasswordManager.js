@@ -165,7 +165,7 @@ class PasswordManager {
      * Verifica senha SEMPRE consultando a API
      * IMPORTANTE: NUNCA validar apenas localmente - sempre verificar na base de dados
      */
-    static async checkPassword(password) {
+    static async checkPassword(password, identifierOverride = null) {
         // Verificar se está bloqueado
         if (await this.isLocked()) {
             return {
@@ -176,20 +176,21 @@ class PasswordManager {
             };
         }
 
-        // Obter licença atual
+        // Identificador: por padrão o e-mail/licenseKey explícito (ex: digitado na
+        // tela de login); se não vier, cai para a licença já salva neste dispositivo
         await this.init();
-        const currentLicenseKey = await this.storage.get('appLicenseKey', null);
+        const currentLicenseKey = identifierOverride || (await this.storage.get('appLicenseKey', null));
 
         if (!currentLicenseKey) {
             return {
                 success: false,
                 locked: false,
-                message: 'Nenhuma licença ativa'
+                message: 'Nenhuma conta ativa'
             };
         }
 
         // IMPORTANTE: Validar senha na API
-        console.log('🔐 Validando senha na API para licença:', currentLicenseKey.substring(0, 30) + '...');
+        console.log('🔐 Validando senha na API para:', currentLicenseKey.substring(0, 30) + '...');
 
         try {
             // Chamar endpoint de verificação de senha
@@ -211,8 +212,11 @@ class PasswordManager {
                 // Senha correta - limpar tentativas
                 await this.clearAttempts();
 
-                // Atualizar vinculação da senha à licença
-                await this.storage.set('password_license_key', currentLicenseKey);
+                // Atualizar vinculação da senha à licença (sempre a chave REAL
+                // devolvida pela API, não o identificador usado pra buscar — que
+                // pode ter sido um e-mail)
+                const realLicenseKey = result.data?.user?.licenseKey || currentLicenseKey;
+                await this.storage.set('password_license_key', realLicenseKey);
                 await this.storage.set('passwordSet', 'true');
 
                 console.log('✅ Senha validada com sucesso na API');

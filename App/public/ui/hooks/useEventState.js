@@ -261,6 +261,7 @@ function useEventState() {
     // Estados de Licenciamento e Segurança
     // ====================================
     const [licenseKey, setLicenseKey] = useState('');
+    const [email, setEmail] = useState(''); // E-mail digitado na tela de login (substitui a chave de licença como identificador)
     const [licenseValid, setLicenseValid] = useState(false);
     const [licenseExpiry, setLicenseExpiry] = useState(null);
     const [licensedTo, setLicensedTo] = useState('');
@@ -917,6 +918,8 @@ function useEventState() {
         // Licenciamento
         licenseKey,
         setLicenseKey,
+        email,
+        setEmail,
         licenseValid,
         setLicenseValid,
         licenseExpiry,

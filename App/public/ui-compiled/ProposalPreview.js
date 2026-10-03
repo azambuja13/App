@@ -400,7 +400,7 @@ function ProposalPreview({
   }, /*#__PURE__*/React.createElement("div", {
     className: "no-print sticky top-0 z-10 bg-white shadow-md border-b border-gray-200"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-5xl mx-auto px-6 py-4 flex items-center justify-between"
+    className: "max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     className: "flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
@@ -419,7 +419,7 @@ function ProposalPreview({
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-medium text-gray-600"
   }, "Template:"), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2"
+    className: "flex flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setSelectedTemplate('chef'),
     className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'chef' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
@@ -433,7 +433,7 @@ function ProposalPreview({
     onClick: () => setSelectedTemplate('minimal'),
     className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'minimal' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
   }, "\u2728 Minimal"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-3"
+    className: "flex flex-wrap gap-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowDeleteConfirm(true),
     className: "flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"

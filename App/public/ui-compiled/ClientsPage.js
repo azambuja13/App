@@ -354,7 +354,9 @@ function ClientsPage() {
     className: "flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
   }, "\u274C Cancelar"))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
-  }, /*#__PURE__*/React.createElement("table", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "overflow-x-auto"
+  }, React.createElement("table", {
     className: "w-full"
   }, /*#__PURE__*/React.createElement("thead", {
     className: "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
@@ -392,7 +394,7 @@ function ClientsPage() {
   }, "\u270F\uFE0F Editar"), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDeleteClient(client),
     className: "px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium"
-  }, "\uD83D\uDDD1\uFE0F Excluir")))))))));
+  }, "\uD83D\uDDD1\uFE0F Excluir"))))))))));
 }
 
 // Expor para window

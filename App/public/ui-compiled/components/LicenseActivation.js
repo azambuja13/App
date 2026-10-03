@@ -7,12 +7,12 @@ const {
 } = window.React || React;
 
 /**
- * LicenseActivation - Tela de ativação de licença + senha
+ * LicenseActivation - Tela de login (e-mail + senha)
  *
  * @param {Object} props
  * @param {string} props.appVersion - Versão do aplicativo
- * @param {string} props.licenseKey - Chave de licença atual
- * @param {Function} props.onLicenseKeyChange - Callback para atualizar chave
+ * @param {string} props.email - E-mail digitado
+ * @param {Function} props.onEmailChange - Callback para atualizar o e-mail
  * @param {string} props.licenseError - Mensagem de erro (se houver)
  * @param {Function} props.onActivate - Callback para ativar licença e senha
  * @param {boolean} props.needsPassword - Se precisa configurar senha
@@ -20,8 +20,8 @@ const {
  */
 function LicenseActivation({
   appVersion = '1.0.0',
-  licenseKey = '',
-  onLicenseKeyChange,
+  email = '',
+  onEmailChange,
   licenseError = '',
   onActivate,
   needsPassword = true
@@ -30,8 +30,12 @@ function LicenseActivation({
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const handleSubmit = () => {
-    if (!licenseKey.trim()) {
-      alert('Por favor, insira a chave de licença');
+    if (!email.trim()) {
+      alert('Por favor, insira seu e-mail');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+      alert('Por favor, insira um e-mail válido');
       return;
     }
     if (needsPassword) {
@@ -82,18 +86,18 @@ function LicenseActivation({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "lock",
     className: "w-5 h-5"
-  }), "Ativa\xE7\xE3o de Licen\xE7a"), /*#__PURE__*/React.createElement("p", {
+  }), "Login"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-orange-800"
-  }, "Insira sua chave de licen\xE7a para ativar o aplicativo.")), /*#__PURE__*/React.createElement("div", {
+  }, "Entre com seu e-mail e senha para acessar o aplicativo.")), /*#__PURE__*/React.createElement("div", {
     className: "space-y-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-gray-700 mb-2"
-  }, "Chave de Licen\xE7a"), /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    value: licenseKey,
-    onChange: e => onLicenseKeyChange(e.target.value),
-    placeholder: "CLIENTE-emailbase64-20261231-hash...",
-    className: "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm",
+  }, "E-mail"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    value: email,
+    onChange: e => onEmailChange(e.target.value),
+    placeholder: "seu@email.com",
+    className: "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent",
     onKeyPress: handleKeyPress
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between mb-2"
@@ -141,9 +145,9 @@ function LicenseActivation({
     className: "text-sm text-red-800 flex items-center gap-2"
   }, "\u26A0\uFE0F ", licenseError)), /*#__PURE__*/React.createElement("button", {
     onClick: handleSubmit,
-    disabled: !licenseKey.trim() || !password.trim(),
+    disabled: !email.trim() || !password.trim(),
     className: "w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-  }, "\uD83D\uDD13 ", needsPassword ? 'Ativar e Configurar' : 'Ativar e Entrar'), licenseError && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD13 ", needsPassword ? 'Criar Senha e Entrar' : 'Entrar'), licenseError && /*#__PURE__*/React.createElement("div", {
     className: "relative"
   }, /*#__PURE__*/React.createElement("div", {
     className: "absolute inset-0 flex items-center"
@@ -160,7 +164,7 @@ function LicenseActivation({
     className: "mt-6 pt-6 border-t border-gray-200"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 text-center"
-  }, "Entre em contato com o fornecedor para obter sua chave de licen\xE7a."))));
+  }, "N\xE3o encontra sua conta? Entre em contato com o suporte."))));
 }
 
 // Expor no window para uso global

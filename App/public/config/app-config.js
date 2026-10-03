@@ -320,6 +320,7 @@ const ConfigHelper = {
                 'indexedDB', // IndexedDB local (melhor que localStorage)
                 'singleEvent',
                 'basicIngredients',
+                'pdfExport', // liberado pra todos os planos (antes só STANDARD/PREMIUM)
                 'dishes' // Cadastro de pratos liberado para todos
             ],
 

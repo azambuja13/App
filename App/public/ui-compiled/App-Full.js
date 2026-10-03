@@ -485,27 +485,27 @@ window.AppFull = function AppFull() {
     // Só verificar se já passou pela inicialização
     if (isLoadingAuth) return;
 
-    // Só verificar se há uma licença digitada
-    if (!state.licenseKey || state.licenseKey.trim().length === 0) return;
+    // Só verificar se há um e-mail digitado
+    if (!state.email || state.email.trim().length === 0) return;
 
     // DEBOUNCE: Aguardar 500ms após o usuário parar de digitar
     const debounceTimer = setTimeout(async () => {
-      console.log('🔄 [Mudança de licença detectada no input]');
-      console.log('  - Licença digitada:', state.licenseKey.substring(0, 30) + '...');
+      console.log('🔄 [Mudança de e-mail detectada no input]');
+      console.log('  - E-mail digitado:', state.email.trim());
 
-      // IMPORTANTE: Verificar na API se esta licença tem senha configurada
-      // Não confiar apenas no IndexedDB local, pois pode ter múltiplas licenças
+      // IMPORTANTE: Verificar na API se esta conta tem senha configurada
+      // Não confiar apenas no IndexedDB local, pois pode ter múltiplas contas
       try {
         const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
-        // Verificar se a licença existe no banco de dados
+        // Verificar se a conta existe no banco de dados
         const response = await fetch(`${API_URL}/api/auth/check-license`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            licenseKey: state.licenseKey
+            email: state.email.trim()
           })
         });
         if (response.ok) {
@@ -536,7 +536,7 @@ window.AppFull = function AppFull() {
 
     // Cleanup: Cancelar timer se licença mudar novamente antes de 500ms
     return () => clearTimeout(debounceTimer);
-  }, [state.licenseKey, isLoadingAuth]);
+  }, [state.email, isLoadingAuth]);
 
   // Auto-calcular meses até o evento quando a data mudar
   React.useEffect(() => {
@@ -1520,12 +1520,11 @@ window.AppFull = function AppFull() {
     sessionStorage.removeItem('justAuthenticated');
     console.log('🔓 Autenticação limpa');
 
-    // Limpar licença do input para forçar o sistema a detectar como "nova"
-    // Isso fará o useEffect detectar que não há licença no IndexedDB
-    // e mostrar o formulário de "Criar Senha"
+    // Limpar e-mail/licença do input para a tela de login reaparecer em branco
     state.setLicenseKey('');
+    state.setEmail('');
     setPasswordSet(false);
-    console.log('🧹 Licença do input limpa');
+    console.log('🧹 Campos de login limpos');
 
     // Abrir modal de licença
     state.setShowLicenseActivation(true);
@@ -1538,10 +1537,9 @@ window.AppFull = function AppFull() {
   const handleActivateLicenseWithPassword = async password => {
     console.log('🔐 [handleActivateLicenseWithPassword] Iniciando...', {
       passwordSet,
-      hasLicense: !!state.licenseKey
+      email: state.email
     });
 
-    // IMPORTANTE: Verificar se a licença atual já existe no IndexedDB
     await window.PasswordManager.init();
     const storage = window.PasswordManager.storage;
     if (!storage) {
@@ -1549,17 +1547,18 @@ window.AppFull = function AppFull() {
       alert('❌ Erro ao configurar senha - storage não disponível');
       return;
     }
-    const storedLicenseKey = await storage.get('appLicenseKey', null);
-    const isNewLicense = !storedLicenseKey || storedLicenseKey !== state.licenseKey;
-    console.log('🔍 Verificando se licença é nova:');
-    console.log('  - Licença no IndexedDB:', storedLicenseKey ? storedLicenseKey.substring(0, 30) + '...' : '(nenhuma)');
-    console.log('  - Licença sendo ativada:', state.licenseKey ? state.licenseKey.substring(0, 30) + '...' : '(nenhuma)');
-    console.log('  - É licença nova?', isNewLicense);
+    const email = state.email.trim();
+    // Guardamos a licenseKey localmente também (além de state.setLicenseKey, que é
+    // assíncrono e não ficaria disponível em state.licenseKey dentro desta mesma
+    // execução da função) pra usar no restante do fluxo abaixo.
+    let activeLicenseKey = state.licenseKey;
 
     // 1. Validar e salvar senha
-    if (isNewLicense) {
-      // LICENÇA NOVA - sempre criar senha via API
-      console.log('🆕 Licença nova detectada - criando senha via API');
+    // isNewAccount vem direto do check-license (debounce por e-mail): se a conta
+    // ainda não tem senha configurada no backend, precisamos criar uma agora.
+    const isNewAccount = !passwordSet;
+    if (isNewAccount) {
+      console.log('🆕 Conta sem senha - criando senha via API');
       try {
         // Chamar API para criar senha
         const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
@@ -1570,7 +1569,7 @@ window.AppFull = function AppFull() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            licenseKey: state.licenseKey,
+            email,
             password: password
           })
         });
@@ -1587,22 +1586,19 @@ window.AppFull = function AppFull() {
         console.log('💾 Salvando senha no storage local...');
         await storage.set('appPassword', password);
         await storage.set('passwordSet', 'true');
-        await storage.set('password_license_key', state.licenseKey);
-        console.log('🔗 Senha associada à licença:', state.licenseKey.substring(0, 20) + '...');
         setPasswordSet(true);
         console.log('✅ Estado React atualizado: passwordSet = true');
 
-        // IMPORTANTE: Fazer login automático para obter accessToken
-        console.log('🔐 Fazendo login automático após criar senha...');
+        // IMPORTANTE: Fazer login para obter accessToken + a chave de licença real
+        console.log('🔐 Fazendo login após criar senha...');
         try {
-          const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
           const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              licenseKey: state.licenseKey,
+              email,
               password: password
             })
           });
@@ -1612,6 +1608,13 @@ window.AppFull = function AppFull() {
               localStorage.setItem('accessToken', loginResult.data.accessToken);
               localStorage.setItem('refreshToken', loginResult.data.refreshToken);
               console.log('✅ AccessToken obtido após criar senha - sincronização habilitada');
+            }
+            if (loginResult.success && loginResult.data?.user?.licenseKey) {
+              // A chave real (plano/validade/e-mail codificados) vem do backend —
+              // o usuário nunca precisa digitá-la.
+              activeLicenseKey = loginResult.data.user.licenseKey;
+              state.setLicenseKey(activeLicenseKey);
+              await storage.set('password_license_key', activeLicenseKey);
             }
           }
         } catch (error) {
@@ -1623,15 +1626,20 @@ window.AppFull = function AppFull() {
         return;
       }
     } else {
-      // LICENÇA EXISTENTE - verificar senha via API
-      console.log('🔑 Licença existente - verificando senha...');
-      const result = await window.PasswordManager.checkPassword(password);
+      // CONTA EXISTENTE - verificar senha via API usando o e-mail digitado
+      console.log('🔑 Conta existente - verificando senha...');
+      const result = await window.PasswordManager.checkPassword(password, email);
       if (!result.success) {
         console.error('❌ Senha incorreta:', result.message);
         state.setLicenseError(result.message);
         return;
       }
       console.log('✅ Senha verificada com sucesso');
+      if (result.user?.licenseKey) {
+        activeLicenseKey = result.user.licenseKey;
+        state.setLicenseKey(activeLicenseKey);
+        await storage.set('password_license_key', activeLicenseKey);
+      }
     }
 
     // 2. Autenticar
@@ -1640,17 +1648,17 @@ window.AppFull = function AppFull() {
     sessionStorage.setItem('justAuthenticated', 'true');
     console.log('🔐 Autenticação marcada no sessionStorage');
 
-    // 3. Validar licença
-    if (!state.licenseKey.trim()) {
-      state.setLicenseError('Por favor, insira uma chave de licença');
+    // 3. Validar licença (a chave já foi obtida do backend no passo 1)
+    if (!activeLicenseKey || !activeLicenseKey.trim()) {
+      state.setLicenseError('Não foi possível obter os dados da conta. Tente novamente.');
       return;
     }
     state.setLicenseError('Validando licença...');
     try {
-      const result = await window.LicenseValidator.validateLicense(state.licenseKey);
+      const result = await window.LicenseValidator.validateLicense(activeLicenseKey);
       if (result.valid) {
         // Salvar licença
-        await window.LicenseValidator.saveLicense(state.licenseKey, result);
+        await window.LicenseValidator.saveLicense(activeLicenseKey, result);
 
         // IMPORTANTE: Disparar evento de mudança de plano para atualizar FeatureGates
         const licenseType = result.licenseType || 'STD';
@@ -1740,8 +1748,8 @@ window.AppFull = function AppFull() {
     };
     return /*#__PURE__*/React.createElement(LicenseActivation, {
       appVersion: APP_VERSION,
-      licenseKey: state.licenseKey,
-      onLicenseKeyChange: state.setLicenseKey,
+      email: state.email,
+      onEmailChange: state.setEmail,
       licenseError: state.licenseError,
       onActivate: handleActivateLicenseWithPassword,
       needsPassword: !passwordSet
