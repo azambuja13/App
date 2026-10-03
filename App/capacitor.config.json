@@ -6,8 +6,7 @@
 	"server": {
 		"cleartext": true,
 		"allowNavigation": [
-			"precificacao-cloud.pages.dev",
-			"precificacao-api-production.up.railway.app"
+			"precificacao-cloud.pages.dev"
 		]
 	},
 	"ios": {
