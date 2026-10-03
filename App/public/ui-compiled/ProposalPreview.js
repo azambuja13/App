@@ -217,67 +217,77 @@ function ProposalPreview({
           }
           return response.blob();
         })
-        .then(blob => {
-          // WKWebView costuma falhar em renderizar blob: URLs dentro de
-          // <iframe> (fica tudo preto, mesmo com o blob válido) - por isso
-          // convertemos pra um data: URI base64 via FileReader, que o
-          // WKWebView renderiza de forma confiável no visualizador nativo
-          // de PDF embutido no iframe.
-          const reader = new FileReader();
-          reader.onload = () => {
-            const dataUri = reader.result;
+        .then(async blob => {
+          // Duas tentativas anteriores (blob: e depois data: URI num
+          // <iframe>) ficaram "tudo preto": o WKWebView só ativa o
+          // visualizador nativo de PDF em navegação de página inteira, não
+          // dentro de <iframe> - isso não é uma particularidade de blob vs.
+          // data:, é o <iframe> em si que não funciona pra PDF nesse motor.
+          // Solução definitiva: abandonar qualquer preview dentro do app e
+          // usar direto a folha de compartilhamento nativa do iOS
+          // (Web Share API), que já tem botão de Imprimir (AirPrint),
+          // Salvar em Arquivos, enviar por WhatsApp/Mensagens/AirDrop etc -
+          // sem depender de nenhum visualizador de PDF da própria página.
+          const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
 
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#111827;display:flex;flex-direction:column;';
-
-            const toolbar = document.createElement('div');
-            toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));background:#1f2937;flex-shrink:0;';
-
-            const cleanup = () => {
-              if (overlay.parentNode) {
-                overlay.parentNode.removeChild(overlay);
+          const shareFile = async () => {
+            try {
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Proposta' });
+                return true;
               }
-            };
-
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '✕ Fechar';
-            closeBtn.style.cssText = 'color:#fff;background:transparent;border:none;font-size:16px;padding:8px;';
-            closeBtn.onclick = cleanup;
-
-            const shareBtn = document.createElement('button');
-            shareBtn.textContent = '↗ Compartilhar / Salvar';
-            shareBtn.style.cssText = 'color:#fff;background:#3b82f6;border:none;border-radius:8px;font-size:15px;padding:10px 16px;font-weight:600;';
-            shareBtn.onclick = async () => {
-              try {
-                const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                  await navigator.share({ files: [file], title: 'Proposta' });
-                } else {
-                  alert('Compartilhamento de arquivo não disponível neste dispositivo.');
-                }
-              } catch (shareErr) {
-                if (shareErr && shareErr.name !== 'AbortError') {
-                  console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
-                }
+            } catch (shareErr) {
+              if (shareErr && shareErr.name === 'AbortError') {
+                return true; // usuário cancelou a folha de compartilhamento, não é erro
               }
-            };
-
-            toolbar.appendChild(closeBtn);
-            toolbar.appendChild(shareBtn);
-
-            const iframe = document.createElement('iframe');
-            iframe.src = dataUri;
-            iframe.style.cssText = 'flex:1;border:none;background:#fff;width:100%;';
-
-            overlay.appendChild(toolbar);
-            overlay.appendChild(iframe);
-            document.body.appendChild(overlay);
+              console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
+            }
+            return false;
           };
-          reader.onerror = () => {
-            console.error('❌ [handlePrint] Erro ao ler PDF (FileReader)');
-            alert('❌ Erro ao gerar o PDF. Tente novamente.');
+
+          // 1ª tentativa: o próprio toque no botão "Imprimir" às vezes ainda
+          // conta como gesto válido mesmo depois do fetch assíncrono - se
+          // funcionar, a folha de compartilhamento abre direto, sem overlay.
+          const sharedImmediately = await shareFile();
+          if (sharedImmediately) {
+            return;
+          }
+
+          // 2ª tentativa (fallback): mostra um botão pro usuário tocar -
+          // esse toque garante um gesto de toque fresco, exigido pela Web
+          // Share API quando a 1ª tentativa falha por falta de gesto.
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(17,24,39,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;';
+
+          const msg = document.createElement('div');
+          msg.textContent = '📄 PDF gerado. Toque no botão abaixo pra salvar, imprimir ou enviar.';
+          msg.style.cssText = 'color:#fff;font-size:16px;max-width:320px;';
+
+          const cleanup = () => {
+            if (overlay.parentNode) {
+              overlay.parentNode.removeChild(overlay);
+            }
           };
-          reader.readAsDataURL(blob);
+
+          const shareBtn = document.createElement('button');
+          shareBtn.textContent = '↗ Compartilhar / Salvar / Imprimir';
+          shareBtn.style.cssText = 'color:#fff;background:#3b82f6;border:none;border-radius:8px;font-size:15px;padding:12px 20px;font-weight:600;';
+          shareBtn.onclick = async () => {
+            const ok = await shareFile();
+            if (!ok) {
+              alert('Compartilhamento de arquivo não disponível neste dispositivo.');
+            }
+          };
+
+          const closeBtn = document.createElement('button');
+          closeBtn.textContent = 'Fechar';
+          closeBtn.style.cssText = 'color:#9ca3af;background:transparent;border:none;font-size:15px;padding:8px;';
+          closeBtn.onclick = cleanup;
+
+          overlay.appendChild(msg);
+          overlay.appendChild(shareBtn);
+          overlay.appendChild(closeBtn);
+          document.body.appendChild(overlay);
         })
         .catch(err => {
           console.error('❌ [handlePrint] Erro ao baixar PDF:', err);
