@@ -237,7 +237,7 @@ function ProposalPreview({
             try {
               if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 console.log('📄 [handlePrint] Chamando navigator.share()...');
-                await navigator.share({ files: [file], title: 'Proposta' });
+                await navigator.share({ files: [file] });
                 console.log('📄 [handlePrint] navigator.share() retornou com sucesso');
                 return true;
               }
