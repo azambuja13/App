@@ -188,12 +188,18 @@ function ProposalPreview({
     // (WKWebView não tem handler nativo de impressão sem plugin extra). Nesse
     // caso, pede o PDF já pronto (gerado no backend com Puppeteer, mesma rota
     // usada no "Enviar WhatsApp") via fetch (não via navegação - abrir no
-    // Safari externo não entregou o arquivo de forma confiável: o download
-    // some sem avisar, provavelmente por causa do Content-Disposition vindo
-    // através de proxy/CDN do Railway). Converte a resposta em data: URL e
-    // navega a própria janela do app pra ela - o WKWebView tem visualizador
-    // de PDF nativo embutido (com botão de compartilhar/salvar) quando a URL
-    // é um data: URI, sem precisar sair do app nem de plugin novo.
+    // Safari externo não entregou o arquivo de forma confiável, e navegar a
+    // própria janela do app pra um data: URI também não funciona: o
+    // Capacitor intercepta qualquer navegação de página que não seja
+    // http(s)/capacitor://localhost e tenta abrir via UIApplication (Launch
+    // Services), que não sabe "abrir" um data: URI (erro
+    // LSApplicationWorkspaceErrorDomain Code=115). Solução: não navegar a
+    // página nenhuma - mostra o PDF num overlay com <iframe> (carregar um
+    // iframe não é uma "navegação de página" pro Capacitor, então não é
+    // interceptado) e oferece um botão "Compartilhar" que usa a Web Share
+    // API nativa (navigator.share com o arquivo) pra salvar/enviar - esse
+    // botão garante um gesto de toque fresco do usuário, que é exigido pra
+    // chamar navigator.share.
     const isNativeApp = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
     if (isNativeApp) {
       const token = localStorage.getItem('accessToken');
@@ -212,14 +218,54 @@ function ProposalPreview({
           return response.blob();
         })
         .then(blob => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            window.location.href = reader.result;
+          const objectUrl = URL.createObjectURL(blob);
+
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#111827;display:flex;flex-direction:column;';
+
+          const toolbar = document.createElement('div');
+          toolbar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));background:#1f2937;flex-shrink:0;';
+
+          const cleanup = () => {
+            if (overlay.parentNode) {
+              overlay.parentNode.removeChild(overlay);
+            }
+            URL.revokeObjectURL(objectUrl);
           };
-          reader.onerror = () => {
-            alert('❌ Erro ao processar o PDF baixado.');
+
+          const closeBtn = document.createElement('button');
+          closeBtn.textContent = '✕ Fechar';
+          closeBtn.style.cssText = 'color:#fff;background:transparent;border:none;font-size:16px;padding:8px;';
+          closeBtn.onclick = cleanup;
+
+          const shareBtn = document.createElement('button');
+          shareBtn.textContent = '↗ Compartilhar / Salvar';
+          shareBtn.style.cssText = 'color:#fff;background:#3b82f6;border:none;border-radius:8px;font-size:15px;padding:10px 16px;font-weight:600;';
+          shareBtn.onclick = async () => {
+            try {
+              const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Proposta' });
+              } else {
+                alert('Compartilhamento de arquivo não disponível neste dispositivo.');
+              }
+            } catch (shareErr) {
+              if (shareErr && shareErr.name !== 'AbortError') {
+                console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
+              }
+            }
           };
-          reader.readAsDataURL(blob);
+
+          toolbar.appendChild(closeBtn);
+          toolbar.appendChild(shareBtn);
+
+          const iframe = document.createElement('iframe');
+          iframe.src = objectUrl;
+          iframe.style.cssText = 'flex:1;border:none;background:#fff;width:100%;';
+
+          overlay.appendChild(toolbar);
+          overlay.appendChild(iframe);
+          document.body.appendChild(overlay);
         })
         .catch(err => {
           console.error('❌ [handlePrint] Erro ao baixar PDF:', err);
