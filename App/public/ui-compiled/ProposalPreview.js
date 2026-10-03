@@ -184,31 +184,23 @@ function ProposalPreview({
     // No app nativo (Capacitor/WKWebView), window.open('', '_blank', ...) não
     // funciona como num navegador normal - o WKWebView tenta repassar pro iOS
     // abrir uma URL vazia como link externo e falha ("Failed to open URL",
-    // "invalid input parameters"). Nesse caso, imprime a própria janela atual
-    // em vez de abrir uma nova.
+    // "invalid input parameters"). window.print() direto também não faz nada
+    // (WKWebView não tem handler nativo de impressão sem plugin extra). Nesse
+    // caso, pede o PDF já pronto (gerado no backend com Puppeteer, mesma rota
+    // usada no "Enviar WhatsApp") e navega a própria janela pra essa URL: como
+    // a resposta vem com Content-Disposition: attachment, o iOS trata como
+    // download/compartilhamento nativo em vez de tentar renderizar a página.
     const isNativeApp = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
     if (isNativeApp) {
-      const nativePrintStyle = document.createElement('style');
-      nativePrintStyle.setAttribute('data-native-print', 'true');
-      nativePrintStyle.innerHTML = `
-                @media print {
-                    body > *:not(.native-print-clone) { display: none !important; }
-                    .native-print-clone { display: block !important; }
-                    @page { size: A4; margin: 0; }
-                    .page-break { page-break-after: always; page-break-inside: avoid; }
-                    .page-break:last-child { page-break-after: auto; }
-                }
-            `;
-      const printClone = proposalContent.cloneNode(true);
-      printClone.classList.add('native-print-clone');
-      printClone.style.display = 'none';
-      document.body.appendChild(printClone);
-      document.head.appendChild(nativePrintStyle);
-      window.print();
-      setTimeout(() => {
-        printClone.remove();
-        nativePrintStyle.remove();
-      }, 1000);
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        alert('❌ Token de autenticação não encontrado. Faça login novamente.');
+        return;
+      }
+      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
+      const pdfUrl = `${API_URL}/api/proposals/${proposalId}/pdf?token=${encodeURIComponent(token)}`;
+      console.log('📄 [handlePrint] Baixando PDF (app nativo):', pdfUrl.replace(/token=[^&]+/, 'token=***'));
+      window.location.href = pdfUrl;
       return;
     }
 
@@ -329,9 +321,7 @@ function ProposalPreview({
         return;
       }
 
-      const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:3001'
-        : 'https://precificacao-api-staging.up.railway.app';
+      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
       console.log('📤 [WhatsApp] Enviando para API:', `${API_URL}/api/proposals/${proposal.id}/send-whatsapp`);
       console.log('   PDF será gerado no backend com Puppeteer (qualidade perfeita)');

@@ -1152,9 +1152,7 @@ function ProposalCanvasGenerator({
         return;
       }
 
-      const API_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : 'https://precificacao-api-staging.up.railway.app';
+      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
       const response = await fetch(`${API_URL}/api/proposals/${proposal.id}/send-whatsapp`, {
         method: 'POST',
