@@ -187,9 +187,13 @@ function ProposalPreview({
     // "invalid input parameters"). window.print() direto também não faz nada
     // (WKWebView não tem handler nativo de impressão sem plugin extra). Nesse
     // caso, pede o PDF já pronto (gerado no backend com Puppeteer, mesma rota
-    // usada no "Enviar WhatsApp") e navega a própria janela pra essa URL: como
-    // a resposta vem com Content-Disposition: attachment, o iOS trata como
-    // download/compartilhamento nativo em vez de tentar renderizar a página.
+    // usada no "Enviar WhatsApp") via fetch (não via navegação - abrir no
+    // Safari externo não entregou o arquivo de forma confiável: o download
+    // some sem avisar, provavelmente por causa do Content-Disposition vindo
+    // através de proxy/CDN do Railway). Converte a resposta em data: URL e
+    // navega a própria janela do app pra ela - o WKWebView tem visualizador
+    // de PDF nativo embutido (com botão de compartilhar/salvar) quando a URL
+    // é um data: URI, sem precisar sair do app nem de plugin novo.
     const isNativeApp = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
     if (isNativeApp) {
       const token = localStorage.getItem('accessToken');
@@ -198,9 +202,29 @@ function ProposalPreview({
         return;
       }
       const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const pdfUrl = `${API_URL}/api/proposals/${proposalId}/pdf?token=${encodeURIComponent(token)}`;
-      console.log('📄 [handlePrint] Baixando PDF (app nativo):', pdfUrl.replace(/token=[^&]+/, 'token=***'));
-      window.location.href = pdfUrl;
+      const pdfUrl = `${API_URL}/api/proposals/${proposalId}/pdf`;
+      console.log('📄 [handlePrint] Baixando PDF (app nativo):', pdfUrl);
+      fetch(pdfUrl, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Erro ao baixar PDF: ' + response.status);
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            window.location.href = reader.result;
+          };
+          reader.onerror = () => {
+            alert('❌ Erro ao processar o PDF baixado.');
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(err => {
+          console.error('❌ [handlePrint] Erro ao baixar PDF:', err);
+          alert('❌ Erro ao gerar o PDF. Tente novamente.');
+        });
       return;
     }
 
