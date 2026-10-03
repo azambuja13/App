@@ -209,7 +209,7 @@ function ProposalPreview({
       }
       const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
       const pdfUrl = `${API_URL}/api/proposals/${proposalId}/pdf`;
-      console.log('📄 [handlePrint] Baixando PDF (app nativo):', pdfUrl);
+      console.log('📄 [handlePrint] v7 - compartilhamento nativo direto - Baixando PDF (app nativo):', pdfUrl);
       fetch(pdfUrl, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(response => {
           if (!response.ok) {
@@ -228,19 +228,26 @@ function ProposalPreview({
           // (Web Share API), que já tem botão de Imprimir (AirPrint),
           // Salvar em Arquivos, enviar por WhatsApp/Mensagens/AirDrop etc -
           // sem depender de nenhum visualizador de PDF da própria página.
+          console.log('📄 [handlePrint] Blob recebido:', blob.size, 'bytes, tipo:', blob.type);
           const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
+          const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+          console.log('📄 [handlePrint] navigator.share existe?', typeof navigator.share, '| canShare({files})?', canShareFiles);
 
           const shareFile = async () => {
             try {
               if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                console.log('📄 [handlePrint] Chamando navigator.share()...');
                 await navigator.share({ files: [file], title: 'Proposta' });
+                console.log('📄 [handlePrint] navigator.share() retornou com sucesso');
                 return true;
               }
+              console.log('📄 [handlePrint] canShare retornou false, não vou chamar share()');
             } catch (shareErr) {
               if (shareErr && shareErr.name === 'AbortError') {
+                console.log('📄 [handlePrint] Usuário cancelou a folha de compartilhamento');
                 return true; // usuário cancelou a folha de compartilhamento, não é erro
               }
-              console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr);
+              console.error('❌ [handlePrint] Erro ao compartilhar PDF:', shareErr && shareErr.name, shareErr && shareErr.message);
             }
             return false;
           };
@@ -249,9 +256,11 @@ function ProposalPreview({
           // conta como gesto válido mesmo depois do fetch assíncrono - se
           // funcionar, a folha de compartilhamento abre direto, sem overlay.
           const sharedImmediately = await shareFile();
+          console.log('📄 [handlePrint] sharedImmediately =', sharedImmediately);
           if (sharedImmediately) {
             return;
           }
+          console.log('📄 [handlePrint] Mostrando overlay com botão de fallback');
 
           // 2ª tentativa (fallback): mostra um botão pro usuário tocar -
           // esse toque garante um gesto de toque fresco, exigido pela Web
