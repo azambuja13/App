@@ -229,6 +229,15 @@ function ProposalPreview({
           // Salvar em Arquivos, enviar por WhatsApp/Mensagens/AirDrop etc -
           // sem depender de nenhum visualizador de PDF da própria página.
           console.log('📄 [handlePrint] Blob recebido:', blob.size, 'bytes, tipo:', blob.type);
+          try {
+            const headerBuf = await blob.slice(0, 30).arrayBuffer();
+            const headerBytes = Array.from(new Uint8Array(headerBuf));
+            const headerText = new TextDecoder('utf-8', { fatal: false }).decode(headerBuf);
+            console.log('📄 [handlePrint] Primeiros 30 bytes (texto):', JSON.stringify(headerText));
+            console.log('📄 [handlePrint] Primeiros 30 bytes (valores):', JSON.stringify(headerBytes));
+          } catch (diagErr) {
+            console.error('❌ [handlePrint] Erro ao inspecionar bytes do blob:', diagErr);
+          }
           const file = new File([blob], 'proposta.pdf', { type: 'application/pdf' });
           const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [file] }));
           console.log('📄 [handlePrint] navigator.share existe?', typeof navigator.share, '| canShare({files})?', canShareFiles);
