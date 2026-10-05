@@ -384,6 +384,12 @@ export class MenuManager {
             await this.storage.set(this.storageKey, dishes);
             console.log(`✅ [MenuManager] Cardápio restaurado com ${dishes.length} pratos`);
 
+            // ✅ FIX: avisar a UI (useCalculations escuta 'menu-updated') para recalcular,
+            // inclusive quando o cardápio restaurado é vazio.
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('menu-updated'));
+            }
+
             return {
                 success: true,
                 message: `Cardápio restaurado com ${dishes.length} pratos`,

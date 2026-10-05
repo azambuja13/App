@@ -19,6 +19,9 @@ function EventsPage({
   } = React;
   const [savedEvents, setSavedEvents] = useState([]);
   const [clients, setClients] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
 
   // Usar o nome do evento das props (sincronizado com o estado global)
   const eventName = eventData?.eventName || '';
@@ -55,9 +58,18 @@ function EventsPage({
         await loadClients();
       }
     };
+
+    // ✅ Listener para recarregar lista quando evento for salvo/atualizado
+    const handleEventSaved = async () => {
+      console.log('✅ [EventsPage] Evento salvo/atualizado - recarregando lista...');
+      await loadSavedEvents();
+    };
+
     window.addEventListener('backend-phase2-complete', handlePhase2Complete);
     window.addEventListener('tab-changed', handleTabChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('event:created', handleEventSaved);
+    window.addEventListener('event:updated', handleEventSaved);
 
     // Atualizar lista de eventos a cada 60 segundos quando a tela está visível
     // (reduzido de 2s → 10s → 30s → 60s para evitar rate limiting - erro 429)
@@ -74,6 +86,8 @@ function EventsPage({
       window.removeEventListener('backend-phase2-complete', handlePhase2Complete);
       window.removeEventListener('tab-changed', handleTabChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('event:created', handleEventSaved);
+      window.removeEventListener('event:updated', handleEventSaved);
     };
   }, []);
   const loadClients = async () => {
@@ -188,6 +202,21 @@ function EventsPage({
 
   // Log de debug para render
   // ⚡ Performance: Log de render removido
+
+  const hasFilters = !!(searchTerm || filterMonth);
+  const displayedEvents = savedEvents
+    .filter(event => {
+      const matchesName = !searchTerm || (event.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesMonth = !filterMonth || (event.eventDate && event.eventDate.startsWith(filterMonth));
+      return matchesName && matchesMonth;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'recent') return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+      if (sortBy === 'oldest') return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
+      if (sortBy === 'eventDate') return new Date(b.eventDate || 0) - new Date(a.eventDate || 0);
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+      return 0;
+    });
 
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
@@ -387,13 +416,41 @@ function EventsPage({
     className: "text-2xl font-bold text-white"
   }, "\uD83D\uDCDA Eventos Salvos"), /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 mt-1"
-  }, savedEvents.length, " evento(s) cadastrado(s)")), savedEvents.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, hasFilters ? displayedEvents.length + ' de ' + savedEvents.length + ' evento(s)' : savedEvents.length + ' evento(s) cadastrado(s)')), savedEvents.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "p-4 bg-gray-50 border-b border-gray-200"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-3 items-center"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Buscar por nome...",
+    value: searchTerm,
+    onChange: function(e) { setSearchTerm(e.target.value); },
+    className: "flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "month",
+    value: filterMonth,
+    onChange: function(e) { setFilterMonth(e.target.value); },
+    className: "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+  }), /*#__PURE__*/React.createElement("select", {
+    value: sortBy,
+    onChange: function(e) { setSortBy(e.target.value); },
+    className: "px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+  }, /*#__PURE__*/React.createElement("option", { value: "recent" }, "Mais recente"), /*#__PURE__*/React.createElement("option", { value: "oldest" }, "Mais antigo"), /*#__PURE__*/React.createElement("option", { value: "eventDate" }, "Data do evento"), /*#__PURE__*/React.createElement("option", { value: "name" }, "Nome (A-Z)")), hasFilters && /*#__PURE__*/React.createElement("button", {
+    onClick: function() { setSearchTerm(''); setFilterMonth(''); },
+    className: "px-3 py-2 text-sm text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 transition"
+  }, "✕ Limpar filtros"))), savedEvents.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "p-12 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-gray-500 text-lg"
   }, "\uD83D\uDCCB Nenhum evento salvo ainda"), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-400 text-sm mt-2"
-  }, "Clique em \"Salvar Evento\" para criar seu primeiro evento")) : /*#__PURE__*/React.createElement("div", {
+  }, "Clique em \"Salvar Evento\" para criar seu primeiro evento")) : displayedEvents.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "p-12 text-center"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-lg"
+  }, "🔍 Nenhum evento encontrado"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-400 text-sm mt-2"
+  }, "Tente ajustar os filtros de busca")) : /*#__PURE__*/React.createElement("div", {
     className: "divide-y divide-gray-200"
   }, (() => {
     // DEBUG: Verificar IDs únicos
@@ -406,7 +463,7 @@ function EventsPage({
       console.log('✅ Todos os eventos têm IDs únicos:', ids);
     }
     return null;
-  })(), savedEvents.map(event => /*#__PURE__*/React.createElement("div", {
+  })(), displayedEvents.map(event => /*#__PURE__*/React.createElement("div", {
     key: event.id,
     className: "p-4 hover:bg-gray-50 transition"
   }, /*#__PURE__*/React.createElement("div", {

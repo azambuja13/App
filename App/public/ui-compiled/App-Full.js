@@ -1124,7 +1124,11 @@ window.AppFull = function AppFull() {
         }
 
         // Restaurar cardápio no MenuManager
-        if (eventData.menuDishes && eventData.menuDishes.length > 0) {
+        // ✅ FIX: restaurar também quando o evento foi salvo SEM pratos (array vazio).
+        // Antes, um evento sem pratos não mexia no cardápio, e o aparelho continuava
+        // mostrando o cardápio que já estava carregado localmente (ex: de outro evento).
+        // Eventos antigos sem o campo menuDishes (undefined) mantêm o comportamento anterior.
+        if (Array.isArray(eventData.menuDishes)) {
           console.log('  - menuDishes:', eventData.menuDishes.length);
           const menuManager = window.menuManager;
           if (menuManager && menuManager.restoreMenu) {
