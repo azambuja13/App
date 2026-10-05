@@ -123,12 +123,23 @@ class PrecificacaoAPI {
             }
 
             if (!response.ok) {
-                throw new Error(data.message || 'Erro na requisição');
+                // Preservar informações adicionais do erro (ex: ingredientes similares)
+                const error = new Error(data.message || 'Erro na requisição');
+                error.statusCode = response.status;
+                if (data.similar) {
+                    error.similar = data.similar; // Lista de ingredientes similares (409)
+                }
+                throw error;
             }
 
             return data;
         } catch (error) {
-            console.error('Erro na API:', error);
+            // Logar message/statusCode/stack explicitamente: o bridge nativo do Capacitor
+            // serializa objetos Error como "{}" no console, escondendo a causa real.
+            console.error('❌ Erro na API:', error && error.message ? error.message : String(error), error && error.statusCode ? `(status ${error.statusCode})` : '(sem status - possível erro de rede/CORS/JSON)');
+            if (error && error.stack) {
+                console.error('❌ Stack:', error.stack);
+            }
             throw error;
         }
     }
@@ -908,9 +919,17 @@ class EventManager {
 
         // ✅ FIX: Se tem ID, atualizar evento existente; senão, criar novo
         // (createEvent sozinho falha silenciosamente em edições, pois o ID já existe no backend)
+        // ✅ FIX 2: updateEvent lança exceção (404) quando o evento ainda não existe no backend
+        // (ex: evento NOVO, cujo ID já vem pré-gerado pelo CloudStorageAdapter) — por isso o
+        // fallback para createEvent precisa estar num catch, não só num "if (!result.success)".
         let result;
         if (event.id) {
-            result = await this.api.updateEvent(event.id, event);
+            try {
+                result = await this.api.updateEvent(event.id, event);
+            } catch (updateError) {
+                console.log('ℹ️ updateEvent falhou (provavelmente evento novo, ainda não existe no backend) - criando:', updateError.message);
+                result = { success: false };
+            }
             if (!result.success) {
                 // Evento não existe no backend ainda — criar com o mesmo ID
                 result = await this.api.createEvent(event);
