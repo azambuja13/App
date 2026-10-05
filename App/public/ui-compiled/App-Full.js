@@ -1363,6 +1363,9 @@ window.AppFull = function AppFull() {
       console.log('🔍 [handleSaveEvent] VERSION CHECK: b5e8579 - results fix applied');
       console.log('🔍 [handleSaveEvent] costs object:', costs);
 
+      // ✅ Calcular custos de apoio para os totais
+      const apoioCost = (costs?.supportCost || 0) + (costs?.laborCost || 0) + (costs?.transportCost || 0);
+
       // Capturar dados do cardápio atual do MenuManager
       const menuManager = window.menuManager;
       let menuDishes = [];
@@ -1395,7 +1398,20 @@ window.AppFull = function AppFull() {
         },
         results: {
           totalWithInflation: costs?.totalCost || 0,
-          pricePerPerson: costs?.pricePerPerson || 0
+          totalWithMargin: costs?.totalWithMargin || 0,  // ✅ FIX: Incluir total com margem
+          pricePerPerson: costs?.pricePerPerson || 0,
+          // ✅ 3 Totais separados (todos incluem apoio)
+          totalItens: (costs?.ingredientsCost || 0) + apoioCost,  // Total Itens + Apoio
+          totalPratos: (costs?.menuCostTotal || 0) + apoioCost,   // Total Pratos (sem margem) + Apoio
+          totalPratosComMargem: (costs?.menuPriceTotal || 0) + apoioCost,  // Total Pratos (com margem) + Apoio
+          // ✅ Valores base (sem apoio) para referência
+          ingredientsCost: costs?.ingredientsCost || 0,
+          menuCostTotal: costs?.menuCostTotal || 0,
+          menuPriceTotal: costs?.menuPriceTotal || 0,
+          menuMarginAmount: costs?.menuMarginAmount || 0,
+          supportCost: costs?.supportCost || 0,
+          laborCost: costs?.laborCost || 0,
+          transportCost: costs?.transportCost || 0
         }
       };
 
@@ -2338,9 +2354,20 @@ window.AppFull = function AppFull() {
     laborCost: costs?.laborCost || 0,
     transportCost: costs?.transportCost || 0,
     subtotal: costs?.subtotal || 0,
+    subtotalWithMargin: costs?.subtotalWithMargin || 0,
     totalCost: costs?.totalCost || 0,
     pricePerPerson: costs?.pricePerPerson || 0,
-    guests: state.guests
+    guests: state.guests,
+    ingredientsCost: costs?.ingredientsCost || 0,
+    menuCostTotal: costs?.menuCostTotal || 0,
+    menuPriceTotal: costs?.menuPriceTotal || 0,
+    menuPriceWithMargin: costs?.menuPriceWithMargin || 0,
+    menuCostWithoutMargin: costs?.menuCostWithoutMargin || 0,
+    totalWithMargin: costs?.totalWithMargin || 0,
+    menuMarginAmount: costs?.menuMarginAmount || 0,
+    hasActiveMenu: costs?.hasActiveMenu || false,
+    additionalMarkupPercent: state.markupPercent || 0,
+    additionalMarkupAmount: state.markupAmount || 0
   }), /*#__PURE__*/React.createElement("div", {
     className: "p-4"
   }, /*#__PURE__*/React.createElement(PasswordLock, {
@@ -2399,9 +2426,20 @@ window.AppFull = function AppFull() {
     laborCost: costs?.laborCost || 0,
     transportCost: costs?.transportCost || 0,
     subtotal: costs?.subtotal || 0,
+    subtotalWithMargin: costs?.subtotalWithMargin || 0,
     totalCost: costs?.totalCost || 0,
     pricePerPerson: costs?.pricePerPerson || 0,
-    guests: state.guests
+    guests: state.guests,
+    ingredientsCost: costs?.ingredientsCost || 0,
+    menuCostTotal: costs?.menuCostTotal || 0,
+    menuPriceTotal: costs?.menuPriceTotal || 0,
+    menuPriceWithMargin: costs?.menuPriceWithMargin || 0,
+    menuCostWithoutMargin: costs?.menuCostWithoutMargin || 0,
+    totalWithMargin: costs?.totalWithMargin || 0,
+    menuMarginAmount: costs?.menuMarginAmount || 0,
+    hasActiveMenu: costs?.hasActiveMenu || false,
+    additionalMarkupPercent: state.markupPercent || 0,
+    additionalMarkupAmount: state.markupAmount || 0
   })), state.activeTab !== 'whatsapp' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {

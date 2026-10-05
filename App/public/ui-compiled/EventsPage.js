@@ -331,8 +331,10 @@ function EventsPage({
     className: "text-xs text-gray-600 mt-1"
   }, "\uD83D\uDCB0 Corre\xE7\xE3o de infla\xE7\xE3o: +", ((Math.pow(1.01, eventData.monthsUntilEvent) - 1) * 100).toFixed(2), "% nos materiais"))), costs && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 pt-4 border-t border-orange-300"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 md:grid-cols-5 gap-4"
+  },
+  // ✅ Linha 1: Detalhes dos custos
+  /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-600"
   }, "Ingredientes"), /*#__PURE__*/React.createElement("p", {
@@ -349,13 +351,35 @@ function EventsPage({
     className: "text-xs text-gray-600"
   }, "M\xE3o de Obra"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-orange-600"
-  }, formatCurrency(costs.laborCost || 0))), /*#__PURE__*/React.createElement("div", {
-    className: "bg-orange-100 rounded px-2 py-1"
+  }, formatCurrency(costs.laborCost || 0)))),
+  // ✅ Linha 2: Os 3 totais
+  /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 md:grid-cols-3 gap-4"
+  },
+  // Total Itens + Apoio
+  /*#__PURE__*/React.createElement("div", {
+    className: "bg-orange-100 rounded-lg px-3 py-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-600"
   }, "Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-orange-700"
-  }, formatCurrency(costs.totalCost || 0))))))), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency((costs.ingredientsCost || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))),
+  // Total Pratos + Apoio (só mostra se tiver cardápio)
+  (costs.menuCostTotal > 0) && /*#__PURE__*/React.createElement("div", {
+    className: "bg-blue-100 rounded-lg px-3 py-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-600"
+  }, "Total Pratos"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-bold text-blue-700"
+  }, formatCurrency((costs.menuCostTotal || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))),
+  // Total com Margem + Apoio (só mostra se tiver margem)
+  (costs.menuMarginAmount > 0) && /*#__PURE__*/React.createElement("div", {
+    className: "bg-green-100 rounded-lg px-3 py-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-600"
+  }, "Total com Margem"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-bold text-green-700"
+  }, formatCurrency((costs.menuPriceTotal || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))))))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-purple-600 to-pink-600 p-6"
@@ -384,31 +408,51 @@ function EventsPage({
     return null;
   })(), savedEvents.map(event => /*#__PURE__*/React.createElement("div", {
     key: event.id,
-    className: "p-6 hover:bg-gray-50 transition"
+    className: "p-4 hover:bg-gray-50 transition"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col sm:flex-row sm:items-start justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 min-w-0"
   }, /*#__PURE__*/React.createElement("h4", {
-    className: "text-xl font-bold text-gray-800 mb-2"
+    className: "text-lg font-bold text-gray-800 mb-2"
   }, event.name), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-500"
+    className: "grid grid-cols-2 md:grid-cols-6 gap-2 text-xs"
+  },
+  // Data
+  /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
   }, "Data"), /*#__PURE__*/React.createElement("p", {
-    className: "font-semibold text-gray-700"
-  }, event.eventDate ? formatDate(event.eventDate) : '-')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-500"
+    className: "font-semibold text-gray-700 text-sm"
+  }, event.eventDate ? formatDate(event.eventDate) : '-')),
+  // Convidados
+  /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
   }, "Convidados"), /*#__PURE__*/React.createElement("p", {
-    className: "font-semibold text-gray-700"
-  }, event.data?.guests || event.guests || 0)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-500"
+    className: "font-semibold text-gray-700 text-sm"
+  }, event.data?.guests || event.guests || 0)),
+  // Total Itens (usa totalItens salvo ou calcula)
+  /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
   }, "Total"), /*#__PURE__*/React.createElement("p", {
-    className: "font-semibold text-green-600"
-  }, formatCurrency(event.totalWithInflation || event.results?.totalWithInflation || event.stateData?.results?.totalWithInflation || event.totalCost || 0))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-gray-500"
+    className: "font-semibold text-orange-600 text-sm"
+  }, formatCurrency((event.results || event.stateData?.results || {}).totalItens || event.totalWithInflation || event.results?.totalWithInflation || event.stateData?.results?.totalWithInflation || event.totalCost || 0))),
+  // Total Pratos (só mostra se tiver valor)
+  ((event.results || event.stateData?.results || {}).totalPratos || 0) > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
+  }, "Total Pratos"), /*#__PURE__*/React.createElement("p", {
+    className: "font-semibold text-blue-600 text-sm"
+  }, formatCurrency((event.results || event.stateData?.results || {}).totalPratos))),
+  // Total com Margem (só mostra se tiver valor)
+  ((event.results || event.stateData?.results || {}).totalPratosComMargem || (event.results || event.stateData?.results || {}).totalWithMargin || event.totalWithMargin || 0) > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
+  }, "c/ Margem"), /*#__PURE__*/React.createElement("p", {
+    className: "font-semibold text-green-600 text-sm"
+  }, formatCurrency((event.results || event.stateData?.results || {}).totalPratosComMargem || (event.results || event.stateData?.results || {}).totalWithMargin || event.totalWithMargin || 0))),
+  // Salvo em
+  /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-500 text-xs"
   }, "Salvo em"), /*#__PURE__*/React.createElement("p", {
-    className: "font-semibold text-gray-700"
+    className: "font-semibold text-gray-700 text-sm"
   }, formatDate(event.createdAt))))), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 w-full sm:w-auto sm:ml-4 flex-shrink-0"
   }, /*#__PURE__*/React.createElement("button", {

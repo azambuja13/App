@@ -14,7 +14,7 @@ const { useMemo, useState, useEffect } = React;
  * Calcula todos os custos do evento
  * NOTA: Definida aqui ao invés de importada para evitar problemas de scope com Babel
  */
-function calculateEventCosts(data, ingredients) {
+async function calculateEventCosts(data, ingredients) {
     // DEBUG: Verificar valor de guests
     if (!data.guests || data.guests === 0) {
         console.warn('⚠️ [calculateEventCosts] guests está zerado!', {
@@ -31,19 +31,46 @@ function calculateEventCosts(data, ingredients) {
             itemsCalculated: [],
             ingredientsCost: 0,
             subtotal: 0,
+            subtotalWithMargin: 0,
             supportCost: 0,
             laborCost: 0,
             transportCost: 0,
             totalCost: 0,
             pricePerPerson: 0,
             monthsUntilEvent: 0,
-            inflationApplied: 0
+            inflationApplied: 0,
+            menuCostTotal: 0,
+            menuPriceTotal: 0,
+            menuPriceWithMargin: 0,
+            menuCostWithoutMargin: 0,
+            totalWithMargin: 0,
+            menuMarginAmount: 0,
+            hasActiveMenu: false
         };
     }
 
+    // ✅ Buscar estatísticas do cardápio (com margem de lucro)
+    let menuStats = { totalCost: 0, totalPrice: 0 };
+    if (window.menuManager) {
+        try {
+            menuStats = await window.menuManager.getStatistics();
+            console.log('📊 [useCalculations] MenuStats recebido:', menuStats);
+        } catch (error) {
+            console.warn('⚠️ Erro ao buscar stats do cardápio:', error);
+        }
+    } else {
+        console.warn('⚠️ [useCalculations] window.menuManager não encontrado!');
+    }
+
+    // ✅ SEMPRE calcular os itens (para custo base E para exibir categorias)
     const itemsCalculated = window.calculateItems(data.items || [], ingredients, data.guests);
 
-    const subtotal = itemsCalculated.reduce((sum, item) => sum + (item.total || 0), 0);
+    // Custo dos itens do evento (para exibição por categorias)
+    const itemsEventCost = itemsCalculated.reduce((sum, item) => sum + (item.total || 0), 0);
+    console.log(`📋 [useCalculations] Custo dos ITENS DO EVENTO: R$ ${itemsEventCost.toFixed(2)}`);
+
+    // ✅ Verificar se tem cardápio ativo (para calcular margem)
+    const hasActiveMenu = (menuStats.totalDishes || 0) > 0;
 
     // Usar módulo calculations para custos de apoio (funções diretas no window)
     const supportCost = window.calculateSupportCost
@@ -65,14 +92,41 @@ function calculateEventCosts(data, ingredients) {
         ? window.calculateTransportCost(data.transport || {})
         : 0;
 
-    // Subtotal sem inflação
-    const subtotalBeforeInflation = subtotal + supportCost + laborCost + transportCost;
+    // ✅ Custo dos ITENS DO EVENTO (custo real dos ingredientes)
+    const ingredientsCost = itemsEventCost;
 
-    // Usar módulo calculations para aplicar inflação
+    // ✅ Custo do CARDÁPIO (sem margem) × convidados
+    const menuCostTotal = (menuStats.totalCost || 0) * (data.guests || 0);
+
+    // ✅ Preço do CARDÁPIO (com margem) × convidados
+    const menuPriceTotal = (menuStats.totalPrice || 0) * (data.guests || 0);
+
+    // ✅ Margem do cardápio = diferença entre preço e custo do CARDÁPIO
+    const menuMarginAmount = menuPriceTotal - menuCostTotal;
+
+    // Subtotal baseado nos ITENS DO EVENTO (custo real)
+    const subtotalBeforeInflation = ingredientsCost + supportCost + laborCost + transportCost;
+
+    // Subtotal com margem baseado no CARDÁPIO
+    const subtotalWithMarginBeforeInflation = hasActiveMenu
+        ? (menuPriceTotal + supportCost + laborCost + transportCost)
+        : subtotalBeforeInflation;
+
+    console.log(`✅ [useCalculations] Total ITENS DO EVENTO: R$ ${itemsEventCost.toFixed(2)}`);
+    console.log(`✅ [useCalculations] Total CARDÁPIO (sem margem): R$ ${menuCostTotal.toFixed(2)}`);
+    console.log(`✅ [useCalculations] Total CARDÁPIO (com margem): R$ ${menuPriceTotal.toFixed(2)}`);
+    console.log(`✅ [useCalculations] Margem do cardápio: R$ ${menuMarginAmount.toFixed(2)}`)
+
+    // Usar módulo calculations para aplicar inflação (SEM margem)
     const monthsUntilEvent = data.monthsUntilEvent || 0;
     const totalCost = window.applyInflation
         ? window.applyInflation(subtotalBeforeInflation, monthsUntilEvent, 0.01)
         : subtotalBeforeInflation * Math.pow(1.01, monthsUntilEvent);
+
+    // Aplicar inflação no total COM margem
+    const totalWithMargin = window.applyInflation
+        ? window.applyInflation(subtotalWithMarginBeforeInflation, monthsUntilEvent, 0.01)
+        : subtotalWithMarginBeforeInflation * Math.pow(1.01, monthsUntilEvent);
 
     // Calcular multiplicador de inflação para log
     const inflationMultiplier = monthsUntilEvent > 0
@@ -81,27 +135,42 @@ function calculateEventCosts(data, ingredients) {
 
     const result = {
         itemsCalculated,
-        ingredientsCost: subtotal,  // Custo dos ingredientes (Itens do Evento)
+        ingredientsCost: ingredientsCost,  // ✅ Custo dos ITENS DO EVENTO (custo real)
         subtotal: subtotalBeforeInflation,
+        subtotalWithMargin: subtotalWithMarginBeforeInflation,
         supportCost: supportCost,
         laborCost: laborCost,
         transportCost: transportCost,
-        totalCost: totalCost,
+        totalCost: totalCost,  // ✅ Total baseado nos ITENS DO EVENTO
         pricePerPerson: data.guests > 0 ? totalCost / data.guests : 0,
         monthsUntilEvent: monthsUntilEvent,
-        inflationApplied: totalCost - subtotalBeforeInflation
+        inflationApplied: totalCost - subtotalBeforeInflation,
+        // ✅ Valores do CARDÁPIO (separados dos itens do evento)
+        menuCostTotal: menuCostTotal,  // Total do cardápio SEM margem (custo × convidados)
+        menuPriceTotal: menuPriceTotal,  // Total do cardápio COM margem (preço × convidados)
+        menuPriceWithMargin: menuStats.totalPrice || 0,  // Preço por pessoa COM margem
+        menuCostWithoutMargin: menuStats.totalCost || 0,  // Custo por pessoa SEM margem
+        totalWithMargin: totalWithMargin,  // Total geral COM margem (cardápio + outros custos)
+        menuMarginAmount: menuMarginAmount,  // Valor absoluto da margem
+        hasActiveMenu: hasActiveMenu  // ✅ Flag para saber se tem cardápio
     };
 
     console.log('💰 Cálculo concluído:', {
-        ingredientsCost: subtotal,
+        fonte: hasActiveMenu ? 'CARDÁPIO' : 'ITENS DO EVENTO',
+        totalDishes: menuStats.totalDishes || 0,
+        menuCostPerPerson: menuStats.totalCost || 0,
+        menuPricePerPerson: menuStats.totalPrice || 0,
+        ingredientsCost: ingredientsCost,
         supportCost,
         laborCost,
         transportCost,
-        subtotal: subtotalBeforeInflation,
+        subtotalSemMargem: subtotalBeforeInflation,
+        menuMarginAmount,
+        subtotalComMargem: subtotalWithMarginBeforeInflation,
         monthsUntilEvent,
         inflationMultiplier: inflationMultiplier.toFixed(4),
-        inflationApplied: (totalCost - subtotalBeforeInflation).toFixed(2),
-        totalCost
+        totalSemMargem: totalCost,
+        totalComMargem: totalWithMargin
     });
 
     return result;
@@ -117,6 +186,9 @@ function useCalculations(eventData, ingredients = []) {
     // Forçar re-render quando managers estiverem prontos
     const [managersReady, setManagersReady] = useState(!!window.managersReady);
 
+    // ✅ FIX: Adicionar state para forçar recálculo quando cardápio mudar
+    const [menuVersion, setMenuVersion] = useState(0);
+
     useEffect(() => {
         if (window.managersReady) {
             setManagersReady(true);
@@ -130,6 +202,17 @@ function useCalculations(eventData, ingredients = []) {
 
         window.addEventListener('managers-ready', handleReady);
         return () => window.removeEventListener('managers-ready', handleReady);
+    }, []);
+
+    // ✅ FIX: Listener para mudanças no cardápio
+    useEffect(() => {
+        const handleMenuUpdate = () => {
+            console.log('📊 [useCalculations] Cardápio atualizado, forçando recálculo...');
+            setMenuVersion(v => v + 1);
+        };
+
+        window.addEventListener('menu-updated', handleMenuUpdate);
+        return () => window.removeEventListener('menu-updated', handleMenuUpdate);
     }, []);
 
     // ✅ OTIMIZAÇÃO: Criar hashes estáveis das dependências complexas
@@ -148,39 +231,48 @@ function useCalculations(eventData, ingredients = []) {
         return ingredients.map(ing => `${ing.id}_${ing.price}_${ing.unit}`).join('|');
     }, [ingredients]);
 
-    const costs = useMemo(() => {
-        try {
-            // Aguardar managers carregarem
-            if (!managersReady || !window.calculateItems) {
-                console.log('⏳ [useCalculations] Aguardando managers...');
-                return {
-                    itemsCalculated: [],
-                    ingredientsCost: 0,
-                    subtotal: 0,
-                    supportCost: 0,
-                    laborCost: 0,
-                    transportCost: 0,
-                    totalCost: 0,
-                    pricePerPerson: 0,
-                    monthsUntilEvent: 0,
-                    inflationApplied: 0
-                };
+    const [costs, setCosts] = useState({
+        itemsCalculated: [],
+        ingredientsCost: 0,
+        subtotal: 0,
+        subtotalWithMargin: 0,
+        supportCost: 0,
+        laborCost: 0,
+        transportCost: 0,
+        totalCost: 0,
+        pricePerPerson: 0,
+        monthsUntilEvent: 0,
+        inflationApplied: 0,
+        menuCostTotal: 0,
+        menuPriceTotal: 0,
+        menuPriceWithMargin: 0,
+        menuCostWithoutMargin: 0,
+        totalWithMargin: 0,
+        menuMarginAmount: 0,
+        hasActiveMenu: false
+    });
+
+    useEffect(() => {
+        async function calculate() {
+            try {
+                // Aguardar managers carregarem
+                if (!managersReady || !window.calculateItems) {
+                    console.log('⏳ [useCalculations] Aguardando managers...');
+                    return;
+                }
+
+                // Sempre calcular, mesmo sem itens (para labor e transport)
+                const calculated = await calculateEventCosts(eventData, ingredients);
+                setCosts(calculated);
+            } catch (error) {
+                console.error('❌ [useCalculations] Erro ao calcular custos:', error);
             }
-
-            // ⚡ Performance: Log removido (executava em CADA cálculo de evento)
-
-            // Sempre calcular, mesmo sem itens (para labor e transport)
-            const calculated = calculateEventCosts(eventData, ingredients);
-
-            // ⚡ Performance: Log removido (executava em CADA cálculo de evento)
-
-            return calculated;
-        } catch (error) {
-            console.error('❌ [useCalculations] Erro ao calcular custos:', error);
-            return null;
         }
+
+        calculate();
     }, [
         managersReady,
+        menuVersion,            // ✅ FIX: Forçar recálculo quando cardápio muda
         itemsHash,              // ✅ Usar hash ao invés de array
         supportHash,            // ✅ Usar hash ao invés de array
         eventData.labor?.hours,

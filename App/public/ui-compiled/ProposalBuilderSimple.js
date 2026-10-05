@@ -25,6 +25,11 @@ function ProposalBuilderSimple({
     proposalType: 'standard',
     selectedMenuId: null,
     selectedMenuData: null,
+    // ✅ Tipo de total a usar na proposta:
+    // 'items' = Total Itens (ingredientes do evento)
+    // 'menu_cost' = Total Pratos (cardápio sem margem)
+    // 'menu_price' = Total Pratos + Margem (cardápio com margem)
+    totalType: 'menu_cost',
     clientName: '',
     clientPhone: '',
     clientEmail: '',
@@ -230,6 +235,8 @@ function ProposalBuilderSimple({
         proposalType: proposal.proposalType || 'standard',
         selectedMenuId: proposal.selectedMenuId || null,
         selectedMenuData: proposal.selectedMenuData || null,
+        // ✅ Compatibilidade: converter useMenuWithMargin antigo para totalType
+        totalType: proposal.totalType || (proposal.useMenuWithMargin ? 'menu_price' : 'menu_cost'),
         clientName: proposal.clientName || '',
         clientPhone: proposal.clientPhone || '',
         clientEmail: proposal.clientEmail || '',
@@ -394,25 +401,45 @@ function ProposalBuilderSimple({
     }));
   };
   const calculateTotalCost = () => {
-    console.log('💰 calculateTotalCost - Iniciando cálculo COM INFLAÇÃO');
+    console.log('💰 calculateTotalCost - Iniciando cálculo');
     console.log('💰 costs:', costs);
+    console.log('💰 totalType:', formData.totalType);
 
-    // IMPORTANTE: usar costs.totalCost que JÁ INCLUI inflação aplicada
-    // baseada em monthsUntilEvent no useCalculations
-    //
-    // costs.totalCost = applyInflation(subtotal, monthsUntilEvent)
-    // onde subtotal = ingredientsCost + supportCost + transportCost + laborCost
+    // Custos de apoio (sempre incluídos)
+    const apoioCost = (costs?.supportCost || 0) + (costs?.laborCost || 0) + (costs?.transportCost || 0);
 
-    const totalWithInflation = costs?.totalCost || 0;
-    console.log('💰 Total COM inflação (costs.totalCost):', totalWithInflation);
-    console.log('💰 Breakdown:');
-    console.log('   - Ingredientes:', costs?.ingredientsCost || 0);
+    let baseCost = 0;
+    let totalLabel = '';
+
+    switch (formData.totalType) {
+      case 'items':
+        // ✅ Total dos Itens do Evento (ingredientes diretos)
+        baseCost = costs?.ingredientsCost || 0;
+        totalLabel = 'ITENS DO EVENTO';
+        break;
+      case 'menu_price':
+        // ✅ Total dos Pratos COM margem
+        baseCost = costs?.menuPriceTotal || 0;
+        totalLabel = 'PRATOS COM MARGEM';
+        break;
+      case 'menu_cost':
+      default:
+        // ✅ Total dos Pratos SEM margem (padrão)
+        baseCost = costs?.menuCostTotal || 0;
+        totalLabel = 'PRATOS SEM MARGEM';
+        break;
+    }
+
+    const total = baseCost + apoioCost;
+
+    console.log(`💰 ✅ Usando ${totalLabel}:`);
+    console.log('   - Base (', totalLabel, '):', baseCost);
     console.log('   - Apoio:', costs?.supportCost || 0);
     console.log('   - Transporte:', costs?.transportCost || 0);
     console.log('   - Mão de obra:', costs?.laborCost || 0);
-    console.log('   - Subtotal sem inflação:', (costs?.ingredientsCost || 0) + (costs?.supportCost || 0) + (costs?.transportCost || 0) + (costs?.laborCost || 0));
-    console.log('   - Total COM inflação:', totalWithInflation);
-    return totalWithInflation;
+    console.log('   - TOTAL:', total);
+
+    return total;
   };
   const calculateFinalTotal = () => {
     const totalCost = calculateTotalCost();
@@ -488,6 +515,7 @@ function ProposalBuilderSimple({
         proposalType: formData.proposalType,
         selectedMenuId: formData.selectedMenuId,
         selectedMenuData: formData.selectedMenuData,
+        totalType: formData.totalType || 'menu_cost', // ✅ Tipo de total escolhido
         dishes: dishes,
         // Array de pratos para exibição rápida
         // Dados do Cliente
@@ -547,6 +575,7 @@ function ProposalBuilderSimple({
         markup: Number(formData.markupPercent) || 0,
         totalCost: roundedTotalCost,
         markupPercent: Number(formData.markupPercent) || 0,
+        markupAmount: roundedFinalTotal - roundedTotalCost,  // ✅ Valor da margem adicional em R$
         finalTotal: roundedFinalTotal
         // dishes já foi definido na linha 384 - não duplicar aqui!
       };
@@ -648,16 +677,112 @@ function ProposalBuilderSimple({
   }, /*#__PURE__*/React.createElement("strong", null, (() => {
     const dishes = formData.selectedMenuData.menuData?.dishes || formData.selectedMenuData.dishes || [];
     return dishes.length;
-  })()), " pratos"), /*#__PURE__*/React.createElement("span", {
+  })()), " pratos"), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-3 items-center"
+  }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
-  }, /*#__PURE__*/React.createElement("strong", null, "R$ ", (() => {
-    // ✅ FIX: Usar menu.stats.totalCost (custo POR PESSOA) em vez de somar dish.dishCost (custo TOTAL)
+  }, "\uD83D\uDCB5 Custo: ", /*#__PURE__*/React.createElement("strong", null, "R$ ", (() => {
+    // ✅ Usar menu.stats.totalCost (custo POR PESSOA)
     const costPerPerson = formData.selectedMenuData.stats?.totalCost || 0;
     return costPerPerson.toFixed(2);
-  })()), " /pessoa"))), /*#__PURE__*/React.createElement("button", {
+  })()), "/pessoa"), (() => {
+    // ✅ Mostrar preço com margem se disponível
+    const totalPrice = formData.selectedMenuData.stats?.totalPrice || 0;
+    const totalCost = formData.selectedMenuData.stats?.totalCost || 0;
+    if (totalPrice > totalCost) {
+      return /*#__PURE__*/React.createElement("span", {
+        className: "text-sm"
+      }, "\u2728 Com margem: ", /*#__PURE__*/React.createElement("strong", {
+        className: "text-green-600"
+      }, "R$ ", totalPrice.toFixed(2), "/pessoa"));
+    }
+    return null;
+  })()))), /*#__PURE__*/React.createElement("button", {
     onClick: handleRemoveMenu,
     className: "ml-4 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-  }, "\uD83D\uDDD1\uFE0F"))) : /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDDD1\uFE0F")), (() => {
+    // ✅ Seletor de tipo de total para a proposta
+    const totalPrice = formData.selectedMenuData.stats?.totalPrice || 0;
+    const totalCost = formData.selectedMenuData.stats?.totalCost || 0;
+    const hasMargin = totalPrice > totalCost;
+    const hasItems = costs?.ingredientsCost > 0;
+
+    return /*#__PURE__*/React.createElement("div", {
+      className: "mt-3 p-3 bg-blue-50 border-blue-200 border rounded-lg"
+    },
+    /*#__PURE__*/React.createElement("p", {
+      className: "text-sm font-semibold text-gray-700 mb-3"
+    }, "\uD83D\uDCB0 Qual total usar na proposta?"),
+    /*#__PURE__*/React.createElement("div", {
+      className: "space-y-2"
+    },
+    // Opção 1: Total dos Itens
+    /*#__PURE__*/React.createElement("label", {
+      className: `flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${formData.totalType === 'items' ? 'bg-orange-100 border border-orange-300' : 'hover:bg-gray-100'} ${!hasItems ? 'opacity-50 cursor-not-allowed' : ''}`
+    },
+    /*#__PURE__*/React.createElement("input", {
+      type: "radio",
+      name: "totalType",
+      value: "items",
+      checked: formData.totalType === 'items',
+      onChange: () => hasItems && handleChange('totalType', 'items'),
+      disabled: !hasItems,
+      className: "w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+    }),
+    /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("span", {
+        className: "text-sm font-medium text-gray-700"
+      }, "Total Itens do Evento"),
+      /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-gray-500"
+      }, "Custo real dos ingredientes (R$ ", (costs?.ingredientsCost || 0).toFixed(2), ")")
+    )),
+    // Opção 2: Total dos Pratos (sem margem)
+    /*#__PURE__*/React.createElement("label", {
+      className: `flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${formData.totalType === 'menu_cost' ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'}`
+    },
+    /*#__PURE__*/React.createElement("input", {
+      type: "radio",
+      name: "totalType",
+      value: "menu_cost",
+      checked: formData.totalType === 'menu_cost',
+      onChange: () => handleChange('totalType', 'menu_cost'),
+      className: "w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+    }),
+    /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("span", {
+        className: "text-sm font-medium text-gray-700"
+      }, "Total Pratos (sem margem)"),
+      /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-gray-500"
+      }, "Custo do card\xE1pio (R$ ", (costs?.menuCostTotal || 0).toFixed(2), ")")
+    )),
+    // Opção 3: Total dos Pratos (com margem)
+    /*#__PURE__*/React.createElement("label", {
+      className: `flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${formData.totalType === 'menu_price' ? 'bg-green-100 border border-green-300' : 'hover:bg-gray-100'} ${!hasMargin ? 'opacity-50 cursor-not-allowed' : ''}`
+    },
+    /*#__PURE__*/React.createElement("input", {
+      type: "radio",
+      name: "totalType",
+      value: "menu_price",
+      checked: formData.totalType === 'menu_price',
+      onChange: () => hasMargin && handleChange('totalType', 'menu_price'),
+      disabled: !hasMargin,
+      className: "w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
+    }),
+    /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("span", {
+        className: "text-sm font-medium text-gray-700"
+      }, "Total Pratos + Margem"),
+      hasMargin
+        ? /*#__PURE__*/React.createElement("p", {
+            className: "text-xs text-green-600"
+          }, "Com margem de lucro (R$ ", (costs?.menuPriceTotal || 0).toFixed(2), ")")
+        : /*#__PURE__*/React.createElement("p", {
+            className: "text-xs text-gray-500"
+          }, "\u26A0\uFE0F Configure margem nos pratos para ativar")
+    ))));
+  })()) : /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenuSelector(!showMenuSelector),
     className: "w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors"
   }, "\u2795 Selecionar Card\xE1pio Salvo"), showMenuSelector && !formData.selectedMenuData && /*#__PURE__*/React.createElement("div", {
@@ -1000,7 +1125,16 @@ function ProposalBuilderSimple({
     className: "w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
   }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "\uD83D\uDCA1 Voc\xEA pode usar 0% para mostrar apenas o custo sem margem")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCA1 Voc\xEA pode usar 0% para mostrar apenas o custo sem margem")), formData.markupPercent > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 flex justify-between text-sm bg-blue-50 rounded-lg p-3 border border-blue-200"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-medium text-blue-800"
+  }, "+ Margem Adicional (", formData.markupPercent, "%)"), /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-blue-600"
+  }, "R$ ", (calculateFinalTotal() - calculateTotalCost()).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }))), /*#__PURE__*/React.createElement("div", {
     className: "mt-4 pt-4 border-t border-orange-300"
   }, /*#__PURE__*/React.createElement("label", {
     className: "flex items-center gap-2 cursor-pointer"
