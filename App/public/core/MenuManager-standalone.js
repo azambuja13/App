@@ -19,6 +19,9 @@
                     menu[existingIndex].portionsPerPerson = portionsPerPerson;
                     menu[existingIndex].dishServings = dish.servings || menu[existingIndex].dishServings || 1;
                     menu[existingIndex].totalWeight = dish.totalWeight || menu[existingIndex].totalWeight || 0;
+                    menu[existingIndex].useWeightCalculation = dish.useWeightCalculation !== undefined ? dish.useWeightCalculation : menu[existingIndex].useWeightCalculation;
+                    menu[existingIndex].profitMargin = dish.profitMargin !== undefined ? dish.profitMargin : menu[existingIndex].profitMargin;
+                    menu[existingIndex].suggestedPrice = dish.suggestedPrice !== undefined ? dish.suggestedPrice : menu[existingIndex].suggestedPrice;
                     menu[existingIndex].updatedAt = new Date().toISOString();
                 } else {
                     const menuItem = {
@@ -31,6 +34,9 @@
                         dishServings: dish.servings || 1, // Número de porções que o prato rende
                         totalWeight: dish.totalWeight || 0, // Peso total do prato em gramas
                         portionsPerPerson: portionsPerPerson, // Quantas porções cada pessoa vai consumir
+                        useWeightCalculation: dish.useWeightCalculation || false, // Se usa cálculo por peso
+                        profitMargin: dish.profitMargin || 0, // Margem de lucro em %
+                        suggestedPrice: dish.suggestedPrice || null, // Preço sugerido
                         active: true,
                         addedAt: new Date().toISOString(),
                         updatedAt: new Date().toISOString()
@@ -149,14 +155,45 @@
             return {
                 totalDishes: menu.length,
                 totalCost: menu.reduce((sum, item) => {
-                    // Calcular custo proporcional: (custo do prato / peso total) × gramas por pessoa
-                    const totalWeight = item.totalWeight || 1;
                     const dishCost = item.dishCost || 0;
                     const portionsPerPerson = item.portionsPerPerson || 0;
-                    const gramsPerPerson = portionsPerPerson * 100; // 1 porção = 100g
+
+                    // Se useWeightCalculation=true, calcular por PORÇÃO
+                    if (item.useWeightCalculation && item.servings > 0) {
+                        const costPerDishPortion = dishCost / item.servings;
+                        const costPerPerson = costPerDishPortion * portionsPerPerson;
+                        return sum + costPerPerson;
+                    }
+
+                    // Se useWeightCalculation=false, calcular por PESO (100g)
+                    const totalWeight = item.totalWeight || 1;
+                    const gramsPerPerson = portionsPerPerson * 100;
                     const costPerGram = dishCost / totalWeight;
                     const costPerPortion = costPerGram * gramsPerPerson;
                     return sum + costPerPortion;
+                }, 0),
+                totalPrice: menu.reduce((sum, item) => {
+                    const dishCost = item.dishCost || 0;
+                    const profitMargin = item.profitMargin || 0;
+                    const portionsPerPerson = item.portionsPerPerson || 0;
+
+                    let costPerPerson = 0;
+
+                    // Se useWeightCalculation=true, calcular por PORÇÃO
+                    if (item.useWeightCalculation && item.servings > 0) {
+                        const costPerDishPortion = dishCost / item.servings;
+                        costPerPerson = costPerDishPortion * portionsPerPerson;
+                    } else {
+                        // Se useWeightCalculation=false, calcular por PESO (100g)
+                        const totalWeight = item.totalWeight || 1;
+                        const gramsPerPerson = portionsPerPerson * 100;
+                        const costPerGram = dishCost / totalWeight;
+                        costPerPerson = costPerGram * gramsPerPerson;
+                    }
+
+                    // Aplicar margem: Preço = Custo + (Custo × Margem / 100)
+                    const pricePerPerson = profitMargin > 0 ? costPerPerson + (costPerPerson * profitMargin / 100) : costPerPerson;
+                    return sum + pricePerPerson;
                 }, 0),
                 byCategory: this.groupByCategory(menu)
             };

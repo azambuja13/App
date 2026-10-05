@@ -73,26 +73,100 @@ export class MenuManager {
 
             if (existingIndex !== -1) {
                 console.log(`🔄 [MenuManager] Prato já existe - atualizando...`);
-                // Atualizar porções e peso se já existe
+
+                // ✅ Recalcular custo e preço por pessoa quando atualiza o prato
+                const dishCost = dish.totalCost || menu[existingIndex].dishCost || 0;
+                const servings = dish.servings || menu[existingIndex].servings || 1;
+                const totalWeight = dish.totalWeight || menu[existingIndex].totalWeight || 0;
+                const profitMargin = dish.profitMargin !== undefined ? dish.profitMargin : (menu[existingIndex].profitMargin || 0);
+
+                let dishCostPerPerson = 0;
+                let dishPricePerPerson = 0;
+
+                // Calcular custo por pessoa
+                const isPortionBased = dish.useWeightCalculation || (servings > 0 && totalWeight === 0);
+                if (isPortionBased) {
+                    // Prato por porção
+                    const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+                    dishCostPerPerson = costPerDishPortion * portionsPerPerson;
+                } else {
+                    // Prato por peso
+                    const gramsPerPerson = portionsPerPerson * 100;
+                    const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+                    dishCostPerPerson = costPerGram * gramsPerPerson;
+                }
+
+                // Calcular preço por pessoa COM margem
+                if (profitMargin > 0) {
+                    dishPricePerPerson = dishCostPerPerson * (1 + profitMargin / 100);
+                } else {
+                    dishPricePerPerson = dishCostPerPerson; // Sem margem
+                }
+
+                console.log(`💰 [MenuManager] Valores atualizados: custo/pessoa=R$ ${dishCostPerPerson.toFixed(2)}, preço/pessoa=R$ ${dishPricePerPerson.toFixed(2)}`);
+
+                // Atualizar porções, peso, margem e preço se já existe
                 menu[existingIndex].portionsPerPerson = portionsPerPerson;
-                menu[existingIndex].servings = dish.servings || menu[existingIndex].servings || 1;
-                menu[existingIndex].dishServings = dish.servings || menu[existingIndex].dishServings || 1; // DEPRECATED
-                menu[existingIndex].totalWeight = dish.totalWeight || menu[existingIndex].totalWeight || 0;
+                menu[existingIndex].dishCost = dishCost; // ✅ Atualizar custo total do prato
+                menu[existingIndex].profitMargin = profitMargin; // ✅ Atualizar margem de lucro
+                menu[existingIndex].suggestedPrice = dish.suggestedPrice !== undefined ? dish.suggestedPrice : menu[existingIndex].suggestedPrice || 0; // ✅ Atualizar preço sugerido
+                menu[existingIndex].dishCostPerPerson = dishCostPerPerson; // ✅ Atualizar custo por pessoa
+                menu[existingIndex].dishPricePerPerson = dishPricePerPerson; // ✅ Atualizar preço por pessoa COM margem
+                menu[existingIndex].servings = servings;
+                menu[existingIndex].dishServings = servings; // DEPRECATED
+                menu[existingIndex].totalWeight = totalWeight;
                 menu[existingIndex].useWeightCalculation = dish.useWeightCalculation !== undefined ? dish.useWeightCalculation : menu[existingIndex].useWeightCalculation || false; // ✅ Atualizar flag de cálculo
                 menu[existingIndex].updatedAt = new Date().toISOString();
             } else {
                 console.log(`➕ [MenuManager] Adicionando novo prato ao cardápio...`);
+
+                // ✅ Calcular custo e preço por pessoa no momento de adicionar ao cardápio
+                const dishCost = dish.totalCost || 0;
+                const servings = dish.servings || 1;
+                const totalWeight = dish.totalWeight || 0;
+                const profitMargin = dish.profitMargin || 0;
+
+                let dishCostPerPerson = 0;
+                let dishPricePerPerson = 0;
+
+                // Calcular custo por pessoa
+                const isPortionBased2 = dish.useWeightCalculation || (servings > 0 && totalWeight === 0);
+                if (isPortionBased2) {
+                    // Prato por porção
+                    const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+                    dishCostPerPerson = costPerDishPortion * portionsPerPerson;
+                } else {
+                    // Prato por peso
+                    const gramsPerPerson = portionsPerPerson * 100;
+                    const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+                    dishCostPerPerson = costPerGram * gramsPerPerson;
+                }
+
+                // Calcular preço por pessoa COM margem
+                if (profitMargin > 0) {
+                    dishPricePerPerson = dishCostPerPerson * (1 + profitMargin / 100);
+                } else {
+                    dishPricePerPerson = dishCostPerPerson; // Sem margem
+                }
+
+                console.log(`💰 [MenuManager] Valores calculados: custo/pessoa=R$ ${dishCostPerPerson.toFixed(2)}, preço/pessoa=R$ ${dishPricePerPerson.toFixed(2)}`);
+
                 // Adicionar novo item ao cardápio
                 const menuItem = {
                     id: `menu_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
                     dishId: dish.id,
                     dishName: dish.name,
                     dishCategory: dish.category,
-                    dishCost: dish.totalCost || 0,
+                    dishType: dish.category, // ✅ Copiar category como dishType para compatibilidade com ProposalPreview
+                    dishCost: dishCost,
+                    profitMargin: profitMargin, // ✅ Copiar margem de lucro do prato
+                    suggestedPrice: dish.suggestedPrice || 0, // ✅ Copiar preço sugerido (com margem) do prato
+                    dishCostPerPerson: dishCostPerPerson, // ✅ Custo por pessoa (pré-calculado)
+                    dishPricePerPerson: dishPricePerPerson, // ✅ Preço por pessoa COM margem (pré-calculado)
                     dishIngredients: dish.ingredients || [],
-                    servings: dish.servings || 1, // Número de porções que o prato rende
-                    dishServings: dish.servings || 1, // DEPRECATED - manter para compatibilidade
-                    totalWeight: dish.totalWeight || 0, // Peso total do prato em gramas
+                    servings: servings, // Número de porções que o prato rende
+                    dishServings: servings, // DEPRECATED - manter para compatibilidade
+                    totalWeight: totalWeight, // Peso total do prato em gramas
                     portionsPerPerson: portionsPerPerson, // Quantas porções cada pessoa vai consumir
                     useWeightCalculation: dish.useWeightCalculation || false, // ✅ Usar cálculo por peso (false) ou porção (true)
                     active: true,
@@ -106,6 +180,11 @@ export class MenuManager {
             console.log(`💾 [MenuManager] Salvando cardápio (${menu.length} pratos)...`);
             await this.storage.set(this.storageKey, menu);
             console.log(`✅ [MenuManager] Cardápio salvo com sucesso!`);
+
+            // ✅ FIX: Disparar evento para atualizar cálculos
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('menu-updated'));
+            }
 
             return {
                 success: true,
@@ -132,6 +211,11 @@ export class MenuManager {
             const menu = await this.getMenu();
             const filteredMenu = menu.filter(item => item.id !== menuItemId);
             await this.storage.set(this.storageKey, filteredMenu);
+
+            // ✅ FIX: Disparar evento para atualizar cálculos
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('menu-updated'));
+            }
 
             return {
                 success: true,
@@ -165,10 +249,61 @@ export class MenuManager {
                 };
             }
 
-            menu[itemIndex].portionsPerPerson = portionsPerPerson;
+            // ✅ Validar valor antes de salvar
+            const validPortions = parseFloat(portionsPerPerson);
+            if (isNaN(validPortions) || validPortions <= 0) {
+                return {
+                    success: false,
+                    message: 'Valor inválido. Use um número maior que 0.'
+                };
+            }
+
+            // ✅ RECALCULAR valores por pessoa quando porções mudam
+            const item = menu[itemIndex];
+            const dishCost = item.dishCost || 0;
+            const servings = item.servings || 1;
+            const totalWeight = item.totalWeight || 0;
+            const profitMargin = item.profitMargin || 0;
+
+            let dishCostPerPerson = 0;
+
+            // Calcular custo por pessoa baseado nas NOVAS porções
+            const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+            if (isPortionBased) {
+                // Prato por porção
+                const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+                dishCostPerPerson = costPerDishPortion * validPortions;
+                console.log(`📊 [updatePortions] Prato POR PORÇÃO: R$ ${dishCost} ÷ ${servings} = R$ ${costPerDishPortion}/porção × ${validPortions} = R$ ${dishCostPerPerson.toFixed(2)}/pessoa`);
+            } else {
+                // Prato por peso
+                const gramsPerPerson = validPortions * 100;
+                const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+                dishCostPerPerson = costPerGram * gramsPerPerson;
+                console.log(`📊 [updatePortions] Prato POR PESO: R$ ${dishCost} ÷ ${totalWeight}g = R$ ${costPerGram.toFixed(4)}/g × ${gramsPerPerson}g = R$ ${dishCostPerPerson.toFixed(2)}/pessoa`);
+            }
+
+            // Calcular preço por pessoa COM margem
+            let dishPricePerPerson = 0;
+            if (profitMargin > 0) {
+                dishPricePerPerson = dishCostPerPerson * (1 + profitMargin / 100);
+            } else {
+                dishPricePerPerson = dishCostPerPerson;
+            }
+
+            console.log(`💰 [updatePortions] Valores recalculados: custo/pessoa=R$ ${dishCostPerPerson.toFixed(2)}, preço/pessoa=R$ ${dishPricePerPerson.toFixed(2)}`);
+
+            // ✅ Atualizar TODOS os valores relacionados
+            menu[itemIndex].portionsPerPerson = validPortions;
+            menu[itemIndex].dishCostPerPerson = dishCostPerPerson;
+            menu[itemIndex].dishPricePerPerson = dishPricePerPerson;
             menu[itemIndex].updatedAt = new Date().toISOString();
 
             await this.storage.set(this.storageKey, menu);
+
+            // ✅ FIX: Disparar evento para atualizar cálculos
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('menu-updated'));
+            }
 
             return {
                 success: true,
@@ -271,30 +406,108 @@ export class MenuManager {
     async getStatistics() {
         const menu = await this.getActiveMenu();
 
-        return {
-            totalDishes: menu.length,
-            totalCost: menu.reduce((sum, item) => {
+        let totalCost = 0;
+        let totalPrice = 0;
+
+        menu.forEach(item => {
+            console.log(`📊 [${item.dishName}] portionsPerPerson=${item.portionsPerPerson}`);
+
+            // ✅ SEMPRE recalcular baseado nas porções ATUAIS
+            // Os valores salvos dishCostPerPerson/dishPricePerPerson eram para uma quantidade específica,
+            // mas o usuário pode alterar portionsPerPerson dinamicamente
+            const dishCost = item.dishCost || 0;
+            const portionsPerPerson = item.portionsPerPerson || 0;
+            const totalWeight = item.totalWeight || 0;
+            const servings = item.servings || 1;
+            const profitMargin = item.profitMargin || 0;
+
+            let dishCostPerPerson = 0;
+
+            // Calcular custo por pessoa baseado nas porções ATUAIS
+            const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+            if (isPortionBased) {
+                // Prato por porção
+                const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+                dishCostPerPerson = costPerDishPortion * portionsPerPerson;
+            } else {
+                // Prato por peso
+                const gramsPerPerson = portionsPerPerson * 100;
+                const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+                dishCostPerPerson = costPerGram * gramsPerPerson;
+            }
+
+            totalCost += dishCostPerPerson;
+
+            // Calcular preço por pessoa COM margem
+            let dishPricePerPerson = 0;
+            if (profitMargin > 0) {
+                dishPricePerPerson = dishCostPerPerson * (1 + profitMargin / 100);
+            } else {
+                dishPricePerPerson = dishCostPerPerson; // Sem margem
+            }
+
+            totalPrice += dishPricePerPerson;
+            console.log(`   ✅ Calculado com ${portionsPerPerson} porções: custo=R$ ${dishCostPerPerson.toFixed(2)}, preço=R$ ${dishPricePerPerson.toFixed(2)}`);
+
+            // DEPRECATED: Código de fallback removido (não é mais necessário)
+            if (false) {
+                console.warn(`   ⚠️ Valores não encontrados, recalculando (cardápio antigo)`);
+
                 const dishCost = item.dishCost || 0;
                 const portionsPerPerson = item.portionsPerPerson || 0;
+                const totalWeight = item.totalWeight || 0;
 
-                // Se o prato tem servings definido (não é por peso), calcular por porção do prato
-                if (item.servings > 0 && item.totalWeight === 0) {
-                    // Custo por porção do prato
+                // Calcular custo por pessoa
+                let dishCostPerPerson = 0;
+
+                if (item.servings > 0 && totalWeight === 0) {
+                    // Prato por porção
                     const costPerDishPortion = dishCost / item.servings;
-                    // Multiplicar pelas porções que cada pessoa consome
-                    const costPerPerson = costPerDishPortion * portionsPerPerson;
-                    return sum + costPerPerson;
+                    dishCostPerPerson = costPerDishPortion * portionsPerPerson;
+                } else {
+                    // Prato por peso
+                    const gramsPerPerson = portionsPerPerson * 100;
+                    const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+                    dishCostPerPerson = costPerGram * gramsPerPerson;
                 }
 
-                // Se o prato é por peso, calcular por grama (comportamento original)
-                const totalWeight = item.totalWeight || 1;
-                const gramsPerPerson = portionsPerPerson * 100; // 1 porção = 100g
-                const costPerGram = dishCost / totalWeight;
-                const costPerPortion = costPerGram * gramsPerPerson;
-                return sum + costPerPortion;
-            }, 0),
+                totalCost += dishCostPerPerson;
+
+                // Calcular preço por pessoa COM margem
+                let dishPricePerPerson = 0;
+
+                if (item.profitMargin && item.profitMargin > 0) {
+                    dishPricePerPerson = dishCostPerPerson * (1 + item.profitMargin / 100);
+                } else if (item.suggestedPrice && item.suggestedPrice > 0) {
+                    // suggestedPrice é o preço TOTAL, converter para por pessoa
+                    if (item.servings > 0 && totalWeight === 0) {
+                        const pricePerDishPortion = item.suggestedPrice / item.servings;
+                        dishPricePerPerson = pricePerDishPortion * portionsPerPerson;
+                    } else {
+                        const gramsPerPerson = portionsPerPerson * 100;
+                        const pricePerGram = totalWeight > 0 ? item.suggestedPrice / totalWeight : item.suggestedPrice;
+                        dishPricePerPerson = pricePerGram * gramsPerPerson;
+                    }
+                } else {
+                    dishPricePerPerson = dishCostPerPerson; // Sem margem
+                }
+
+                totalPrice += dishPricePerPerson;
+                console.log(`   🔄 Recalculado: custo=R$ ${dishCostPerPerson.toFixed(2)}, preço=R$ ${dishPricePerPerson.toFixed(2)}`);
+            }
+        });
+
+        console.log(`📊 TOTAL: totalCost=${totalCost.toFixed(2)}, totalPrice=${totalPrice.toFixed(2)}`);
+
+        const stats = {
+            totalDishes: menu.length,
+            totalCost: totalCost,
+            totalPrice: totalPrice, // ✅ Preço com margem
             byCategory: this.groupByCategory(menu)
         };
+
+        console.log('✅ [MenuManager.getStatistics] Retornando:', stats);
+        return stats;
     }
 
     /**
@@ -302,6 +515,12 @@ export class MenuManager {
      * @private
      */
     groupByCategory(menu) {
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.groupByWithSum) {
+            return window.statisticsUtils.groupByWithSum(menu, 'dishCategory', 'dishCost', 'Sem categoria');
+        }
+
+        // Fallback para garantir compatibilidade
         return menu.reduce((acc, item) => {
             const category = item.dishCategory || 'Sem categoria';
             if (!acc[category]) {
@@ -311,25 +530,20 @@ export class MenuManager {
                 };
             }
             acc[category].count++;
-            // Total cost = somar custo de todos os pratos da categoria
             acc[category].totalCost += item.dishCost || 0;
             return acc;
         }, {});
     }
 
     /**
-     * Gera lista de ingredientes consolidada do cardápio
+     * Gera lista de ingredientes consolidada a partir de um array de pratos
      * Agrupa ingredientes iguais e soma quantidades
+     * @param {Array} dishes - Array de pratos do cardápio
      * @param {number} guests - Número de convidados
-     * @returns {Array} Array de ingredientes consolidados
-     */
-    /**
-     * Gera lista de compras de um array de pratos específico (para cardápios salvos)
-     * @param {Array} dishes - Array de pratos
-     * @param {number} guests - Número de convidados
+     * @param {boolean} includeDishTracking - Se true, adiciona campo 'dishes' com origem de cada ingrediente
      * @returns {Promise<Array>} Array de ingredientes consolidados
      */
-    async generateIngredientsListFromDishes(dishes, guests) {
+    async generateIngredientsListFromDishes(dishes, guests, includeDishTracking = false) {
         const ingredientsMap = new Map();
 
         // Validar se dishes é um array
@@ -353,8 +567,10 @@ export class MenuManager {
 
                 console.log(`📊 [${menuItem.dishName}] POR PORÇÃO: ${portionsPerPerson} porção(ões)/pessoa × ${guests} pessoas = ${totalPortionsNeeded} porções | Prato serve: ${servings} porções | Fator: ${portionFactor.toFixed(2)}x`);
             } else {
-                // Prato POR PESO (comportamento original)
+                // Prato POR PESO
                 const totalWeight = menuItem.totalWeight || 1;
+
+                // ✅ Sempre usar 100g por porção quando checkbox desmarcado (servings é ignorado)
                 const gramsPerPerson = portionsPerPerson * 100;
                 const totalGramsNeeded = gramsPerPerson * guests;
                 portionFactor = totalGramsNeeded / totalWeight;
@@ -367,142 +583,174 @@ export class MenuManager {
                 const key = dishIng.ingredientId || dishIng.ingredientName;
                 const isUnitType = dishIng.unit === 'un' || dishIng.unitType === 'unit';
 
+                // ✅ IMPORTANTE: Usar SEMPRE os valores de perda/rendimento salvos NO PRATO
+                // Motivo: O totalWeight do prato foi calculado com esses valores.
+                // Se usarmos valores diferentes (do banco), o cálculo fica inconsistente.
+                //
+                // Exemplo de inconsistência:
+                // - Prato criado com: 1000g ingrediente, 20% perda → totalWeight = 800g
+                // - Ingrediente atualizado no banco para: 0.2% perda
+                // - Se usar 0.2%: 1000g × (1 - 0.2%) = 998g ≠ 800g ❌ ERRADO!
+
+                const lossPercentage = dishIng.lossPercentage || 0;
+                const yieldMultiplier = dishIng.yieldMultiplier || 1;
+
+                console.log(`🔍 [MenuManager] Usando valores salvos no prato para ${dishIng.ingredientName}: loss=${lossPercentage}%, yield=${yieldMultiplier}x`);
+
+                // ✅ A quantidade na receita (dishIng.quantity) é a quantidade CRUA
+                // Precisamos aplicar perda/rendimento para obter a quantidade PREPARADA do ingrediente no prato
+
                 if (ingredientsMap.has(key)) {
                     const existing = ingredientsMap.get(key);
                     if (isUnitType) {
                         // Para ingredientes por unidade, somar diretamente (não converter)
-                        existing.totalQuantity += (dishIng.quantity * portionFactor);
+                        const rawQty = dishIng.quantity;
+                        // Aplicar perda e rendimento para obter quantidade preparada
+                        const lossMultiplier = 1 - (lossPercentage / 100);
+                        const preparedQty = rawQty * lossMultiplier * yieldMultiplier;
+                        const liquidQty = preparedQty * portionFactor;
+                        existing.totalQuantity += liquidQty;
+
+                        // ✅ Acumular perda/rendimento ponderados para média
+                        existing.weightedLoss = (existing.weightedLoss || 0) + (preparedQty * lossPercentage);
+                        existing.weightedYield = (existing.weightedYield || 0) + (preparedQty * yieldMultiplier);
+                        existing.totalPreparedQty = (existing.totalPreparedQty || 0) + preparedQty;
                     } else {
                         // Para ingredientes por peso, converter para gramas
-                        const newQty = this.convertToGrams(dishIng.quantity, dishIng.unit);
-                        existing.totalQuantity += (newQty * portionFactor);
-                    }
-                } else {
-                    if (isUnitType) {
-                        // Ingrediente por unidade
-                        ingredientsMap.set(key, {
-                            ingredientId: dishIng.ingredientId,
-                            ingredientName: dishIng.ingredientName || dishIng.name,
-                            name: dishIng.ingredientName || dishIng.name,
-                            totalQuantity: dishIng.quantity * portionFactor,
-                            unit: 'un',
-                            unitType: 'unit'
-                        });
-                    } else {
-                        // Ingrediente por peso
                         const qtyInGrams = this.convertToGrams(dishIng.quantity, dishIng.unit);
-                        ingredientsMap.set(key, {
+                        // Aplicar perda e rendimento para obter quantidade preparada
+                        const lossMultiplier = 1 - (lossPercentage / 100);
+                        const preparedQtyInGrams = qtyInGrams * lossMultiplier * yieldMultiplier;
+                        const liquidQty = preparedQtyInGrams * portionFactor;
+                        existing.totalQuantity += liquidQty;
+
+                        // ✅ Acumular perda/rendimento ponderados para média
+                        existing.weightedLoss = (existing.weightedLoss || 0) + (preparedQtyInGrams * lossPercentage);
+                        existing.weightedYield = (existing.weightedYield || 0) + (preparedQtyInGrams * yieldMultiplier);
+                        existing.totalPreparedQty = (existing.totalPreparedQty || 0) + preparedQtyInGrams;
+                    }
+
+                    // ✅ Adicionar rastreamento de origem se solicitado
+                    if (includeDishTracking && existing.dishes) {
+                        existing.dishes.push({
+                            dishName: menuItem.dishName,
+                            portionsPerPerson: menuItem.portionsPerPerson,
+                            quantity: dishIng.quantity,
+                            unit: dishIng.unit
+                        });
+                    }
+                } else {
+                    if (isUnitType) {
+                        // Ingrediente por unidade - aplicar perda/rendimento para obter quantidade preparada
+                        const rawQty = dishIng.quantity;
+                        const lossMultiplier = 1 - (lossPercentage / 100);
+                        const preparedQty = rawQty * lossMultiplier * yieldMultiplier;
+                        const liquidQty = preparedQty * portionFactor;
+
+                        const ingredientData = {
                             ingredientId: dishIng.ingredientId,
                             ingredientName: dishIng.ingredientName || dishIng.name,
                             name: dishIng.ingredientName || dishIng.name,
-                            totalQuantity: qtyInGrams * portionFactor,
-                            unit: 'g',
-                            unitType: 'weight'
-                        });
-                    }
-                }
-            });
-        });
-
-        return Array.from(ingredientsMap.values());
-    }
-
-    async generateIngredientsList(guests) {
-        const menu = await this.getActiveMenu();
-        const ingredientsMap = new Map();
-
-        menu.forEach(menuItem => {
-            const portionsPerPerson = menuItem.portionsPerPerson || 0;
-            let portionFactor;
-
-            // NOVA REGRA: Detectar se o prato é por porções checando ingredientes por unidade
-            const isPortionBased = isDishPortionBased(menuItem);
-
-            if (isPortionBased) {
-                // Prato POR PORÇÃO (ex: Abacaxi dos Deuses, ou qualquer prato com ingrediente por unidade)
-                // Quantas porções cada pessoa consome × total de pessoas ÷ porções por prato
-                const servings = menuItem.servings || 1;
-                const totalPortionsNeeded = portionsPerPerson * guests;
-                portionFactor = totalPortionsNeeded / servings;
-
-                console.log(`📊 [${menuItem.dishName}] POR PORÇÃO: ${portionsPerPerson} porção(ões)/pessoa × ${guests} pessoas = ${totalPortionsNeeded} porções | Prato serve: ${servings} porções | Fator: ${portionFactor.toFixed(2)}x`);
-            } else {
-                // Prato POR PESO (comportamento original)
-                const totalWeight = menuItem.totalWeight || 1;
-                const gramsPerPerson = portionsPerPerson * 100; // 1 porção = 100g FIXO
-                const totalGramsNeeded = gramsPerPerson * guests;
-                portionFactor = totalGramsNeeded / totalWeight;
-
-                console.log(`📊 [${menuItem.dishName}] POR PESO: ${portionsPerPerson} porção(ões) × 100g = ${gramsPerPerson.toFixed(0)}g/pessoa × ${guests} = ${totalGramsNeeded.toFixed(0)}g | Peso prato: ${totalWeight}g | Fator: ${portionFactor.toFixed(2)}x`);
-            }
-
-            menuItem.dishIngredients.forEach(dishIng => {
-                const key = dishIng.ingredientId;
-                const isUnitType = dishIng.unit === 'un' || dishIng.unitType === 'unit';
-
-                if (ingredientsMap.has(key)) {
-                    // Ingrediente já existe, somar quantidade
-                    const existing = ingredientsMap.get(key);
-
-                    if (isUnitType) {
-                        // Para ingredientes por unidade, somar diretamente
-                        existing.totalQuantity += (dishIng.quantity * portionFactor);
-                    } else {
-                        // Para ingredientes por peso, converter para gramas
-                        const newQty = this.convertToGrams(dishIng.quantity, dishIng.unit);
-                        existing.totalQuantity += (newQty * portionFactor);
-                    }
-
-                    existing.dishes.push({
-                        dishName: menuItem.dishName,
-                        portionsPerPerson: menuItem.portionsPerPerson,
-                        quantity: dishIng.quantity,
-                        unit: dishIng.unit
-                    });
-                } else {
-                    // Novo ingrediente
-                    if (isUnitType) {
-                        // Ingrediente por unidade
-                        ingredientsMap.set(key, {
-                            ingredientId: dishIng.ingredientId,
-                            ingredientName: dishIng.ingredientName,
-                            totalQuantity: dishIng.quantity * portionFactor,
+                            totalQuantity: liquidQty,
                             unit: 'un',
                             unitType: 'unit',
-                            originalUnit: dishIng.unit,
-                            costPerUnit: dishIng.costPerUnit,
-                            dishes: [{
-                                dishName: menuItem.dishName,
-                                portionsPerPerson: menuItem.portionsPerPerson,
-                                quantity: dishIng.quantity,
-                                unit: dishIng.unit
-                            }]
-                        });
-                    } else {
-                        // Ingrediente por peso
-                        const qtyInGrams = this.convertToGrams(dishIng.quantity, dishIng.unit);
+                            // ✅ Inicializar valores ponderados para média
+                            weightedLoss: preparedQty * lossPercentage,
+                            weightedYield: preparedQty * yieldMultiplier,
+                            totalPreparedQty: preparedQty
+                        };
 
-                        ingredientsMap.set(key, {
-                            ingredientId: dishIng.ingredientId,
-                            ingredientName: dishIng.ingredientName,
-                            totalQuantity: qtyInGrams * portionFactor, // em gramas
-                            unit: 'g', // Sempre em gramas para consolidação
-                            unitType: 'weight',
-                            originalUnit: dishIng.unit,
-                            costPerUnit: dishIng.costPerUnit,
-                            dishes: [{
+                        // ✅ Adicionar campos extras se rastreamento ativado
+                        if (includeDishTracking) {
+                            ingredientData.originalUnit = dishIng.unit;
+                            ingredientData.costPerUnit = dishIng.costPerUnit;
+                            ingredientData.dishes = [{
                                 dishName: menuItem.dishName,
                                 portionsPerPerson: menuItem.portionsPerPerson,
                                 quantity: dishIng.quantity,
                                 unit: dishIng.unit
-                            }]
-                        });
+                            }];
+                        }
+
+                        ingredientsMap.set(key, ingredientData);
+                    } else {
+                        // Ingrediente por peso - aplicar perda/rendimento para obter quantidade preparada
+                        const qtyInGrams = this.convertToGrams(dishIng.quantity, dishIng.unit);
+                        const lossMultiplier = 1 - (lossPercentage / 100);
+                        const preparedQtyInGrams = qtyInGrams * lossMultiplier * yieldMultiplier;
+                        const liquidQty = preparedQtyInGrams * portionFactor;
+
+                        const ingredientData = {
+                            ingredientId: dishIng.ingredientId,
+                            ingredientName: dishIng.ingredientName || dishIng.name,
+                            name: dishIng.ingredientName || dishIng.name,
+                            totalQuantity: liquidQty,
+                            unit: 'g',
+                            unitType: 'weight',
+                            // ✅ Inicializar valores ponderados para média
+                            weightedLoss: preparedQtyInGrams * lossPercentage,
+                            weightedYield: preparedQtyInGrams * yieldMultiplier,
+                            totalPreparedQty: preparedQtyInGrams
+                        };
+
+                        // ✅ Adicionar campos extras se rastreamento ativado
+                        if (includeDishTracking) {
+                            ingredientData.originalUnit = dishIng.unit;
+                            ingredientData.costPerUnit = dishIng.costPerUnit;
+                            ingredientData.dishes = [{
+                                dishName: menuItem.dishName,
+                                portionsPerPerson: menuItem.portionsPerPerson,
+                                quantity: dishIng.quantity,
+                                unit: dishIng.unit
+                            }];
+                        }
+
+                        ingredientsMap.set(key, ingredientData);
                     }
                 }
             });
         });
 
-        return Array.from(ingredientsMap.values());
+        // ✅ Calcular média ponderada de perda/rendimento para cada ingrediente
+        const ingredients = Array.from(ingredientsMap.values()).map(ing => {
+            // Se tem valores acumulados, calcular média ponderada
+            if (ing.totalPreparedQty && ing.totalPreparedQty > 0) {
+                const avgLoss = ing.weightedLoss / ing.totalPreparedQty;
+                const avgYield = ing.weightedYield / ing.totalPreparedQty;
+
+                console.log(`📊 [MenuManager] ${ing.name}: Média ponderada - Perda: ${avgLoss.toFixed(2)}%, Rendimento: ${avgYield.toFixed(2)}x`);
+
+                return {
+                    ...ing,
+                    lossPercentage: avgLoss,
+                    yieldMultiplier: avgYield,
+                    // Remover campos temporários de cálculo
+                    weightedLoss: undefined,
+                    weightedYield: undefined,
+                    totalPreparedQty: undefined
+                };
+            }
+
+            // Fallback para ingredientes sem valores (não deveria acontecer)
+            return {
+                ...ing,
+                lossPercentage: 0,
+                yieldMultiplier: 1
+            };
+        });
+
+        return ingredients;
+    }
+
+    /**
+     * Gera lista de ingredientes do cardápio ativo (wrapper)
+     * Chama generateIngredientsListFromDishes com rastreamento de origem ativado
+     * @param {number} guests - Número de convidados
+     * @returns {Promise<Array>} Array de ingredientes consolidados com origem
+     */
+    async generateIngredientsList(guests) {
+        const menu = await this.getActiveMenu();
+        return this.generateIngredientsListFromDishes(menu, guests, true);
     }
 
     /**
