@@ -122,7 +122,9 @@ function EventsPage({
       }
 
       // Usar o método assíncrono do manager refatorado
-      const events = await savedEventsManager.getAll();
+      // ✅ FIX: forceReload=true → lista sempre atualizada com o backend (eventos editados
+      // em outro aparelho apareciam desatualizados por até 5 min por causa do cache)
+      const events = await savedEventsManager.getAll(true);
       // ⚡ Performance: Logs removidos (executavam em CADA carregamento - 3x)
       setSavedEvents(events || []);
     } catch (error) {

@@ -1001,10 +1001,13 @@ class EventManager {
         return null;
     }
 
-    async getEventByIdAsync(eventId) {
+    async getEventByIdAsync(eventId, forceRefresh = false) {
         // Versão assíncrona que busca do backend se necessário
+        // ✅ FIX: forceRefresh=true ignora o cache em memória e busca a versão atual
+        // no backend. Sem isso, abrir um evento editado em OUTRO aparelho (ex: iOS → web)
+        // devolvia a cópia antiga carregada junto com a lista.
         const cachedEvent = this.events.find(e => e.id === eventId);
-        if (cachedEvent) {
+        if (cachedEvent && !forceRefresh) {
             return cachedEvent;
         }
 
@@ -1012,13 +1015,18 @@ class EventManager {
         try {
             const result = await this.api.getEvent(eventId);
             if (result.success && result.data) {
+                const index = this.events.findIndex(e => e.id === eventId);
+                if (index !== -1) {
+                    this.events[index] = result.data; // Atualizar cache com a versão do backend
+                }
                 return result.data;
             }
         } catch (error) {
             console.warn('⚠️ Erro ao buscar evento do backend:', error.message);
         }
 
-        return null;
+        // Fallback: se o backend falhou, usar o cache (se houver)
+        return cachedEvent || null;
     }
 }
 

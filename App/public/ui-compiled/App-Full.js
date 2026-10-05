@@ -1065,7 +1065,8 @@ window.AppFull = function AppFull() {
     }
 
     // EventManager (backend) usa getEventByIdAsync, SavedEventsManager (local) usa getById
-    const event = eventManager.getEventByIdAsync ? await eventManager.getEventByIdAsync(eventId) : await eventManager.getById(eventId, true);
+    // ✅ FIX: forceRefresh=true → sempre buscar a versão atual no backend (o evento pode ter sido editado em outro aparelho)
+    const event = eventManager.getEventByIdAsync ? await eventManager.getEventByIdAsync(eventId, true) : await eventManager.getById(eventId, true);
     console.log('📦 [handleLoadEvent] Evento recebido:', {
       hasEvent: !!event,
       hasData: !!event?.data,
