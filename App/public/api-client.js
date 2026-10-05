@@ -901,13 +901,23 @@ class EventManager {
             monthsUntilEvent: parseInt(eventData.mesesAteEvento || eventData.monthsUntilEvent || eventData.data?.monthsUntilEvent || 0),
             // Adicionar valores calculados no nível raiz para fácil acesso na listagem
             totalWithInflation: eventData.results?.totalWithInflation || 0,
+            totalWithMargin: eventData.results?.totalWithMargin || 0,
             pricePerPerson: eventData.results?.pricePerPerson || 0,
             stateData: eventData // Salvar estado completo
         };
 
-        // ✅ FIX: Se tem ID, verificar se já existe (update) ou criar novo (create com ID)
-        // O backend (eventService.js) vai lidar com isso corretamente
-        const result = await this.api.createEvent(event);
+        // ✅ FIX: Se tem ID, atualizar evento existente; senão, criar novo
+        // (createEvent sozinho falha silenciosamente em edições, pois o ID já existe no backend)
+        let result;
+        if (event.id) {
+            result = await this.api.updateEvent(event.id, event);
+            if (!result.success) {
+                // Evento não existe no backend ainda — criar com o mesmo ID
+                result = await this.api.createEvent(event);
+            }
+        } else {
+            result = await this.api.createEvent(event);
+        }
         if (result.success) {
             // API retorna { success: true, data: event }
             // Verificar se evento já existe no cache
