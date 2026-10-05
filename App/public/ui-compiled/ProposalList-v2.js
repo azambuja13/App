@@ -652,7 +652,7 @@ function ProposalCard({
     onClick: () => setShowMenu(!showMenu),
     className: "px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
   }, "\u22EE"), showMenu && /*#__PURE__*/React.createElement("div", {
-    className: "absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border z-50"
+    className: "absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-xl border z-50"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       onDuplicate(proposal.id);

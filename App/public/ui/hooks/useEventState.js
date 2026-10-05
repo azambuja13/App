@@ -396,6 +396,12 @@ function useEventState() {
     const [refreshList, setRefreshList] = useState(0);
 
     // ====================================
+    // Estados de Cardápio Vinculado
+    // ====================================
+    const [linkedMenuId, setLinkedMenuId] = useState(null);
+    const [linkedMenuName, setLinkedMenuName] = useState('');
+
+    // ====================================
     // Carregar dados do storage na montagem
     // (Dados da empresa serão carregados DENTRO deste useEffect, após o storage)
     // ====================================
@@ -746,7 +752,9 @@ function useEventState() {
                     eventName,
                     eventDate,
                     eventLocation,
-                    currentEventId
+                    currentEventId,
+                    linkedMenuId,
+                    linkedMenuName
                 };
 
                 // PASSO 1: Salvar localmente (sempre)
@@ -995,7 +1003,13 @@ function useEventState() {
         showEventsList,
         setShowEventsList,
         refreshList,
-        setRefreshList
+        setRefreshList,
+
+        // Cardápio Vinculado
+        linkedMenuId,
+        setLinkedMenuId,
+        linkedMenuName,
+        setLinkedMenuName
     };
 }
 

@@ -14,7 +14,8 @@ function ProposalBuilderSimple({
 }) {
   const {
     useState,
-    useEffect
+    useEffect,
+    useRef
   } = React;
   const [formData, setFormData] = useState({
     id: null,
@@ -75,6 +76,7 @@ function ProposalBuilderSimple({
   const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [costs, setCosts] = useState(null);
   const [backendReady, setBackendReady] = useState(false);
+  const selectedMenuIdRef = useRef(null);
 
   // Aguardar backend estar pronto
   useEffect(() => {
@@ -100,6 +102,113 @@ function ProposalBuilderSimple({
       loadSavedMenus();
     }
   }, [backendReady]);
+
+  // Manter ref do selectedMenuId sempre atualizado (evita closure stale)
+  useEffect(() => {
+    selectedMenuIdRef.current = formData.selectedMenuId;
+  }, [formData.selectedMenuId]);
+
+  // Recarregar cardápios quando um cardápio for vinculado ou atualizado
+  useEffect(() => {
+    const handleMenuChange = async () => {
+      if (!backendReady) return;
+      console.log('🔄 [ProposalBuilderSimple] Cardápio alterado - recarregando lista...');
+      loadSavedMenus();
+      // Se o cardápio ativo está selecionado, recarregar os pratos atualizados
+      if (selectedMenuIdRef.current === 'active-menu') {
+        const menuManager = window.menuManager;
+        if (!menuManager) return;
+        try {
+          const activeMenu = await menuManager.getActiveMenu();
+          const statistics = await menuManager.getStatistics();
+          console.log('🔄 [ProposalBuilderSimple] Atualizando cardápio ativo:', activeMenu.length, 'pratos');
+          setFormData(prev => ({
+            ...prev,
+            selectedMenuData: {
+              ...prev.selectedMenuData,
+              menuData: {
+                ...prev.selectedMenuData?.menuData,
+                dishes: activeMenu
+              },
+              dishes: activeMenu,
+              stats: statistics || prev.selectedMenuData?.stats
+            }
+          }));
+        } catch (e) {
+          console.error('❌ [ProposalBuilderSimple] Erro ao recarregar cardápio ativo:', e);
+        }
+      }
+    };
+    window.addEventListener('menu-linked', handleMenuChange);
+    window.addEventListener('menu-updated', handleMenuChange);
+    return () => {
+      window.removeEventListener('menu-linked', handleMenuChange);
+      window.removeEventListener('menu-updated', handleMenuChange);
+    };
+  }, [backendReady]);
+
+  // Auto-selecionar cardápio vinculado ao evento (se existir)
+  // Também atualiza selectedMenuData quando o cardápio é editado e savedMenus recarrega
+  useEffect(() => {
+    if (eventData?.linkedMenuId && savedMenus.length > 0) {
+      const linkedMenu = savedMenus.find(m => m.id === eventData.linkedMenuId);
+      if (linkedMenu) {
+        // Seleciona se ainda não há menu escolhido, OU atualiza os dados se o vinculado já estava selecionado
+        if (!formData.selectedMenuId || formData.selectedMenuId === eventData.linkedMenuId) {
+          console.log('📋 [ProposalBuilderSimple] Atualizando cardápio vinculado:', linkedMenu.name);
+          setFormData(prev => ({
+            ...prev,
+            selectedMenuId: linkedMenu.id,
+            selectedMenuData: linkedMenu
+          }));
+        }
+      } else {
+        console.log('⚠️ [ProposalBuilderSimple] Cardápio vinculado não encontrado:', eventData.linkedMenuId);
+      }
+    }
+  }, [eventData?.linkedMenuId, savedMenus]);
+
+  // Auto-selecionar cardápio ativo do evento (se não houver linkedMenuId)
+  useEffect(() => {
+    const loadActiveMenu = async () => {
+      // Só executar se não há linkedMenuId e nenhum menu já selecionado
+      if (eventData?.linkedMenuId || formData.selectedMenuId) return;
+
+      const menuManager = window.menuManager;
+      if (!menuManager) return;
+
+      try {
+        const activeMenu = await menuManager.getActiveMenu();
+        if (!activeMenu || activeMenu.length === 0) return;
+
+        const statistics = await menuManager.getStatistics();
+        console.log('📋 [ProposalBuilderSimple] Usando cardápio ativo do evento:', activeMenu.length, 'pratos');
+
+        // Criar estrutura compatível com savedMenu
+        const activeMenuData = {
+          id: 'active-menu',
+          name: eventData?.linkedMenuName || 'Cardápio do Evento',
+          description: '',
+          menuData: {
+            dishes: activeMenu,
+            eventType: 'custom'
+          },
+          dishes: activeMenu,
+          stats: statistics || { totalCost: 0, totalPrice: 0, totalDishes: activeMenu.length }
+        };
+
+        setFormData(prev => ({
+          ...prev,
+          selectedMenuId: 'active-menu',
+          selectedMenuData: activeMenuData
+        }));
+      } catch (error) {
+        console.error('❌ [ProposalBuilderSimple] Erro ao carregar cardápio ativo:', error);
+      }
+    };
+
+    loadActiveMenu();
+  }, [eventData?.linkedMenuId, backendReady]);
 
   // Recarregar dados do evento sempre que eventData mudar
   useEffect(() => {

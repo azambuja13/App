@@ -235,6 +235,36 @@ export class MenuManager {
     }
 
     /**
+     * Restaura um cardápio completo (usado ao carregar evento salvo)
+     * @param {Array} dishes - Array de pratos do cardápio
+     * @returns {Promise<Object>} Resultado da operação
+     */
+    async restoreMenu(dishes) {
+        try {
+            if (!dishes || !Array.isArray(dishes)) {
+                console.warn('⚠️ [MenuManager] restoreMenu: dishes inválido');
+                return { success: false, message: 'Dados de cardápio inválidos' };
+            }
+
+            await this.storage.set(this.storageKey, dishes);
+            console.log(`✅ [MenuManager] Cardápio restaurado com ${dishes.length} pratos`);
+
+            return {
+                success: true,
+                message: `Cardápio restaurado com ${dishes.length} pratos`,
+                count: dishes.length
+            };
+        } catch (error) {
+            console.error('❌ [MenuManager] Erro ao restaurar cardápio:', error);
+            return {
+                success: false,
+                message: 'Erro ao restaurar cardápio',
+                error: error.message
+            };
+        }
+    }
+
+    /**
      * Calcula estatísticas do cardápio
      * @returns {Promise<Object>} Estatísticas
      */

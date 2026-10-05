@@ -1112,6 +1112,30 @@ window.AppFull = function AppFull() {
         if (eventData.transport) state.setTransport(eventData.transport);
         if (eventData.clientData) state.setClientData(eventData.clientData);
         if (eventData.proposalData) state.setProposalData(eventData.proposalData);
+
+        // Restaurar cardápio vinculado
+        if (eventData.linkedMenuId) {
+          console.log('  - linkedMenuId:', eventData.linkedMenuId);
+          state.setLinkedMenuId(eventData.linkedMenuId);
+        }
+        if (eventData.linkedMenuName) {
+          console.log('  - linkedMenuName:', eventData.linkedMenuName);
+          state.setLinkedMenuName(eventData.linkedMenuName);
+        }
+
+        // Restaurar cardápio no MenuManager
+        if (eventData.menuDishes && eventData.menuDishes.length > 0) {
+          console.log('  - menuDishes:', eventData.menuDishes.length);
+          const menuManager = window.menuManager;
+          if (menuManager && menuManager.restoreMenu) {
+            try {
+              await menuManager.restoreMenu(eventData.menuDishes);
+              console.log('✅ Cardápio restaurado no MenuManager');
+            } catch (e) {
+              console.warn('⚠️ Erro ao restaurar cardápio no MenuManager:', e);
+            }
+          }
+        }
       } else if (event.guests !== undefined) {
         // Backend pode ter guests na raiz sem stateData
         console.log('📋 Restaurando guests da raiz:', event.guests);
@@ -1339,6 +1363,20 @@ window.AppFull = function AppFull() {
       console.log('🔍 [handleSaveEvent] VERSION CHECK: b5e8579 - results fix applied');
       console.log('🔍 [handleSaveEvent] costs object:', costs);
 
+      // Capturar dados do cardápio atual do MenuManager
+      const menuManager = window.menuManager;
+      let menuDishes = [];
+      if (menuManager && menuManager.getMenu) {
+        try {
+          menuDishes = await menuManager.getMenu();
+        } catch (e) {
+          console.warn('⚠️ [handleSaveEvent] Erro ao obter menu:', e);
+          menuDishes = state.items || [];
+        }
+      } else {
+        menuDishes = state.items || [];
+      }
+
       const stateData = {
         data: {
           guests: state.guests,
@@ -1349,7 +1387,11 @@ window.AppFull = function AppFull() {
           labor: state.labor,
           transport: state.transport,
           clientData: state.clientData,
-          proposalData: state.proposalData
+          proposalData: state.proposalData,
+          // Cardápio vinculado
+          linkedMenuId: state.linkedMenuId,
+          linkedMenuName: state.linkedMenuName,
+          menuDishes: menuDishes
         },
         results: {
           totalWithInflation: costs?.totalCost || 0,
@@ -2622,7 +2664,9 @@ window.AppFull = function AppFull() {
       monthsUntilEvent: state.monthsUntilEvent,
       clientData: state.clientData,
       proposalData: state.proposalData,
-      costs: costs
+      costs: costs,
+      linkedMenuId: state.linkedMenuId,
+      linkedMenuName: state.linkedMenuName
     }
   }) : /*#__PURE__*/React.createElement("p", {
     className: "text-red-600"
