@@ -42,9 +42,9 @@ const SupportList = React.memo(function SupportList({
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between"
+    className: "flex flex-wrap items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-3xl font-bold text-gray-800"
+    className: "text-2xl font-bold text-gray-800"
   }, "Apoio & Log\xEDstica"), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 no-print"
   }, /*#__PURE__*/React.createElement("button", {
@@ -107,7 +107,120 @@ const SupportList = React.memo(function SupportList({
   }), "Adicionar Item de Apoio")), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "overflow-x-auto"
+    // ✅ MOBILE (celular/iPad em pé): cards em vez da tabela de 6 colunas com rolagem lateral
+    className: "lg:hidden"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-3 font-semibold"
+  }, "Itens de apoio (", supportItems.filter(function (i) { return i.active; }).length, " de ", supportItems.length, " ativos)"), supportItems.map((item, idx) => {
+    const isEditing = editingSupport && editingSupport.id === item.id;
+    const label = text => /*#__PURE__*/React.createElement("label", {
+      className: "block text-xs text-gray-500 mb-1"
+    }, text);
+    if (isEditing) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: item.id,
+        className: "px-4 py-3 border-b border-gray-100 bg-orange-50"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "mb-3"
+      }, label("Item"), /*#__PURE__*/React.createElement("input", {
+        type: "text",
+        value: editingSupport.name,
+        onChange: e => onEditingChange({
+          ...editingSupport,
+          name: e.target.value
+        }),
+        className: "w-full px-3 py-2 border border-gray-300 rounded-lg"
+      })), /*#__PURE__*/React.createElement("div", {
+        className: "grid gap-3 mb-3",
+        style: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }
+      }, /*#__PURE__*/React.createElement("div", null, label("Custo (R$)"), /*#__PURE__*/React.createElement("input", {
+        type: "number",
+        value: editingSupport.cost === 0 ? '' : editingSupport.cost,
+        onChange: e => onEditingChange({
+          ...editingSupport,
+          cost: parseFloat(e.target.value) || 0
+        }),
+        className: "w-full px-3 py-2 border border-gray-300 rounded-lg",
+        step: "0.01",
+        placeholder: "0.00"
+      })), /*#__PURE__*/React.createElement("div", null, label("Qtd"), /*#__PURE__*/React.createElement("input", {
+        type: "number",
+        value: editingSupport.quantity === 0 ? '' : editingSupport.quantity,
+        onChange: e => onEditingChange({
+          ...editingSupport,
+          quantity: parseFloat(e.target.value) || 0
+        }),
+        className: "w-full px-3 py-2 border border-gray-300 rounded-lg",
+        placeholder: "1"
+      }))), /*#__PURE__*/React.createElement("div", {
+        className: "flex flex-wrap items-center justify-between gap-3"
+      }, /*#__PURE__*/React.createElement("label", {
+        className: "flex items-center gap-2 text-sm text-gray-700"
+      }, /*#__PURE__*/React.createElement("input", {
+        type: "checkbox",
+        checked: editingSupport.active,
+        onChange: e => onEditingChange({
+          ...editingSupport,
+          active: e.target.checked
+        }),
+        className: "w-5 h-5 text-orange-600 rounded cursor-pointer"
+      }), "Ativo no evento"), /*#__PURE__*/React.createElement("span", {
+        className: "font-bold text-orange-600"
+      }, "R$ ", ((editingSupport.cost || 0) * (editingSupport.quantity || 1)).toFixed(2))), /*#__PURE__*/React.createElement("div", {
+        className: "flex gap-2 mt-3"
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: onSaveEditing,
+        className: "flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+      }, "Salvar"), /*#__PURE__*/React.createElement("button", {
+        onClick: onCancelEditing,
+        className: "flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+      }, "Cancelar")));
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      className: `px-4 py-3 border-b border-gray-100 ${!item.active ? 'opacity-40' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-start gap-3"
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "checkbox",
+      checked: item.active,
+      onChange: e => onUpdateItem(item.id, 'active', e.target.checked),
+      className: "w-5 h-5 mt-0.5 text-orange-600 rounded cursor-pointer"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "font-semibold text-gray-800",
+      style: { overflowWrap: 'break-word' }
+    }, item.name), /*#__PURE__*/React.createElement("div", {
+      className: "text-sm text-gray-500 mt-1"
+    }, "R$ ", (item.cost || 0).toFixed(2), " \xD7 ", item.quantity, " = ", /*#__PURE__*/React.createElement("span", {
+      className: "font-bold text-orange-600 whitespace-nowrap"
+    }, "R$ ", (item.total || 0).toFixed(2)))), /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-col gap-1 no-print"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => onStartEditing(item),
+      className: "text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50",
+      title: "Editar"
+    }, /*#__PURE__*/React.createElement(Icon, {
+      type: "edit",
+      className: "w-5 h-5"
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onDeleteItem(item.id),
+      className: "text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50",
+      title: "Excluir"
+    }, /*#__PURE__*/React.createElement(Icon, {
+      type: "trash",
+      className: "w-5 h-5"
+    })))));
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center gap-3 px-4 py-3 bg-gray-100 border-t-2 border-gray-300"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-gray-800"
+  }, "Total Apoio & Log\xEDstica"), /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-orange-700 text-lg whitespace-nowrap"
+  }, "R$ ", supportItems.filter(function (i) { return i.active; }).reduce(function (sum, i) { return sum + (i.total || 0); }, 0).toFixed(2)))), /*#__PURE__*/React.createElement("div", {
+    // Telas largas (lg): tabela original
+    className: "hidden lg:block overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
     className: "w-full"
   }, /*#__PURE__*/React.createElement("thead", {
@@ -192,7 +305,7 @@ const SupportList = React.memo(function SupportList({
   })), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 font-medium text-gray-800"
   }, item.name), /*#__PURE__*/React.createElement("td", {
-    className: "px-4 py-3 text-gray-700"
+    className: "px-4 py-3 text-gray-700 whitespace-nowrap"
   }, "R$ ", (item.cost || 0).toFixed(2)), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
   }, item.quantity), /*#__PURE__*/React.createElement("td", {
@@ -223,7 +336,7 @@ const SupportList = React.memo(function SupportList({
     className: "px-4 py-3 font-bold text-gray-800 text-lg",
     colSpan: 3
   }, "Total Apoio & Logística"), /*#__PURE__*/React.createElement("td", {
-    className: "px-4 py-3 text-right font-bold text-orange-700 text-xl"
+    className: "px-4 py-3 text-right font-bold text-orange-700 text-xl whitespace-nowrap"
   }, "R$ ", supportItems.filter(function(i) { return i.active; }).reduce(function(sum, i) { return sum + (i.total || 0); }, 0).toFixed(2)), /*#__PURE__*/React.createElement("td", {
     className: "no-print"
   })))))));
