@@ -651,21 +651,24 @@ function ProposalCard({
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenu(!showMenu),
     className: "px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-  }, "\u22EE"), showMenu && /*#__PURE__*/React.createElement("div", {
-    className: "absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-xl border z-50"
+  }, "\u22EE"))), showMenu && /*#__PURE__*/React.createElement("div", {
+    // ✅ FIX: opções do "⋮" agora abrem numa linha própria, abaixo dos botões
+    // (dentro do fluxo da página), em vez de um menu flutuante (absolute) que
+    // ficava por cima dos botões/conteúdo no iPhone e não fechava ao tocar fora.
+    className: "w-full flex gap-2 mt-3 pt-3 border-t border-gray-100"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       onDuplicate(proposal.id);
       setShowMenu(false);
     },
-    className: "w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+    className: "flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
   }, "\uD83D\uDCCB Duplicar"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       onDelete();
       setShowMenu(false);
     },
-    className: "w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm"
-  }, "\uD83D\uDDD1\uFE0F Excluir")))))));
+    className: "flex-1 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium"
+  }, "\uD83D\uDDD1\uFE0F Excluir")))));
 }
 
 // export default ProposalList;
