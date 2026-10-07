@@ -586,7 +586,9 @@ function ProposalCard({
   }, typeBadge.icon, " ", typeBadge.label)), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600"
   }, "\uD83D\uDCCB ", proposal.proposalNumber, " \u2022 \uD83D\uDCC5 ", window.formatDate(proposal.createdAt))))), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 mb-4"
+    // ✅ Grade que quebra em linhas: no celular os 5 quadros (Pratos, Custo, Margem, Valor Final, Por Pessoa) saíam da tela
+    className: "grid gap-2 mb-4",
+    style: { gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))' }
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {

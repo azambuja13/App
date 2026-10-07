@@ -795,6 +795,14 @@
 @media (max-width: 1023px) {
     .mobile-bottom-nav {
         padding-bottom: env(safe-area-inset-bottom);
+        /* Abaixo das janelas em tela cheia (z-50), ex: pré-visualização da proposta -
+           antes a barra ficava por cima e tampava o fim da proposta */
+        z-index: 40 !important;
+    }
+    /* Barra de botões da pré-visualização da proposta: no celular ocupava metade
+       da tela e ficava fixa no topo, sobrando pouco espaço pra ver a proposta */
+    .proposal-preview-toolbar {
+        position: static !important;
     }
     .mobile-nav-spacer {
         padding-bottom: calc(130px + env(safe-area-inset-bottom)) !important;

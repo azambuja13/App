@@ -537,7 +537,7 @@ function ProposalPreview({
     id: "proposal-preview-modal",
     className: "fixed inset-0 z-50 overflow-y-auto bg-gray-100"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "no-print sticky top-0 z-10 bg-white shadow-md border-b border-gray-200"
+    className: "no-print sticky top-0 z-10 bg-white shadow-md border-b border-gray-200 proposal-preview-toolbar"
   }, /*#__PURE__*/React.createElement("div", {
     className: "max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("button", {
@@ -554,7 +554,7 @@ function ProposalPreview({
     strokeWidth: 2,
     d: "M10 19l-7-7m0 0l7-7m-7 7h18"
   })), "Voltar"), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-2"
+    className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-medium text-gray-600"
   }, "Template:"), /*#__PURE__*/React.createElement("div", {

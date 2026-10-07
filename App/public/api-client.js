@@ -1895,6 +1895,9 @@ class CompanyManager {
                     companyVision: backendData.vision || '',
                     companyValues: backendData.values || '',
                     companyMotivation: backendData.motivation || '',
+                    // ✅ FIX: a logo nunca era lida do backend (campo "logo" no banco), só do
+                    // localStorage do navegador onde foi enviada - por isso não aparecia no iOS
+                    companyLogo: backendData.logo || null,
                     companyPhoto1: backendData.photo1 || null,
                     companyPhoto2: backendData.photo2 || null,
                     companyPhoto3: backendData.photo3 || null
@@ -1922,6 +1925,8 @@ class CompanyManager {
             vision: companyData.companyVision || '',
             values: companyData.companyValues || '',
             motivation: companyData.companyMotivation || '',
+            // ✅ FIX: a logo nunca era enviada ao backend (o PDF gerado no servidor também usa company.logo)
+            logo: companyData.companyLogo || null,
             photo1: companyData.companyPhoto1 || null,
             photo2: companyData.companyPhoto2 || null,
             photo3: companyData.companyPhoto3 || null
@@ -1940,6 +1945,7 @@ class CompanyManager {
                 companyVision: result.data.vision || '',
                 companyValues: result.data.values || '',
                 companyMotivation: result.data.motivation || '',
+                companyLogo: result.data.logo || null,
                 companyPhoto1: result.data.photo1 || null,
                 companyPhoto2: result.data.photo2 || null,
                 companyPhoto3: result.data.photo3 || null
