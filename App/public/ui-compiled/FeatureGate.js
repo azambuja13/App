@@ -298,17 +298,26 @@ function PlanBadge({
   className = ''
 }) {
   const [plan, setPlan] = React.useState('offline');
+
   React.useEffect(() => {
     const updatePlan = () => {
       const ConfigHelper = window.ConfigHelper;
       if (!ConfigHelper) return;
+
+      // Limpar cache para garantir leitura fresca
+      ConfigHelper._cachedPlan = null;
+      ConfigHelper._cacheTime = null;
+
       const currentPlan = ConfigHelper.getCurrentPlan();
       setPlan(currentPlan);
+      console.log('🏷️ [PlanBadge] Plano atualizado:', currentPlan);
     };
+
     updatePlan();
     window.addEventListener('plan-changed', updatePlan);
     return () => window.removeEventListener('plan-changed', updatePlan);
   }, []);
+
   const badgeStyles = {
     offline: 'bg-gray-500 text-white',
     standard: 'bg-blue-500 text-white',

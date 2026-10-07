@@ -26,6 +26,7 @@
 
 export class EventBus {
     constructor() {
+        const DEBUG = (typeof window !== 'undefined' && window.__DEBUG__ === true);
         // Map de eventos: { eventName: [callbacks] }
         this.events = new Map();
 
@@ -34,7 +35,7 @@ export class EventBus {
         this.maxLogSize = 100; // Manter últimos 100 eventos
 
         // Habilitar logs (para debug)
-        this.enableLogging = false;
+        this.enableLogging = !!DEBUG;
     }
 
     /**

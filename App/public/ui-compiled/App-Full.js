@@ -70,6 +70,57 @@ function ProposalTabButton({
     reason: "Para criar e gerenciar Propostas Comerciais, voc\xEA precisa do plano STANDARD ou PREMIUM"
   }));
 }
+
+/**
+ * Botão da aba WhatsApp com controle de acesso
+ * Exibe badge "PREMIUM" se usuário não for Premium
+ */
+function WhatsAppTabButton({
+  isActive,
+  onClick
+}) {
+  const [showUpgradeModal, setShowUpgradeModal] = React.useState(false);
+  const [currentPlan, setCurrentPlan] = React.useState('offline');
+  const [hasAccess, setHasAccess] = React.useState(false);
+  React.useEffect(() => {
+    const ConfigHelper = window.ConfigHelper;
+    if (ConfigHelper) {
+      const plan = ConfigHelper.getCurrentPlan();
+      const access = ConfigHelper.hasFeatureAccess('whatsapp');
+      setCurrentPlan(plan);
+      setHasAccess(access);
+    }
+  }, []);
+  const handleClick = e => {
+    if (!hasAccess) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowUpgradeModal(true);
+    } else {
+      onClick();
+    }
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: handleClick,
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition relative ${isActive ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-md' : hasAccess ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-gray-50 cursor-pointer'}`
+  }, !hasAccess && /*#__PURE__*/React.createElement("svg", {
+    className: "w-3.5 h-3.5",
+    fill: "currentColor",
+    viewBox: "0 0 20 20"
+  }, /*#__PURE__*/React.createElement("path", {
+    fillRule: "evenodd",
+    d: "M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z",
+    clipRule: "evenodd"
+  })), "📱 WhatsApp", !hasAccess && /*#__PURE__*/React.createElement("span", {
+    className: "text-[9px] bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-1 py-0.5 rounded font-bold"
+  }, "PRM")), showUpgradeModal && UpgradeModal && /*#__PURE__*/React.createElement(UpgradeModal, {
+    isOpen: showUpgradeModal,
+    onClose: () => setShowUpgradeModal(false),
+    currentPlan: currentPlan,
+    highlightPlan: "premium",
+    reason: "A integração com WhatsApp é exclusiva do plano PREMIUM"
+  }));
+}
 window.AppFull = function AppFull() {
   // Referências aos componentes, hooks e funções do window global
   const {
@@ -104,10 +155,28 @@ window.AppFull = function AppFull() {
   // ====================================
   const state = useEventState();
 
+  // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
+  const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
+
   // Expor state para debug (window.eventState)
   React.useEffect(() => {
     window.eventState = state;
     // ⚡ Performance: Log removido (executava em cada mudança de state)
+  }, [state]);
+
+  // ====================================
+  // Listener para evento menu-linked (quando usuário aplica cardápio salvo)
+  // ====================================
+  React.useEffect(() => {
+    const handleMenuLinked = (e) => {
+      const { id, name } = e.detail || {};
+      console.log('📋 [App-Full] Cardápio vinculado:', { id, name });
+      if (id) state.setLinkedMenuId(id);
+      if (name) state.setLinkedMenuName(name);
+    };
+
+    window.addEventListener('menu-linked', handleMenuLinked);
+    return () => window.removeEventListener('menu-linked', handleMenuLinked);
   }, [state]);
 
   // ====================================
@@ -159,8 +228,19 @@ window.AppFull = function AppFull() {
         state.setLicensedTo(tempLicensedTo || '');
         state.setLicenseExpiry(tempLicenseExpiry || null);
         state.setLicensedEmail(tempLicensedEmail || '');
+        state.setEmail(tempLicensedEmail || '');
         state.setLicenseValid(true);
         console.log('✅ Licença restaurada:', tempLicensedTo);
+
+        // Verificar fingerprint para licenças OFF
+        if (window.MachineFingerprint) {
+          console.log('🔐 Verificando fingerprint para licença restaurada...');
+          try {
+            await window.MachineFingerprint.init();
+          } catch (error) {
+            console.error('❌ Erro ao verificar fingerprint:', error);
+          }
+        }
 
         // Limpar sessionStorage
         sessionStorage.removeItem('temp_license');
@@ -182,8 +262,19 @@ window.AppFull = function AppFull() {
           state.setLicensedTo(storedLicensedTo || '');
           state.setLicenseExpiry(storedLicenseExpiry || null);
           state.setLicensedEmail(storedLicensedEmail || '');
+          state.setEmail(storedLicensedEmail || '');
           state.setLicenseValid(true);
           console.log('✅ Licença carregada no estado React:', storedLicensedTo);
+
+          // Verificar fingerprint para licenças OFF
+          if (window.MachineFingerprint) {
+            console.log('🔐 Verificando fingerprint para licença salva...');
+            try {
+              await window.MachineFingerprint.init();
+            } catch (error) {
+              console.error('❌ Erro ao verificar fingerprint:', error);
+            }
+          }
         } else {
           console.log('ℹ️ Nenhuma licença encontrada no storage');
         }
@@ -294,7 +385,15 @@ window.AppFull = function AppFull() {
                 companyPhoto2: companyData.companyPhoto2 || prev.companyPhoto2 || null,
                 companyPhoto3: companyData.companyPhoto3 || prev.companyPhoto3 || null
               }));
+
               console.log('✅ Dados da empresa carregados e aplicados ao state');
+              console.log('🖼️ Logo da empresa:', companyData.companyLogo ? 'PRESENTE' : 'AUSENTE');
+
+              // Atualizar logo imediatamente se veio do backend
+              if (companyData.companyLogo) {
+                console.log('📦 Aplicando logo do backend ao estado local');
+                setCompanyLogo(companyData.companyLogo);
+              }
             } else {
               console.warn('⚠️ Nenhum dado de empresa encontrado no backend');
             }
@@ -399,7 +498,14 @@ window.AppFull = function AppFull() {
                     'Content-Type': 'application/json'
                   }
                 });
-                if (response.ok) {
+
+                // Verificar se token expirou (403)
+                if (response.status === 403) {
+                  console.warn('⚠️ Token de acesso expirado - limpando sessão');
+                  localStorage.removeItem('accessToken');
+                  localStorage.removeItem('refreshToken');
+                  // Não é crítico - continuar sem configurações do servidor
+                } else if (response.ok) {
                   const result = await response.json();
                   if (result.success && result.data?.settingsData) {
                     console.log('✅ Configurações carregadas via HTTP');
@@ -497,6 +603,7 @@ window.AppFull = function AppFull() {
       // Não confiar apenas no IndexedDB local, pois pode ter múltiplas contas
       try {
         const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
+        console.log('  - API URL:', API_URL);
 
         // Verificar se a conta existe no banco de dados
         const response = await fetch(`${API_URL}/api/auth/check-license`, {
@@ -505,7 +612,7 @@ window.AppFull = function AppFull() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            email: state.email.trim()
+            email: state.email.trim() // ✅ Remover espaços
           })
         });
         if (response.ok) {
@@ -870,8 +977,40 @@ window.AppFull = function AppFull() {
         }
       } catch (error) {
         console.error('❌ Erro ao criar ingrediente no PostgreSQL:', error);
-        alert('Erro ao salvar ingrediente no banco de dados: ' + error.message);
-        return; // Não adiciona ao estado se falhar no PostgreSQL
+
+        // ✅ Verificar se é erro 409 (conflito) com ingredientes similares
+        if (error.statusCode === 409 && error.similar && error.similar.length > 0) {
+          const similarNames = error.similar.map(ing => `"${ing.name}"`).join(', ');
+          const message = `Já existem ingredientes similares:\n${similarNames}\n\nDeseja criar "${ingredientData.name}" mesmo assim?`;
+
+          if (confirm(message)) {
+            // Tentar novamente com force=true
+            try {
+              console.log('🔄 Forçando criação do ingrediente...');
+              const result = await window.PrecificacaoAPI.ingredientManager.addIngredient(ingredientData, true); // force=true
+
+              if (result.success && result.data) {
+                savedIngredient = result.data;
+                console.log('✅ Ingrediente criado com força:', savedIngredient.name);
+                // Continuar para adicionar ao estado (não return aqui)
+              } else {
+                alert('Erro ao salvar ingrediente: ' + (result.message || 'Falha desconhecida'));
+                return;
+              }
+            } catch (forceError) {
+              console.error('❌ Erro ao forçar criação:', forceError);
+              alert('Erro ao salvar ingrediente: ' + forceError.message);
+              return;
+            }
+          } else {
+            // Usuário cancelou, não criar
+            return;
+          }
+        } else {
+          // Outro tipo de erro
+          alert('Erro ao salvar ingrediente no banco de dados: ' + error.message);
+          return;
+        }
       }
     } else {
       console.warn('⚠️ [handleAddIngredient] Backend não inicializado - salvando apenas localmente');
@@ -1188,6 +1327,10 @@ window.AppFull = function AppFull() {
       }
       state.setCurrentEventId(eventId);
       state.setShowEventsList(false);
+
+      // ✅ Navegar para a aba de itens após carregar o evento
+      state.setActiveTab('items');
+
       console.log('✅ Evento carregado com sucesso!');
       alert('✅ Evento carregado com sucesso!');
     } else {
@@ -1421,6 +1564,15 @@ window.AppFull = function AppFull() {
       };
 
       console.log('🔍 [handleSaveEvent] stateData.results:', stateData.results);
+      console.log('🔍 [handleSaveEvent] 3 TOTAIS salvos:', {
+        totalItens: stateData.results.totalItens,
+        totalPratos: stateData.results.totalPratos,
+        totalPratosComMargem: stateData.results.totalPratosComMargem,
+        apoioCost: apoioCost,
+        ingredientsCost: costs?.ingredientsCost,
+        menuCostTotal: costs?.menuCostTotal,
+        menuPriceTotal: costs?.menuPriceTotal
+      });
 
       const eventData = {
         id: state.currentEventId,
@@ -1449,8 +1601,8 @@ window.AppFull = function AppFull() {
         costs: costs
       });
 
-      // Usar SavedEventsManager que agora usa IndexedDB via StorageManager
-      const manager = window.savedEventsManager || window.PrecificacaoAPI?.eventManager;
+      // Usar manager com mesma prioridade do load (backend primeiro, local como fallback)
+      const manager = window.ManagerHelper?.getSavedEventsManager() || window.savedEventsManager;
       if (!manager) {
         throw new Error('Manager de eventos não está disponível. Aguarde o carregamento ou recarregue a página.');
       }
@@ -1526,6 +1678,33 @@ window.AppFull = function AppFull() {
     try {
       const result = await window.LicenseValidator.validateLicense(state.licenseKey);
       if (result.valid) {
+        // 🔍 Detectar troca de licença - buscar do INDEXEDDB, não localStorage
+        let oldLicenseType = null;
+        try {
+          // Buscar licença antiga do IndexedDB
+          if (window.indexedDBStorage) {
+            const oldLicenseKey = await window.indexedDBStorage.get('appLicenseKey');
+            if (oldLicenseKey && oldLicenseKey !== state.licenseKey) {
+              // Extrair tipo da licença antiga (formato: NAME-base64-TYPE-date-hash)
+              const parts = oldLicenseKey.split('-');
+              if (parts.length >= 3) {
+                oldLicenseType = parts[2]; // PRM, OFF ou STD
+              }
+            }
+          }
+        } catch (e) {
+          console.log('⚠️ Erro ao buscar licença antiga do IndexedDB:', e.message);
+        }
+
+        const newLicenseType = result.licenseType || 'STD';
+        const isLicenseChange = oldLicenseType && oldLicenseType !== newLicenseType;
+
+        if (isLicenseChange) {
+          console.log('🔄 [TROCA DE LICENÇA DETECTADA]');
+          console.log(`  De: ${oldLicenseType} → Para: ${newLicenseType}`);
+          console.log('  🔄 Salvando e recarregando página para limpar estado...');
+        }
+
         // Salvar licença
         await window.LicenseValidator.saveLicense(state.licenseKey, result);
 
@@ -1544,6 +1723,15 @@ window.AppFull = function AppFull() {
             licenseType: licenseType
           }
         }));
+
+        // 🔄 Se houve troca de licença, recarregar página para limpar estado
+        if (isLicenseChange) {
+          setTimeout(() => {
+            console.log('🔄 Recarregando página...');
+            window.location.reload();
+          }, 1000);
+          return; // Não continuar com o restante do código
+        }
 
         // Atualizar estado
         state.setLicenseValid(true);
@@ -1720,6 +1908,33 @@ window.AppFull = function AppFull() {
     try {
       const result = await window.LicenseValidator.validateLicense(activeLicenseKey);
       if (result.valid) {
+        // 🔍 Detectar troca de licença - buscar do INDEXEDDB, não localStorage
+        let oldLicenseType = null;
+        try {
+          // Buscar licença antiga do IndexedDB
+          if (window.indexedDBStorage) {
+            const oldLicenseKey = await window.indexedDBStorage.get('appLicenseKey');
+            if (oldLicenseKey && oldLicenseKey !== activeLicenseKey) {
+              // Extrair tipo da licença antiga (formato: NAME-base64-TYPE-date-hash)
+              const parts = oldLicenseKey.split('-');
+              if (parts.length >= 3) {
+                oldLicenseType = parts[2]; // PRM, OFF ou STD
+              }
+            }
+          }
+        } catch (e) {
+          console.log('⚠️ Erro ao buscar licença antiga do IndexedDB:', e.message);
+        }
+
+        const newLicenseType = result.licenseType || 'STD';
+        const isLicenseChange = oldLicenseType && oldLicenseType !== newLicenseType;
+
+        if (isLicenseChange) {
+          console.log('🔄 [TROCA DE LICENÇA DETECTADA]');
+          console.log(`  De: ${oldLicenseType} → Para: ${newLicenseType}`);
+          console.log('  🔄 Salvando e recarregando página para limpar estado...');
+        }
+
         // Salvar licença
         await window.LicenseValidator.saveLicense(activeLicenseKey, result);
 
@@ -1738,6 +1953,15 @@ window.AppFull = function AppFull() {
             licenseType: licenseType
           }
         }));
+
+        // 🔄 Se houve troca de licença, recarregar página para limpar estado
+        if (isLicenseChange) {
+          setTimeout(() => {
+            console.log('🔄 Recarregando página...');
+            window.location.reload();
+          }, 1000);
+          return; // Não continuar com o restante do código
+        }
 
         // Atualizar estado
         state.setLicenseValid(true);
@@ -1910,7 +2134,9 @@ window.AppFull = function AppFull() {
     className: "text-xs font-bold uppercase"
   }, "LICENCIADO"), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] opacity-90 truncate max-w-[120px]"
-  }, state.licensedTo))))), /*#__PURE__*/React.createElement("div", {
+  }, state.licensedTo), state.licenseExpiry && /*#__PURE__*/React.createElement("span", {
+    className: "text-[9px] opacity-75 mt-0.5"
+  }, "At\xE9 ", new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("div", {
     className: "p-4 border-t border-gray-200 bg-blue-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-blue-200"
@@ -2555,10 +2781,10 @@ window.AppFull = function AppFull() {
   }), "Apoio"), /*#__PURE__*/React.createElement(ProposalTabButton, {
     isActive: state.activeTab === 'proposals',
     onClick: () => state.setActiveTab('proposals')
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => state.setActiveTab('whatsapp'),
-    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'whatsapp' ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
-  }, "📱 WhatsApp")), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(WhatsAppTabButton, {
+    isActive: state.activeTab === 'whatsapp',
+    onClick: () => state.setActiveTab('whatsapp')
+  })), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement(IngredientsDatabase, {
     groupedIngredients: groupedIngredients,
@@ -2783,14 +3009,14 @@ window.AppFull = function AppFull() {
     onExportEvents: handleExportEvents,
     onClose: () => state.setShowEventsList(false)
   }), /*#__PURE__*/React.createElement("div", {
-    className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 mobile-bottom-nav"
+    className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 pb-[env(safe-area-inset-bottom)] mobile-bottom-nav"
   }, /*#__PURE__*/React.createElement("div", {
     className: "safe-bottom"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-around items-center py-1 px-0.5 border-b border-gray-100"
+    className: "flex justify-around items-center py-1.5 px-1 border-b border-gray-100"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
     fill: "none",
@@ -2802,10 +3028,10 @@ window.AppFull = function AppFull() {
     strokeWidth: 2,
     d: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Clientes")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('events'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'events' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'events' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
     fill: "none",
@@ -2817,40 +3043,40 @@ window.AppFull = function AppFull() {
     strokeWidth: 2,
     d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Eventos")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('ingredients'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'ingredients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'ingredients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83E\uDD55"), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Ingred.")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('dishes'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'dishes' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'dishes' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83C\uDF7D\uFE0F"), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Pratos"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-around items-center py-1 px-0.5"
+    className: "flex justify-around items-center py-1.5 px-1"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('menu'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'menu' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'menu' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Card\xE1pio")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('saved-menus'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'saved-menus' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'saved-menus' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83D\uDCBE"), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Salvos")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('items'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'items' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'items' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
     fill: "none",
@@ -2862,10 +3088,10 @@ window.AppFull = function AppFull() {
     strokeWidth: 2,
     d: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Itens")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('support'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'support' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'support' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
     fill: "none",
@@ -2877,10 +3103,10 @@ window.AppFull = function AppFull() {
     strokeWidth: 2,
     d: "M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Apoio")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('proposals'),
-    className: `flex flex-col items-center justify-center px-1 py-1 rounded-lg transition-all flex-1 ${state.activeTab === 'proposals' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'proposals' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
     fill: "none",
@@ -2892,7 +3118,7 @@ window.AppFull = function AppFull() {
     strokeWidth: 2,
     d: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
   })), /*#__PURE__*/React.createElement("span", {
-    className: "text-[8px] font-medium mt-0.5"
+    className: "text-[10px] font-medium mt-0.5"
   }, "Propostas"))))))));
 };
 

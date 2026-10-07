@@ -30,13 +30,23 @@ function PlanProvider({ children }) {
     // Função para atualizar o plano
     const refreshPlan = () => {
         if (window.ConfigHelper) {
+            // Limpar cache para leitura fresca
+            window.ConfigHelper._cachedPlan = null;
+            window.ConfigHelper._cacheTime = null;
+
             const currentPlan = window.ConfigHelper.getCurrentPlan();
             const currentLicenseType = localStorage.getItem('licenseType') || 'OFF';
 
             setPlan(currentPlan);
             setLicenseType(currentLicenseType);
 
-            console.log('🔄 [PlanContext] Plano atualizado:', currentPlan);
+            console.log('🔄 [PlanContext] Plano atualizado:', {
+                plan: currentPlan,
+                licenseType: currentLicenseType,
+                isPremium: currentPlan === 'premium',
+                isStandard: currentPlan === 'standard',
+                isOffline: currentPlan === 'offline' || currentPlan === 'free'
+            });
         }
     };
 

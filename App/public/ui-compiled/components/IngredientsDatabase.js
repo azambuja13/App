@@ -24,6 +24,8 @@ function IngredientsDatabase({
     name: '',
     category: 'Proteínas',
     loss: 0,
+    lossPercentage: 0,
+    yieldMultiplier: 1.0,
     costPerUnit: 0,
     unitSize: 0,
     unitType: 'weight'
@@ -45,6 +47,10 @@ function IngredientsDatabase({
   const [searchTerm, setSearchTerm] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [updatingPrices, setUpdatingPrices] = useState(false);
+  const [priceUpdateProgress, setPriceUpdateProgress] = useState(null); // { processed, total, percent }
+
+  // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
+  const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
 
   // Usar função centralizada do módulo calculations
   const calculateCostPerGramMl = window.calculateCostPerGramMl || (ingredient => {
@@ -74,13 +80,18 @@ function IngredientsDatabase({
         // Garantir que costPerUnit e unitSize sejam números
         const costPerUnit = parseFloat(ing.costPerUnit) || 0;
         const unitSize = parseFloat(ing.unitSize) || 0;
-        const loss = parseFloat(ing.loss) || 0;
+        // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
+        let lossValue = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
+        // Se loss está entre 0-1, é decimal, converter para %
+        const lossPercentage = lossValue > 0 && lossValue <= 1 ? lossValue * 100 : lossValue;
+        const yieldMultiplier = parseFloat(ing.yieldMultiplier) || 1.0;
         return {
           'ID': ing.id || '',
           'Nome': ing.name || '',
           'Categoria': ing.category || 'Outros',
           'Tipo': ing.unitType === 'unit' ? 'Unidade' : 'Peso',
-          'Perda (%)': (loss * 100).toFixed(0),
+          'Perda (%)': lossPercentage.toFixed(0),
+          'Rendimento (x)': yieldMultiplier.toFixed(1),
           'Custo/Un (R$)': costPerUnit.toFixed(2),
           'Tam. Un.': unitSize,
           'Custo Unitário': ing.unitType === 'unit' ? unitSize > 0 ? (costPerUnit / unitSize).toFixed(4) : '0.0000' : (calculateCostPerGramMl(ing) || 0).toFixed(4)
@@ -188,7 +199,8 @@ function IngredientsDatabase({
       if (result.results.created.length > 0) {
         message += `\n📝 Exemplos criados:\n`;
         result.results.created.slice(0, 3).forEach(ing => {
-          message += `• ${ing.name} - R$ ${ing.price.toFixed(2)}\n`;
+          const price = parseFloat(ing.price) || 0;
+          message += `• ${ing.name} - R$ ${price.toFixed(2)}\n`;
         });
         if (result.results.created.length > 3) {
           message += `  ...e mais ${result.results.created.length - 3}\n`;
@@ -198,7 +210,9 @@ function IngredientsDatabase({
       if (result.results.updated.length > 0) {
         message += `\n♻️ Exemplos atualizados:\n`;
         result.results.updated.slice(0, 3).forEach(ing => {
-          message += `• ${ing.name}: R$ ${ing.oldPrice.toFixed(2)} → R$ ${ing.newPrice.toFixed(2)}\n`;
+          const oldPrice = parseFloat(ing.oldPrice) || 0;
+          const newPrice = parseFloat(ing.newPrice) || 0;
+          message += `• ${ing.name}: R$ ${oldPrice.toFixed(2)} → R$ ${newPrice.toFixed(2)}\n`;
         });
         if (result.results.updated.length > 3) {
           message += `  ...e mais ${result.results.updated.length - 3}\n`;
@@ -288,20 +302,77 @@ function IngredientsDatabase({
     alert(`✅ Template aplicado!\n\n✓ ${added} ingredientes adicionados\n⏭️ ${skipped} ingredientes já existiam`);
   };
 
-  // Handler para atualizar todos os preços com IA
+  // Polling fallback para quando WebSocket não está disponível
+  const startPolling = (jobId, apiUrl, token) => {
+    console.log('🔄 [PriceUpdate] Iniciando polling para job:', jobId);
+    const pollInterval = setInterval(async () => {
+      try {
+        const resp = await fetch(`${apiUrl}/api/ingredients/price-update-status/${jobId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+
+        if (!data.success) return;
+
+        if (data.status === 'processing') {
+          setPriceUpdateProgress({
+            processed: data.processed || 0,
+            total: data.total || 0,
+            percent: data.percent || 0,
+            currentStats: data.currentStats
+          });
+        } else if (data.status === 'completed') {
+          clearInterval(pollInterval);
+          setUpdatingPrices(false);
+          setPriceUpdateProgress(null);
+          alert(`✅ ${data.message}\n\n📊 Estatísticas:\n✓ Atualizados: ${data.stats.updated}\n⏭️ Pulados: ${data.stats.skipped}\n❌ Erros: ${data.stats.failed}\n💰 Custo: R$ ${data.stats.estimatedCostBRL}`);
+          window.location.reload();
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          setUpdatingPrices(false);
+          setPriceUpdateProgress(null);
+          alert(`❌ Erro no processamento: ${data.error}`);
+        } else if (data.status === 'not_found') {
+          clearInterval(pollInterval);
+          setUpdatingPrices(false);
+          setPriceUpdateProgress(null);
+        }
+      } catch (err) {
+        console.warn('⚠️ [PriceUpdate] Erro no polling:', err.message);
+      }
+    }, 3000); // Consultar a cada 3 segundos
+
+    return pollInterval;
+  };
+
+  // Handler para atualizar todos os preços com IA (processamento em background via WebSocket)
   const handleUpdateAllPrices = async () => {
     const total = Object.values(groupedIngredients).flat().length;
     const withoutPrice = Object.values(groupedIngredients).flat().filter(i => !i.costPerUnit || i.costPerUnit === 0).length;
 
-    if (!confirm(`🤖 Atualizar preços com IA?\n\n${total} ingredientes total\n${withoutPrice} sem preço\n\nEsto utilizará a OpenAI API.\nCusto estimado: R$ ${(withoutPrice * 0.01).toFixed(2)}\n\nContinuar?`)) {
+    if (!confirm(`🤖 Atualizar preços com IA?\n\n${total} ingredientes total\n${withoutPrice} sem preço\n\nIsto utilizará a API Claude (Anthropic).\nCusto estimado: R$ ${(withoutPrice * 0.01).toFixed(2)}\n\nO processamento será feito em segundo plano.\nVocê pode acompanhar o progresso na tela.\n\nContinuar?`)) {
       return;
     }
 
     setUpdatingPrices(true);
-    try {
-      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const token = localStorage.getItem('accessToken');
+    setPriceUpdateProgress({ processed: 0, total: total, percent: 0 });
 
+    const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
+    const token = localStorage.getItem('accessToken');
+    let pollIntervalId = null;
+
+    // Cleanup: remove listeners WebSocket e polling
+    const cleanup = () => {
+      const ws = window.websocketService;
+      if (ws && ws.socket) {
+        ws.off('price-update:progress');
+        ws.off('price-update:complete');
+        ws.off('price-update:error');
+      }
+      if (pollIntervalId) clearInterval(pollIntervalId);
+    };
+
+    try {
       const response = await fetch(`${API_URL}/api/ingredients/update-all-prices`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -310,15 +381,65 @@ function IngredientsDatabase({
       const result = await response.json();
 
       if (result.success) {
-        alert(`✅ ${result.message}\n\n📊 Estatísticas:\n✓ Atualizados: ${result.stats.updated}\n⏭️ Pulados: ${result.stats.skipped}\n❌ Erros: ${result.stats.failed}\n💰 Custo: R$ ${result.stats.estimatedCostBRL}`);
-        window.location.reload();
+        if (!result.async) {
+          // Resposta imediata (ex: 0 ingredientes)
+          setUpdatingPrices(false);
+          setPriceUpdateProgress(null);
+          alert(`✅ ${result.message}`);
+          return;
+        }
+
+        console.log('🚀 [PriceUpdate] Processamento iniciado em background:', result.jobId);
+
+        // Tentar usar WebSocket se disponível
+        const ws = window.websocketService;
+        const wsConnected = ws && ws.isSocketConnected && ws.isSocketConnected();
+
+        if (wsConnected) {
+          console.log('🔌 [PriceUpdate] Usando WebSocket para acompanhar progresso');
+
+          ws.on('price-update:progress', (data) => {
+            console.log('📊 [PriceUpdate] Progresso:', data);
+            setPriceUpdateProgress({
+              processed: data.processed,
+              total: data.total,
+              percent: data.percent,
+              currentStats: data.currentStats
+            });
+          });
+
+          ws.on('price-update:complete', (data) => {
+            console.log('✅ [PriceUpdate] Concluído:', data);
+            cleanup();
+            setUpdatingPrices(false);
+            setPriceUpdateProgress(null);
+            if (data.success) {
+              alert(`✅ ${data.message}\n\n📊 Estatísticas:\n✓ Atualizados: ${data.stats.updated}\n⏭️ Pulados: ${data.stats.skipped}\n❌ Erros: ${data.stats.failed}\n💰 Custo: R$ ${data.stats.estimatedCostBRL}`);
+              window.location.reload();
+            }
+          });
+
+          ws.on('price-update:error', (data) => {
+            console.error('❌ [PriceUpdate] Erro:', data);
+            cleanup();
+            setUpdatingPrices(false);
+            setPriceUpdateProgress(null);
+            alert(`❌ Erro no processamento: ${data.error}`);
+          });
+        } else {
+          // WebSocket não disponível - usar polling como fallback
+          console.log('📡 [PriceUpdate] WebSocket não conectado - usando polling');
+          pollIntervalId = startPolling(result.jobId, API_URL, token);
+        }
       } else {
-        throw new Error(result.error || 'Erro ao atualizar preços');
+        throw new Error(result.error || 'Erro ao iniciar atualização de preços');
       }
     } catch (error) {
-      alert(`❌ Erro: ${error.message}`);
-    } finally {
+      console.error('❌ [PriceUpdate] Erro:', error);
+      cleanup();
       setUpdatingPrices(false);
+      setPriceUpdateProgress(null);
+      alert(`❌ Erro: ${error.message}`);
     }
   };
 
@@ -337,7 +458,7 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "download",
     className: "w-5 h-5"
-  }), "Excel"), /*#__PURE__*/React.createElement("label", {
+  }), "Excel"), isPremium ? /*#__PURE__*/React.createElement("label", {
     className: "flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white rounded-xl font-bold hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer group",
     title: "Importar ingredientes de qualquer arquivo usando IA (PDF, imagem, Excel, CSV, texto)"
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -352,11 +473,28 @@ function IngredientsDatabase({
     accept: ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv,.xls,.xlsx",
     onChange: handleImportWithAI,
     className: "hidden"
-  })), /*#__PURE__*/React.createElement("button", {
+  })) : /*#__PURE__*/React.createElement("button", {
+    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    className: "flex items-center gap-2 px-5 py-3 bg-gray-400 text-white rounded-xl font-bold opacity-60 cursor-not-allowed",
+    title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    type: "upload",
+    className: "w-5 h-5"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-xl"
+  }, "🤖"), "Importar com IA"), /*#__PURE__*/React.createElement("span", {
+    className: "ml-2"
+  }, "🔒")), isPremium ? /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowTemplates(true),
     className: "flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg font-semibold hover:shadow-lg transition",
     title: "Adicionar ingredientes de templates pré-definidos"
-  }, "📋 Templates"), /*#__PURE__*/React.createElement("button", {
+  }, "📋 Templates") : /*#__PURE__*/React.createElement("button", {
+    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    className: "flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg font-semibold opacity-60 cursor-not-allowed",
+    title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
+  }, "📋 Templates 🔒"), isPremium ? /*#__PURE__*/React.createElement("button", {
     onClick: handleUpdateAllPrices,
     disabled: updatingPrices,
     className: "flex items-center gap-2 px-5 py-3 text-white rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed",
@@ -387,7 +525,7 @@ function IngredientsDatabase({
     className: "text-xl animate-spin"
   }, "⏳"), /*#__PURE__*/React.createElement("span", {
     style: { color: '#ffffff' }
-  }, "Atualizando...")) : /*#__PURE__*/React.createElement("span", {
+  }, priceUpdateProgress ? `${priceUpdateProgress.percent}% (${priceUpdateProgress.processed}/${priceUpdateProgress.total})` : "Iniciando...")) : /*#__PURE__*/React.createElement("span", {
     className: "flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-2xl"
@@ -395,7 +533,21 @@ function IngredientsDatabase({
     style: { color: '#ffffff', fontWeight: 'bold' }
   }, "Atualizar ", /*#__PURE__*/React.createElement("span", {
     style: { color: '#ffffff', fontSize: '0.875rem', opacity: 0.9 }
-  }, "Preços com IA")))), /*#__PURE__*/React.createElement("button", {
+  }, "Preços com IA")))) : /*#__PURE__*/React.createElement("button", {
+    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    className: "flex items-center gap-2 px-5 py-3 bg-gray-400 text-white rounded-xl font-bold opacity-60 cursor-not-allowed",
+    title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-2xl"
+  }, "🤖"), /*#__PURE__*/React.createElement("span", {
+    style: { color: '#ffffff', fontWeight: 'bold' }
+  }, "Atualizar ", /*#__PURE__*/React.createElement("span", {
+    style: { color: '#ffffff', fontSize: '0.875rem', opacity: 0.9 }
+  }, "Preços com IA")), /*#__PURE__*/React.createElement("span", {
+    className: "ml-2"
+  }, "🔒"))), /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowNewForm(!showNewForm),
     className: "flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:shadow-lg transition"
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -491,18 +643,37 @@ function IngredientsDatabase({
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Perda (%)"), /*#__PURE__*/React.createElement("input", {
     type: "number",
-    value: newIngredient.loss == null || newIngredient.loss === 0 || newIngredient.loss === '' ? '' : newIngredient.loss * 100,
+    value: newIngredient.lossPercentage == null || newIngredient.lossPercentage === 0 || newIngredient.lossPercentage === '' ? '' : newIngredient.lossPercentage,
     onChange: e => {
       const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
       onNewIngredientChange({
         ...newIngredient,
-        loss: value === '' ? 0 : value / 100
+        lossPercentage: value === '' ? 0 : value
       });
     },
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
     step: "1",
     placeholder: "0"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-500 mt-1"
+  }, "Perda no preparo (carnes, limpeza)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-medium text-gray-700 mb-2"
+  }, "Rendimento (x)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: newIngredient.yieldMultiplier == null || newIngredient.yieldMultiplier === 1 || newIngredient.yieldMultiplier === '' ? '' : newIngredient.yieldMultiplier,
+    onChange: e => {
+      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 1.0;
+      onNewIngredientChange({
+        ...newIngredient,
+        yieldMultiplier: value === '' ? 1.0 : value
+      });
+    },
+    className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
+    step: "0.1",
+    placeholder: "1.0"
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-500 mt-1"
+  }, "Arroz 3.0x, Massa 2.5x, Padr\xE3o 1.0x")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, newIngredient.unitType === 'unit' ? 'Custo da Embalagem (R$)' : 'Custo/Un (R$)'), /*#__PURE__*/React.createElement("input", {
     type: "number",
@@ -585,6 +756,8 @@ function IngredientsDatabase({
     className: "px-4 py-3 text-left text-xs font-semibold text-gray-600"
   }, "Perda %"), /*#__PURE__*/React.createElement("th", {
     className: "px-4 py-3 text-left text-xs font-semibold text-gray-600"
+  }, "Rend."), /*#__PURE__*/React.createElement("th", {
+    className: "px-4 py-3 text-left text-xs font-semibold text-gray-600"
   }, "Custo/Un (R$)"), /*#__PURE__*/React.createElement("th", {
     className: "px-4 py-3 text-left text-xs font-semibold text-gray-600"
   }, "Tam. Un."), /*#__PURE__*/React.createElement("th", {
@@ -666,16 +839,32 @@ function IngredientsDatabase({
     className: "px-4 py-3"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
-    value: editingIngredient.loss == null || editingIngredient.loss === 0 || editingIngredient.loss === '' ? '' : isNaN(editingIngredient.loss * 100) ? '' : editingIngredient.loss * 100,
+    value: editingIngredient.lossPercentage == null || editingIngredient.lossPercentage === 0 || editingIngredient.lossPercentage === '' ? '' : isNaN(editingIngredient.lossPercentage) ? '' : editingIngredient.lossPercentage,
     onChange: e => {
       const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
       onEditingChange({
         ...editingIngredient,
-        loss: value === '' ? 0 : value / 100
+        lossPercentage: value === '' ? 0 : value,
+        loss: value === '' ? 0 : value
       });
     },
     className: "w-20 px-3 py-2 border border-gray-300 rounded-lg",
     placeholder: "0"
+  })), /*#__PURE__*/React.createElement("td", {
+    className: "px-4 py-3"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: editingIngredient.yieldMultiplier == null || editingIngredient.yieldMultiplier === 1 || editingIngredient.yieldMultiplier === '' ? '' : isNaN(editingIngredient.yieldMultiplier) ? '' : editingIngredient.yieldMultiplier,
+    onChange: e => {
+      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 1.0;
+      onEditingChange({
+        ...editingIngredient,
+        yieldMultiplier: value === '' ? 1.0 : value
+      });
+    },
+    className: "w-20 px-3 py-2 border border-gray-300 rounded-lg",
+    step: "0.1",
+    placeholder: "1.0"
   })), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3"
   }, /*#__PURE__*/React.createElement("input", {
@@ -744,7 +933,15 @@ function IngredientsDatabase({
     className: "px-4 py-3 text-gray-700"
   }, ing.unitType === 'unit' ? '🔢 Unid' : '⚖️ Peso'), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
-  }, ((ing.loss || 0) * 100).toFixed(0), "%"), /*#__PURE__*/React.createElement("td", {
+  }, (() => {
+    // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
+    const loss = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
+    // Se loss está entre 0-1, é decimal, converter para %
+    const lossPercent = loss > 0 && loss <= 1 ? loss * 100 : loss;
+    return lossPercent.toFixed(0) + "%";
+  })()), /*#__PURE__*/React.createElement("td", {
+    className: "px-4 py-3 text-gray-700"
+  }, (parseFloat(ing.yieldMultiplier) || 1.0).toFixed(1), "x"), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
   }, "R$ ", (parseFloat(ing.costPerUnit) || 0).toFixed(2)), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
@@ -768,7 +965,7 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "trash",
     className: "w-5 h-5"
-  })))))))))), React.createElement("div", {
+  })))))))))), /*#__PURE__*/React.createElement("div", {
     className: "ingredients-mobile-cards"
   }, ingredients.filter(Boolean).map(ing => editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement("div", {
     key: ing.id,
@@ -807,12 +1004,25 @@ function IngredientsDatabase({
     className: "ingredient-card-field-label"
   }, "Perda %"), /*#__PURE__*/React.createElement("input", {
     type: "number",
-    value: editingIngredient.loss == null || editingIngredient.loss === 0 || editingIngredient.loss === '' ? '' : isNaN(editingIngredient.loss * 100) ? '' : editingIngredient.loss * 100,
+    value: editingIngredient.lossPercentage == null || editingIngredient.lossPercentage === 0 || editingIngredient.lossPercentage === '' ? '' : isNaN(editingIngredient.lossPercentage) ? '' : editingIngredient.lossPercentage,
     onChange: e => {
       const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
-      onEditingChange({...editingIngredient, loss: value === '' ? 0 : value / 100});
+      onEditingChange({...editingIngredient, lossPercentage: value === '' ? 0 : value, loss: value === '' ? 0 : value});
     },
     placeholder: "0"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "ingredient-card-field"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "ingredient-card-field-label"
+  }, "Rendimento (x)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: editingIngredient.yieldMultiplier == null || editingIngredient.yieldMultiplier === 1 || editingIngredient.yieldMultiplier === '' ? '' : isNaN(editingIngredient.yieldMultiplier) ? '' : editingIngredient.yieldMultiplier,
+    onChange: e => {
+      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 1.0;
+      onEditingChange({...editingIngredient, yieldMultiplier: value === '' ? 1.0 : value});
+    },
+    step: "0.1",
+    placeholder: "1.0"
   })), /*#__PURE__*/React.createElement("div", {
     className: "ingredient-card-field"
   }, /*#__PURE__*/React.createElement("label", {
@@ -869,7 +1079,18 @@ function IngredientsDatabase({
     className: "ingredient-card-field-label"
   }, "Perda"), /*#__PURE__*/React.createElement("span", {
     className: "ingredient-card-field-value"
-  }, ((ing.loss || 0) * 100).toFixed(0), "%")), /*#__PURE__*/React.createElement("div", {
+  }, (() => {
+    // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
+    const loss = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
+    const lossPercent = loss > 0 && loss <= 1 ? loss * 100 : loss;
+    return lossPercent.toFixed(0) + "%";
+  })())), /*#__PURE__*/React.createElement("div", {
+    className: "ingredient-card-field"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "ingredient-card-field-label"
+  }, "Rendimento"), /*#__PURE__*/React.createElement("span", {
+    className: "ingredient-card-field-value"
+  }, (parseFloat(ing.yieldMultiplier) || 1.0).toFixed(1), "x")), /*#__PURE__*/React.createElement("div", {
     className: "ingredient-card-field"
   }, /*#__PURE__*/React.createElement("span", {
     className: "ingredient-card-field-label"

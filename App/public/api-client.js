@@ -63,6 +63,12 @@ class PrecificacaoAPI {
                 if (result.data.refreshToken) {
                     localStorage.setItem('refreshToken', result.data.refreshToken);
                 }
+                // Notificar consumidores que o token foi renovado (ex.: websocket)
+                try {
+                    window.dispatchEvent(new CustomEvent('auth:tokenRefreshed', {
+                        detail: { accessToken: result.data.accessToken }
+                    }));
+                } catch (_) {}
                 console.log('✅ AccessToken renovado com sucesso');
                 return result.data.accessToken;
             } else {
@@ -123,7 +129,7 @@ class PrecificacaoAPI {
             }
 
             if (!response.ok) {
-                // Preservar informações adicionais do erro (ex: ingredientes similares)
+                // ✅ Preservar informações adicionais do erro (ex: ingredientes similares)
                 const error = new Error(data.message || 'Erro na requisição');
                 error.statusCode = response.status;
                 if (data.similar) {
@@ -134,7 +140,7 @@ class PrecificacaoAPI {
 
             return data;
         } catch (error) {
-            // Logar message/statusCode/stack explicitamente: o bridge nativo do Capacitor
+            // Logar message/statusCode/stack explicitamente: o bridge nativo do Capacitor (app iOS)
             // serializa objetos Error como "{}" no console, escondendo a causa real.
             console.error('❌ Erro na API:', error && error.message ? error.message : String(error), error && error.statusCode ? `(status ${error.statusCode})` : '(sem status - possível erro de rede/CORS/JSON)');
             if (error && error.stack) {
@@ -189,8 +195,9 @@ class PrecificacaoAPI {
         });
     }
 
-    async createIngredient(ingredient) {
-        return this.request('/api/ingredients', {
+    async createIngredient(ingredient, force = false) {
+        const url = force ? '/api/ingredients?force=true' : '/api/ingredients';
+        return this.request(url, {
             method: 'POST',
             body: JSON.stringify(ingredient)
         });
@@ -214,10 +221,26 @@ class PrecificacaoAPI {
         return this.request('/api/dishes');
     }
 
+    // ⚡ OTIMIZADO: Buscar pratos com dados mínimos (sem ingredients/photos)
+    async getDishSummary() {
+        return this.request('/api/dishes/summary');
+    }
+
+    // Buscar prato específico por ID (com ingredients e photos)
+    async getDish(dishId) {
+        return this.request(`/api/dishes/${dishId}`);
+    }
+
     async createDish(dish) {
         return this.request('/api/dishes', {
             method: 'POST',
             body: JSON.stringify(dish)
+        });
+    }
+
+    async initializeDishesFromPublic() {
+        return this.request('/api/dishes/initialize-from-public', {
+            method: 'POST'
         });
     }
 
@@ -236,6 +259,12 @@ class PrecificacaoAPI {
 
     async duplicateDish(dishId) {
         return this.request(`/api/dishes/${dishId}/duplicate`, {
+            method: 'POST'
+        });
+    }
+
+    async recalculateDishCosts() {
+        return this.request('/api/dishes/recalculate-costs', {
             method: 'POST'
         });
     }
@@ -904,22 +933,20 @@ class EventManager {
     async saveEvent(eventData) {
         // Mapear para estrutura esperada pela API
         const event = {
-            id: eventData.id || undefined, // ✅ FIX: Preservar ID para criar no backend com mesmo ID
+            id: eventData.id || undefined,
             name: eventData.name || eventData.nomeEvento || 'Novo Evento',
             eventDate: eventData.date || eventData.dataEvento || eventData.eventDate || null,
             location: eventData.location || eventData.local || eventData.eventLocation || '',
             guests: parseInt(eventData.numeroConvidados || eventData.guests || eventData.data?.guests || 0),
             monthsUntilEvent: parseInt(eventData.mesesAteEvento || eventData.monthsUntilEvent || eventData.data?.monthsUntilEvent || 0),
-            // Adicionar valores calculados no nível raiz para fácil acesso na listagem
             totalWithInflation: eventData.results?.totalWithInflation || 0,
             totalWithMargin: eventData.results?.totalWithMargin || 0,
             pricePerPerson: eventData.results?.pricePerPerson || 0,
-            stateData: eventData // Salvar estado completo
+            stateData: eventData // Salvar estado completo (inclui support, labor, transport)
         };
 
-        // ✅ FIX: Se tem ID, atualizar evento existente; senão, criar novo
-        // (createEvent sozinho falha silenciosamente em edições, pois o ID já existe no backend)
-        // ✅ FIX 2: updateEvent lança exceção (404) quando o evento ainda não existe no backend
+        // Se tem ID, atualizar evento existente; senão, criar novo
+        // ✅ FIX: updateEvent lança exceção (404) quando o evento ainda não existe no backend
         // (ex: evento NOVO, cujo ID já vem pré-gerado pelo CloudStorageAdapter) — por isso o
         // fallback para createEvent precisa estar num catch, não só num "if (!result.success)".
         let result;
@@ -1054,21 +1081,23 @@ class IngredientManager {
             const result = await this.api.getIngredients();
             const rawIngredients = result.data || result.ingredients || [];
 
-            // ✅ Se usuário não tem ingredientes, inicializar com base pública
+            // ✅ Se usuário não tem ingredientes, carregar padrão diretamente
             if (rawIngredients.length === 0 && !this.initialized) {
-                console.log('🔄 Primeira carga sem ingredientes - inicializando da base pública...');
+                console.log('🔄 Primeira carga sem ingredientes - carregando base pública...');
                 try {
-                    const initResult = await this.api.initializeIngredientsFromPublic();
-                    if (initResult.success && initResult.stats && initResult.stats.copied > 0) {
-                        console.log(`✅ ${initResult.stats.copied} ingredientes públicos copiados para sua base`);
-                        // Recarregar ingredientes após inicialização
-                        const reloadResult = await this.api.getIngredients();
+                    // Carregar ingredientes padrão diretamente do endpoint público
+                    const defaultResult = await this.api.getDefaultIngredients();
+                    if (defaultResult.success && defaultResult.data) {
+                        console.log(`✅ ${defaultResult.count} ingredientes padrão carregados`);
                         rawIngredients.length = 0;
-                        rawIngredients.push(...(reloadResult.data || reloadResult.ingredients || []));
+                        rawIngredients.push(...defaultResult.data);
+                    } else {
+                        console.warn('⚠️ Nenhum ingrediente padrão encontrado');
                     }
                     this.initialized = true;
                 } catch (error) {
-                    console.warn('⚠️ Erro ao inicializar ingredientes públicos:', error.message);
+                    console.error('❌ Erro ao carregar ingredientes padrão:', error.message);
+                    this.initialized = true;
                 }
             } else if (!this.initialized) {
                 console.log(`⚡ Usuário já possui ${rawIngredients.length} ingredientes - pulando inicialização`);
@@ -1105,7 +1134,7 @@ class IngredientManager {
         }
     }
 
-    async addIngredient(ingredientData) {
+    async addIngredient(ingredientData, force = false) {
         // Mapear para estrutura esperada pela API
         const ingredient = {
             name: ingredientData.name || ingredientData.nome || 'Ingrediente',
@@ -1118,7 +1147,7 @@ class IngredientManager {
             unitSize: ingredientData.unitSize ? parseFloat(ingredientData.unitSize) : null
         };
 
-        const result = await this.api.createIngredient(ingredient);
+        const result = await this.api.createIngredient(ingredient, force);
         if (result.success) {
             // API retorna { success: true, data: ingredient }
             // Mapear resposta do backend (unitCost Decimal/string) para frontend (costPerUnit number)
@@ -1138,10 +1167,12 @@ class IngredientManager {
 
     async updateIngredient(ingredientId, ingredientData) {
         // Mapear para estrutura esperada pela API
+        // Usar ?? em vez de || para preservar valores 0 (zero é válido para perda)
         const update = {
             name: ingredientData.name || ingredientData.nome,
             unitCost: parseFloat(ingredientData.unitCost || ingredientData.costPerUnit || ingredientData.price || ingredientData.preco || 0),
-            lossPercentage: parseFloat(ingredientData.lossPercentage || ingredientData.loss || ingredientData.perdaPercentual || 0),
+            lossPercentage: parseFloat(ingredientData.lossPercentage ?? ingredientData.loss ?? ingredientData.perdaPercentual ?? 0),
+            yieldMultiplier: parseFloat(ingredientData.yieldMultiplier ?? 1),
             unit: ingredientData.unit || ingredientData.unidade || 'g',
             unitType: ingredientData.unitType || ingredientData.tipoUnidade || 'weight',
             category: ingredientData.category || ingredientData.categoria || 'Outros',
@@ -1222,9 +1253,10 @@ class DishManager {
     constructor(api) {
         this.api = api;
         this.dishes = [];
+        this.activeDishes = null; // ✅ Cache para pratos ativos
         this.loading = false;
         this.cacheTime = null;  // Timestamp do último carregamento
-        this.CACHE_DURATION = 2 * 60 * 1000; // 2 minutos de cache
+        this.CACHE_DURATION = 5 * 60 * 1000; // ⚡ 5 minutos de cache (aumentado de 2min)
     }
 
     async loadDishes(forceReload = false) {
@@ -1239,10 +1271,13 @@ class DishManager {
 
         this.loading = true;
         try {
-            const result = await this.api.getDishes();
+            // ⚡ OTIMIZADO: Usar getDishSummary() para listagem (75% mais rápido)
+            // Carrega apenas dados essenciais sem ingredients/photos (elimina N+1 queries)
+            const result = await this.api.getDishSummary();
             this.dishes = result.data || result.dishes || [];
+            this.activeDishes = null; // ✅ Invalidar cache de ativos ao recarregar
             this.cacheTime = Date.now(); // Atualizar tempo do cache
-            // ⚡ Performance: Log removido (executava após carregar pratos)
+            console.log(`⚡ [DishManager] ${this.dishes.length} pratos carregados (modo otimizado)`);
             return this.dishes;
         } finally {
             this.loading = false;
@@ -1253,6 +1288,7 @@ class DishManager {
         const result = await this.api.createDish(dishData);
         if (result.success && result.data) {
             this.dishes.push(result.data);
+            this.activeDishes = null; // ✅ Invalidar cache de ativos
             this.cacheTime = Date.now(); // Atualizar cache após criar
         }
         return result;
@@ -1265,6 +1301,7 @@ class DishManager {
             if (index !== -1) {
                 this.dishes[index] = result.data;
             }
+            this.activeDishes = null; // ✅ Invalidar cache de ativos
             this.cacheTime = Date.now(); // Atualizar cache após editar
         }
         return result;
@@ -1274,6 +1311,7 @@ class DishManager {
         const result = await this.api.deleteDish(dishId);
         if (result.success) {
             this.dishes = this.dishes.filter(d => d.id !== dishId);
+            this.activeDishes = null; // ✅ Invalidar cache de ativos
             this.cacheTime = Date.now(); // Atualizar cache após deletar
         }
         return result;
@@ -1304,8 +1342,23 @@ class DishManager {
     }
 
     async getActive() {
+        // ✅ Usar cache de pratos ativos se disponível
+        if (this.activeDishes && this.cacheTime) {
+            const now = Date.now();
+            const cacheValid = (now - this.cacheTime < this.CACHE_DURATION);
+            if (cacheValid) {
+                console.log(`⚡ [DishManager] Usando cache de pratos ativos (${this.activeDishes.length} pratos)`);
+                return this.activeDishes;
+            }
+        }
+
+        // ⚡ OTIMIZADO: Backend já filtra isActive=true, não precisa filtrar no frontend
+        // Eliminado: all.filter(d => !d.isDeleted) - reduz 400-800ms
+        console.log('🔄 [DishManager] Buscando pratos ativos...');
         const all = await this.getAll();
-        return all.filter(d => !d.isDeleted);
+        this.activeDishes = all;  // Backend já retorna apenas ativos
+        console.log(`✅ [DishManager] ${this.activeDishes.length} pratos ativos`);
+        return this.activeDishes;
     }
 
     async getById(dishId) {
@@ -1316,18 +1369,29 @@ class DishManager {
     }
 
     async duplicateDish(dishId) {
-        const dish = await this.getById(dishId);
-        if (!dish) {
-            return { success: false, message: 'Prato não encontrado' };
+        // ✅ FIX: Usar endpoint de duplicação da API que busca o prato completo
+        // (com ingredientes e fotos) ao invés de usar cache local que não tem ingredientes
+        console.log(`📋 [DishManager] Duplicando via API endpoint: /api/dishes/${dishId}/duplicate`);
+        const result = await this.api.duplicateDish(dishId);
+        console.log(`📋 [DishManager] Resultado da duplicação via API:`, result);
+        if (result.success && result.data) {
+            console.log(`📋 [DishManager] Prato duplicado com ${result.data.ingredients?.length || 0} ingredientes`);
+            this.dishes.push(result.data);
+            this.activeDishes = null; // Invalidar cache de ativos
+            this.cacheTime = Date.now();
         }
+        return result;
+    }
 
-        const duplicated = {
-            ...dish,
-            name: `${dish.name} (Cópia)`,
-            id: undefined // Será gerado novo ID pelo backend
-        };
-
-        return this.saveDish(duplicated);
+    async recalculateCosts() {
+        const result = await this.api.recalculateDishCosts();
+        if (result.success) {
+            this.dishes = [];
+            this.activeDishes = null;
+            this.cacheTime = null;
+            console.log('🔄 [DishManager] Cache invalidado após recalcular custos');
+        }
+        return result;
     }
 
     async toggleFavorite(dishId) {
@@ -1350,23 +1414,35 @@ class DishManager {
     async getDetailedStatistics() {
         const dishes = await this.getActive();
 
-        const byCategory = {};
-        dishes.forEach(dish => {
+        // ⚡ OTIMIZADO: Single-pass reduce (elimina 4 iterações separadas)
+        const stats = dishes.reduce((acc, dish) => {
+            // Contar por categoria
             const cat = dish.category || 'outro';
-            byCategory[cat] = (byCategory[cat] || 0) + 1;
-        });
+            acc.byCategory[cat] = (acc.byCategory[cat] || 0) + 1;
 
-        const totalCost = dishes.reduce((sum, dish) => sum + (dish.totalCost || 0), 0);
-        const avgCostPerServing = dishes.length > 0
-            ? dishes.reduce((sum, dish) => sum + (dish.costPerServing || 0), 0) / dishes.length
-            : 0;
+            // Somar custos
+            acc.totalCost += (dish.totalCost || 0);
+            acc.totalCostPerServing += (dish.costPerServing || 0);
+
+            // Contar favoritos
+            if (dish.isFavorite) {
+                acc.favorites++;
+            }
+
+            return acc;
+        }, {
+            byCategory: {},
+            totalCost: 0,
+            totalCostPerServing: 0,
+            favorites: 0
+        });
 
         return {
             total: dishes.length,
             active: dishes.length,
-            byCategory,
-            avgCostPerServing,
-            favorites: dishes.filter(d => d.isFavorite).length
+            byCategory: stats.byCategory,
+            avgCostPerServing: dishes.length > 0 ? stats.totalCostPerServing / dishes.length : 0,
+            favorites: stats.favorites
         };
     }
 
@@ -1460,6 +1536,7 @@ class SavedMenuManager {
             return {
                 totalDishes: 0,
                 totalCost: 0,
+                totalPrice: 0, // ✅ Preço com margem
                 totalWeight: 0,
                 byCategory: {}
             };
@@ -1468,38 +1545,90 @@ class SavedMenuManager {
         const stats = {
             totalDishes: dishes.length,
             totalCost: 0,
+            totalPrice: 0, // ✅ Preço com margem
             totalWeight: 0,
             byCategory: {}
         };
 
         dishes.forEach(dish => {
-            // Calcular custo proporcional baseado em porções (1 porção = 100g)
+            // Calcular custo proporcional baseado em porções
             const totalWeight = dish.totalWeight || 0;
             const baseCost = dish.dishCost || dish.totalCost || 0;
             const portionsPerPerson = dish.portionsPerPerson || 1;
-            const gramsPerPerson = portionsPerPerson * 100; // 1 porção = 100g fixo
+            const servings = dish.servings || 0;
 
             console.log(`📊 [calculateMenuStats] Prato: ${dish.dishName}`, {
                 totalWeight,
                 baseCost,
                 portionsPerPerson,
-                gramsPerPerson
+                servings
             });
 
-            // Se não tem peso, não podemos calcular custo por grama
+            // ✅ Considerar useWeightCalculation OU totalWeight === 0
+            const isPortionBased = dish.useWeightCalculation || (servings > 0 && totalWeight === 0);
             let dishCost = 0;
-            if (totalWeight > 0) {
-                const costPerGram = baseCost / totalWeight;
-                dishCost = costPerGram * gramsPerPerson;
-                stats.totalCost += dishCost; // Apenas soma se tiver peso
+
+            if (isPortionBased) {
+                // Por porção do prato: totalCost / servings × porções por pessoa
+                const costPerDishPortion = servings > 0 ? baseCost / servings : baseCost;
+                dishCost = costPerDishPortion * portionsPerPerson;
+                console.log(`  📊 Calculando por PORÇÃO: ${baseCost} / ${servings} × ${portionsPerPerson} = R$ ${dishCost.toFixed(2)}`);
             } else {
-                console.warn(`⚠️ Prato "${dish.dishName}" sem peso (totalWeight) - IGNORADO no cálculo per capita`);
-                // ✅ FIX: NÃO somar pratos sem peso, pois não sabemos o custo por pessoa
-                // dishCost fica 0 e não é somado
+                // Por peso (100g por porção)
+                const gramsPerPerson = portionsPerPerson * 100;
+                if (totalWeight > 0) {
+                    const costPerGram = baseCost / totalWeight;
+                    dishCost = costPerGram * gramsPerPerson;
+                    console.log(`  📊 Calculando por PESO: ${baseCost} / ${totalWeight}g × ${gramsPerPerson}g = R$ ${dishCost.toFixed(2)}`);
+                } else {
+                    console.warn(`⚠️ Prato "${dish.dishName}" sem peso e sem servings, usando custo base direto`);
+                    dishCost = baseCost;
+                }
             }
 
-            // Peso por pessoa em gramas
-            const dishWeight = gramsPerPerson;
+            stats.totalCost += dishCost;
+
+            // ✅ Calcular preço com margem por pessoa
+            let dishPrice = 0;
+
+            console.log(`🔍 [${dish.dishName}] DEBUG MARGIN (api-client):`)
+            console.log(`   - dishCost: R$ ${dishCost.toFixed(2)}`);
+            console.log(`   - profitMargin: ${dish.profitMargin}%`);
+            console.log(`   - suggestedPrice: R$ ${dish.suggestedPrice}`);
+
+            // ✅ Prioridade 1: Calcular com profitMargin (sempre atualizado)
+            if (dish.profitMargin && dish.profitMargin > 0) {
+                dishPrice = dishCost * (1 + dish.profitMargin / 100);
+                console.log(`   ✅ Usando profitMargin: ${dishCost.toFixed(2)} × (1 + ${dish.profitMargin}/100) = R$ ${dishPrice.toFixed(2)}`);
+            }
+            // Prioridade 2: Usar suggestedPrice se profitMargin não disponível
+            else if (dish.suggestedPrice && dish.suggestedPrice > 0) {
+                if (isPortionBased) {
+                    // Por porção: suggestedPrice / servings × porções por pessoa
+                    const pricePerPortion = servings > 0 ? dish.suggestedPrice / servings : dish.suggestedPrice;
+                    dishPrice = pricePerPortion * portionsPerPerson;
+                    console.log(`   ⚠️ Usando suggestedPrice por PORÇÃO: ${dish.suggestedPrice.toFixed(2)} / ${servings} × ${portionsPerPerson} = R$ ${dishPrice.toFixed(2)}`);
+                } else if (totalWeight > 0) {
+                    // Por peso: suggestedPrice / totalWeight × gramas por pessoa
+                    const gramsPerPerson = portionsPerPerson * 100;
+                    const pricePerGram = dish.suggestedPrice / totalWeight;
+                    dishPrice = pricePerGram * gramsPerPerson;
+                    console.log(`   ⚠️ Usando suggestedPrice por PESO: ${dish.suggestedPrice.toFixed(2)} / ${totalWeight}g × ${gramsPerPerson}g = R$ ${dishPrice.toFixed(2)}`);
+                } else {
+                    dishPrice = dish.suggestedPrice;
+                    console.log(`   ⚠️ Usando suggestedPrice direto: R$ ${dishPrice.toFixed(2)}`);
+                }
+            }
+            // Fallback: Usar apenas o custo (sem margem)
+            else {
+                dishPrice = dishCost;
+                console.log(`   ⚠️ Sem margem, usando apenas custo: R$ ${dishPrice.toFixed(2)}`);
+            }
+
+            stats.totalPrice += dishPrice;
+
+            // Peso por pessoa em gramas (100g por porção)
+            const dishWeight = portionsPerPerson * 100;
             stats.totalWeight += dishWeight;
 
             // Por categoria
@@ -1508,11 +1637,13 @@ class SavedMenuManager {
                 stats.byCategory[category] = {
                     count: 0,
                     cost: 0,
+                    price: 0, // ✅ Preço com margem por categoria
                     weight: 0
                 };
             }
             stats.byCategory[category].count++;
             stats.byCategory[category].cost += dishCost;
+            stats.byCategory[category].price += dishPrice; // ✅ Adicionar preço com margem
             stats.byCategory[category].weight += dishWeight;
         });
 

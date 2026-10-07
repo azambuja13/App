@@ -108,10 +108,18 @@ function MenuGenerator({ isOpen, onClose, onSuccess, event }) {
         if (dish.matchedInDatabase && dish.matchedId) {
           // Prato já existe no banco - adicionar direto
           try {
-            // Buscar o prato completo do banco
-            const fullDish = dishManager.getById
-              ? await dishManager.getById(dish.matchedId)
-              : dishManager.getDishById?.(dish.matchedId);
+            // ✅ Buscar o prato completo do banco COM ingredientes (não cache!)
+            let fullDish = null;
+            if (window.PrecificacaoAPI?.api) {
+              console.log(`📡 Buscando prato completo da API: ${dish.name}`);
+              const response = await window.PrecificacaoAPI.api.getDish(dish.matchedId);
+              fullDish = response.data || response;
+            } else {
+              // Fallback para cache local (planos offline)
+              fullDish = dishManager.getById
+                ? await dishManager.getById(dish.matchedId)
+                : dishManager.getDishById?.(dish.matchedId);
+            }
 
             if (!fullDish) {
               console.warn(`⚠️ Prato não encontrado: ${dish.name} (ID: ${dish.matchedId})`);
@@ -163,10 +171,18 @@ function MenuGenerator({ isOpen, onClose, onSuccess, event }) {
               window.PrecificacaoAPI.dishManager.dishes = [];
             }
 
-            // Buscar o prato recém-criado
-            const newDish = dishManager.getById
-              ? await dishManager.getById(result.data.dishId)
-              : dishManager.getDishById?.(result.data.dishId);
+            // ✅ Buscar o prato recém-criado COM ingredientes (não cache!)
+            let newDish = null;
+            if (window.PrecificacaoAPI?.api) {
+              console.log(`📡 Buscando prato recém-criado da API: ${dish.name}`);
+              const response = await window.PrecificacaoAPI.api.getDish(result.data.dishId);
+              newDish = response.data || response;
+            } else {
+              // Fallback para cache local (planos offline)
+              newDish = dishManager.getById
+                ? await dishManager.getById(result.data.dishId)
+                : dishManager.getDishById?.(result.data.dishId);
+            }
 
             if (!newDish) {
               console.warn(`⚠️ Prato criado mas não encontrado: ${dish.name}`);

@@ -20,14 +20,16 @@
         // Verificar pelo licenseType no localStorage (disponível desde o início)
         const licenseType = localStorage.getItem('licenseType');
 
-        // Se não houver licenseType ainda, BLOQUEAR por padrão (modo seguro)
-        // IndexedDB só será permitido quando confirmarmos que é modo offline
+        // Se não houver licenseType ainda, PERMITIR (fase de ativação inicial)
+        // Só bloquear quando confirmarmos que é Premium ou Standard
         if (!licenseType) {
-            console.log('⚠️ licenseType não encontrado - bloqueando IndexedDB por segurança');
-            return true; // Bloquear até confirmar
+            console.log('ℹ️ licenseType não encontrado - permitindo IndexedDB para ativação inicial');
+            return false; // PERMITIR durante setup inicial
         }
 
-        return licenseType === 'PRM' || licenseType === 'STD';
+        // Verificar tanto 'PRM' quanto 'PREM', e tanto 'STD' quanto 'STANDARD'
+        return licenseType === 'PRM' || licenseType === 'PREM' ||
+               licenseType === 'STD' || licenseType === 'STANDARD';
     }
 
     // Se não houver suporte a IndexedDB, não fazer nada

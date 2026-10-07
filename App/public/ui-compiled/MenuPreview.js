@@ -250,7 +250,7 @@ function MenuPreview({
   }, "Total de Pratos"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold text-purple-600 print:text-2xl"
   }, menuStats.totalDishes)), /*#__PURE__*/React.createElement("div", {
-    className: "text-center"
+    className: "text-center print:hidden"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mb-1"
   }, "Custo por Pessoa"), /*#__PURE__*/React.createElement("p", {
@@ -301,7 +301,7 @@ function MenuPreview({
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold text-gray-800 print:text-lg"
   }, dish.dishName), /*#__PURE__*/React.createElement("div", {
-    className: "text-right"
+    className: "text-right print:hidden"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-semibold text-purple-600 print:text-base"
   }, "R$ ", (() => {

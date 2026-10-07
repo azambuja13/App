@@ -36,7 +36,9 @@ function ProposalPreview({
     if (!dishes || dishes.length === 0) return {};
 
     return dishes.reduce((acc, dish) => {
-      const category = dish.dishCategory || 'Outros';
+      // ✅ Usar dishType (tipo fixo) atribuído ao prato na criação
+      // Fallback para dishCategory (pratos antigos) e depois type
+      const category = dish.dishType || dish.dishCategory || dish.type || 'Outro';
       if (!acc[category]) {
         acc[category] = [];
       }
@@ -340,6 +342,9 @@ function ProposalPreview({
                         .page-break {
                             page-break-after: always;
                             page-break-inside: avoid;
+                            min-height: 297mm;
+                            box-sizing: border-box;
+                            width: 210mm;
                         }
                         .page-break:last-child {
                             page-break-after: auto;
@@ -517,6 +522,9 @@ function ProposalPreview({
                     .page-break {
                         page-break-after: always;
                         page-break-inside: avoid;
+                        min-height: 297mm;
+                        box-sizing: border-box;
+                        width: 210mm;
                     }
 
                     .page-break:last-child {
@@ -765,7 +773,7 @@ function ProposalPreview({
     alt: "Servi\xE7o",
     className: "w-full h-64 object-cover rounded-lg shadow-xl"
   }))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
@@ -803,7 +811,7 @@ function ProposalPreview({
   }, "Dura\xE7\xE3o:"), " ", proposal.eventDuration, " horas"), proposal.serviceStartTime && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
   }, "In\xEDcio:"), " ", proposal.serviceStartTime)))), proposal.selectedMenuData && /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold text-gray-800 mb-4 border-b-2 border-orange-500 pb-2"
   }, "\uD83C\uDF7D\uFE0F MENU"), /*#__PURE__*/React.createElement("div", {
@@ -835,7 +843,7 @@ function ProposalPreview({
   }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
@@ -913,7 +921,7 @@ function ProposalPreview({
   }, proposal.proposalName), clientData?.name && /*#__PURE__*/React.createElement("p", {
     className: "text-xl"
   }, "Para: ", clientData.name)), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-bold text-blue-600 mb-6 border-b-4 border-blue-600 pb-2"
   }, "\uD83D\uDC64 Cliente"), hasClientData() ? /*#__PURE__*/React.createElement("div", {
@@ -925,7 +933,7 @@ function ProposalPreview({
   }, "\uD83D\uDCC5 Evento"), /*#__PURE__*/React.createElement("div", {
     className: "space-y-2"
   }, proposal.eventDate && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Data:"), " ", window.formatDate(proposal.eventDate)), proposal.guests && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Convidados:"), " ", proposal.guests, " pessoas"), proposal.eventLocation && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Local:"), " ", proposal.eventLocation), proposal.eventDuration && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Dura\xE7\xE3o:"), " ", proposal.eventDuration, " horas"))), proposal.selectedMenuData && /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-bold text-blue-600 mb-6 border-b-4 border-blue-600 pb-2"
   }, "\uD83C\uDF7D\uFE0F Menu"), /*#__PURE__*/React.createElement("h3", {
@@ -955,7 +963,7 @@ function ProposalPreview({
   }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
@@ -1008,7 +1016,7 @@ function ProposalPreview({
   }, "Apresentado a: ", /*#__PURE__*/React.createElement("strong", null, clientData.name)), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mt-8"
   }, window.formatDate(proposal.createdAt)))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "border-l-8 border-gray-800 pl-6 mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
@@ -1024,7 +1032,7 @@ function ProposalPreview({
   }, "Dados do Evento")), /*#__PURE__*/React.createElement("div", {
     className: "space-y-2 pl-6"
   }, proposal.eventDate && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Data:"), " ", window.formatDate(proposal.eventDate)), proposal.guests && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Convidados:"), " ", proposal.guests, " pessoas"), proposal.eventLocation && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Local:"), " ", proposal.eventLocation), proposal.eventDuration && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Dura\xE7\xE3o:"), " ", proposal.eventDuration, " horas"))), proposal.selectedMenuData && /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("div", {
     className: "border-l-8 border-gray-800 pl-6 mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
@@ -1056,7 +1064,7 @@ function ProposalPreview({
   }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1111,7 +1119,7 @@ function ProposalPreview({
     alt: "Logo",
     className: "h-16 w-16 object-contain"
   })))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-light mb-6"
   }, "Cliente"), hasClientData() ? /*#__PURE__*/React.createElement("div", {
@@ -1155,7 +1163,7 @@ function ProposalPreview({
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-400"
   }, "Dura\xE7\xE3o"), /*#__PURE__*/React.createElement("br", null), proposal.eventDuration, " horas"))), proposal.selectedMenuData && /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-light mb-6"
   }, "Menu"), /*#__PURE__*/React.createElement("h3", {
@@ -1185,7 +1193,7 @@ function ProposalPreview({
   }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mt-1 font-light"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
-    className: "page-break bg-white p-12"
+    className: "page-break min-h-screen bg-white p-12 flex flex-col"
   }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-12"
   }, /*#__PURE__*/React.createElement("h2", {

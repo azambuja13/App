@@ -362,6 +362,12 @@ export class DishManager extends CrudManager {
      * @private
      */
     groupByCategory(dishes) {
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.groupBy) {
+            return window.statisticsUtils.groupBy(dishes, 'category', 'Sem categoria');
+        }
+
+        // Fallback para garantir compatibilidade
         return dishes.reduce((acc, dish) => {
             const category = dish.category || 'Sem categoria';
             if (!acc[category]) {
@@ -377,10 +383,13 @@ export class DishManager extends CrudManager {
      * @private
      */
     calculateAverageCost(dishes) {
-        if (dishes.length === 0) return 0;
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.calculateAverage) {
+            return window.statisticsUtils.calculateAverage(dishes, 'totalCost');
+        }
 
-        // ✅ FIX: Usar totalCost ao invés de costPerServing (que não existe)
-        // Custo médio = média do custo total de cada prato
+        // Fallback para garantir compatibilidade
+        if (dishes.length === 0) return 0;
         const totalCost = dishes.reduce((sum, dish) => sum + (dish.totalCost || 0), 0);
         return totalCost / dishes.length;
     }
@@ -390,8 +399,13 @@ export class DishManager extends CrudManager {
      * @private
      */
     getMostExpensive(dishes) {
-        if (dishes.length === 0) return null;
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.findExtreme) {
+            return window.statisticsUtils.findExtreme(dishes, 'costPerServing', 'max');
+        }
 
+        // Fallback para garantir compatibilidade
+        if (dishes.length === 0) return null;
         return dishes.reduce((max, dish) => {
             return (dish.costPerServing || 0) > (max.costPerServing || 0) ? dish : max;
         });
@@ -402,8 +416,13 @@ export class DishManager extends CrudManager {
      * @private
      */
     getCheapest(dishes) {
-        if (dishes.length === 0) return null;
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.findExtreme) {
+            return window.statisticsUtils.findExtreme(dishes, 'costPerServing', 'min');
+        }
 
+        // Fallback para garantir compatibilidade
+        if (dishes.length === 0) return null;
         return dishes.reduce((min, dish) => {
             return (dish.costPerServing || 0) < (min.costPerServing || 0) ? dish : min;
         });

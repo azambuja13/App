@@ -25,29 +25,29 @@ const APP_CONFIG = {
     // Features disponíveis baseadas no modo
     features: {
         // Backend API (PostgreSQL + Render)
-        backend: 'true', // true para ONLINE, false para OFFLINE
+        backend: true,
 
         // Sistema de licenças e autenticação
-        license: 'true', // true para todas as versões
+        license: true,
 
         // Auto-refresh periódico (sincronização multi-device)
-        autoRefresh: 'true', // true para ONLINE, false para OFFLINE
+        autoRefresh: true,
 
         // Suporte multi-dispositivo
-        multiDevice: 'true', // true para ONLINE, false para OFFLINE
+        multiDevice: true,
 
         // Fallback para localStorage quando offline
-        offlineFallback: 'true', // true para ONLINE, false para OFFLINE
+        offlineFallback: true,
 
         // Geração de proposta comercial em PDF
-        proposalGeneration: 'true', // false para OFFLINE, true para ONLINE
+        proposalGeneration: true,
 
         // Restrição de máquina única
-        singleMachine: 'false', // true para OFFLINE, false para ONLINE
+        singleMachine: false,
 
         // Features premium (controladas por licença/subscription no código)
         // Habilitadas no build ONLINE, mas restritas por verificação de licença
-        premiumFeatures: 'true', // Sempre true no build ONLINE
+        premiumFeatures: true,
     },
 
     // Configurações específicas do backend (apenas para CLOUD)
@@ -121,15 +121,13 @@ const ConfigHelper = {
      * Verifica se é versão online (standard)
      */
     isOnlineMode() {
-        // WORKAROUND: Se modo não foi substituído pelo build, detectar pelo hostname
-        if (APP_CONFIG.mode === 'ONLINE' || APP_CONFIG.mode === 'ONLINE') {
-            // Se estiver em railway.app, é versão ONLINE
+        if (APP_CONFIG.mode === 'ONLINE') {
             if (typeof window !== 'undefined' && window.location.hostname.includes('railway.app')) {
                 return true;
             }
-            return APP_CONFIG.mode === 'ONLINE';
+            return true;
         }
-        return APP_CONFIG.mode === 'ONLINE';
+        return false;
     },
 
     /**
@@ -169,8 +167,7 @@ const ConfigHelper = {
      * Verifica se uma feature está habilitada
      */
     hasFeature(featureName) {
-        return APP_CONFIG.features[featureName] === true ||
-               APP_CONFIG.features[featureName] === 'true';
+        return APP_CONFIG.features[featureName] === true;
     },
 
     /**
@@ -288,8 +285,9 @@ const ConfigHelper = {
             console.error('Erro ao verificar licença:', error);
         }
 
-        // Fallback: Se for modo offline do build
-        if (!plan || plan === 'offline') {
+        // Fallback: Apenas se NÃO detectou plano da licença
+        // IMPORTANTE: NÃO sobrescrever plano detectado da licença!
+        if (!plan) {
             if (this.isOfflineMode()) {
                 plan = 'offline';
             } else if (this.isOnlineMode()) {
@@ -353,7 +351,8 @@ const ConfigHelper = {
                 'financialReports', // Relatórios financeiros - EXCLUSIVO PREMIUM
                 'advancedIngredients', // Ingredientes personalizados - EXCLUSIVO PREMIUM
                 'proposalComparison', // Comparação de propostas - EXCLUSIVO PREMIUM
-                'prioritySupport' // Suporte prioritário - EXCLUSIVO PREMIUM
+                'prioritySupport', // Suporte prioritário - EXCLUSIVO PREMIUM
+                'whatsapp' // Integração WhatsApp - EXCLUSIVO PREMIUM
             ]
         };
 
@@ -375,7 +374,8 @@ const ConfigHelper = {
             'financialReports',
             'advancedIngredients',
             'proposalComparison',
-            'prioritySupport'
+            'prioritySupport',
+            'whatsapp'
         ];
 
         return allPremiumFeatures.filter(feature => !this.hasFeatureAccess(feature));
@@ -480,6 +480,8 @@ const ConfigHelper = {
 if (typeof window !== 'undefined') {
     window.APP_CONFIG = APP_CONFIG;
     window.ConfigHelper = ConfigHelper;
+    // Flag global de debug
+    window.__DEBUG__ = APP_CONFIG.ui && APP_CONFIG.ui.showDebugLogs === true;
 }
 
 // Log de inicialização

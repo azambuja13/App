@@ -5,6 +5,8 @@
  * Lógica de cálculo de custos, preços e totais para eventos
  */
 
+const DEBUG = (typeof window !== 'undefined' && window.__DEBUG__ === true);
+
 /**
  * Calcula custos detalhados dos ingredientes
  * @param {Array} items - Array de itens com ingredientes
@@ -14,7 +16,7 @@
  */
 export function calculateItems(items, ingredients, guests) {
     // 🐛 DEBUG: Log para identificar problema de custos R$ 0,00
-    console.log('🔍 [calculateItems] Iniciando cálculo:', {
+    if (DEBUG) console.log('🔍 [calculateItems] Iniciando cálculo:', {
         totalItems: items.length,
         totalIngredients: ingredients.length,
         guests: guests,
@@ -22,7 +24,7 @@ export function calculateItems(items, ingredients, guests) {
     });
 
     // 🐛 DEBUG: Mostrar amostra dos ingredientes disponíveis
-    if (ingredients.length > 0) {
+    if (DEBUG && ingredients.length > 0) {
         const sampleIngredient = ingredients[0];
         console.log('🔍 [calculateItems] Amostra de ingrediente disponível:', {
             id: sampleIngredient.id,
@@ -36,7 +38,7 @@ export function calculateItems(items, ingredients, guests) {
         if (!item.active) return item;
 
         // 🐛 DEBUG: Log para cada item processado
-        console.log('🔍 [calculateItems] Processando item:', {
+        if (DEBUG) console.log('🔍 [calculateItems] Processando item:', {
             itemName: item.name,
             ingredientId: item.ingredientId,
             qtyPerPerson: item.qtyPerPerson,
@@ -66,10 +68,10 @@ export function calculateItems(items, ingredients, guests) {
                     availableNames: ingredients.slice(0, 5).map(ing => ing.name || ing.ingredientName)
                 });
             } else {
-                console.log('✅ [calculateItems] Ingrediente encontrado por nome:', ingredient.name || ingredient.ingredientName);
+                if (DEBUG) console.log('✅ [calculateItems] Ingrediente encontrado por nome:', ingredient.name || ingredient.ingredientName);
             }
         } else if (ingredient) {
-            console.log('✅ [calculateItems] Ingrediente encontrado por ID:', ingredient.name || ingredient.ingredientName);
+            if (DEBUG) console.log('✅ [calculateItems] Ingrediente encontrado por ID:', ingredient.name || ingredient.ingredientName);
         }
 
         if (!ingredient) {
@@ -119,11 +121,15 @@ export function calculateItems(items, ingredients, guests) {
             const unitSize = ingredient.unitSize || 1;
             const costPerUnit = ingredientCost / unitSize;
 
-            // Custo total = quantidade de unidades × custo por unidade
-            const total = unitsWithLoss * costPerUnit;
+            // ✅ Arredondar unidades para cima (sempre comprar pelo menos o necessário)
+            const unitsRounded = Math.ceil(unitsWithLoss);
+
+            // Custo total = quantidade de unidades ARREDONDADA × custo por unidade
+            // Exemplo: 18.5 unidades → arredonda para 19 unidades → custo baseado em 19
+            const total = unitsRounded * costPerUnit;
 
             // 🐛 DEBUG: Log do cálculo por unidade
-            console.log('💰 [calculateItems] Cálculo POR UNIDADE:', {
+            if (DEBUG) console.log('💰 [calculateItems] Cálculo POR UNIDADE:', {
                 itemName: item.name,
                 unitsPerPerson,
                 totalUnitsNeeded,
@@ -139,7 +145,7 @@ export function calculateItems(items, ingredients, guests) {
 
             return {
                 ...item,
-                name: ingredient.name || ingredient.ingredientName || item.name,  // Garantir que name está presente
+                name: ingredient.name || ingredient.ingredientName || item.name,  // ✅ Usar nome do banco (via ID) como fonte de verdade
                 ingredient,
                 category,              // Categoria normalizada do ingrediente
                 unit: 'un',
@@ -164,11 +170,16 @@ export function calculateItems(items, ingredients, guests) {
             // Total necessário para todos os convidados
             const totalQtyNeeded = qtyInGramsMl * (parseFloat(guests) || 0);
 
-            // Usar módulo de cálculo de perda para aplicar perda INVERSA
+            // ✅ Aplicar perda INVERSA (para calcular quantidade bruta a comprar)
             const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
             const qtyWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
                 ? window.lossCalculations.calculateQuantityWithLoss(totalQtyNeeded, lossDecimal)
                 : (lossDecimal > 0 && lossDecimal < 1 ? totalQtyNeeded / (1 - lossDecimal) : totalQtyNeeded);
+
+            // ✅ Aplicar rendimento INVERSO (para calcular quantidade crua a comprar)
+            // Se rende 150% (1.5x), para 150g preparado preciso 100g cru → dividir por 1.5
+            const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
+            const qtyWithLossAndYield = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
 
             // Custo por grama/ml
             // Suporte para costPerUnit (novo) e cost (legacy)
@@ -186,23 +197,31 @@ export function calculateItems(items, ingredients, guests) {
                 else if (ingredient.unit === 'L') costPerGramMl = ingredientCost / 1000;
             }
 
-            // Quantidade a comprar (em kg/L para facilitar compra)
-            const qtyToBuy = qtyWithLoss / 1000;
+            // Quantidade a comprar (em kg/L para facilitar compra) - COM perda E rendimento aplicados
+            const qtyToBuy = qtyWithLossAndYield / 1000;
 
             // Total em kg/L
-            const qtyInKgL = qtyWithLoss / 1000;
+            const qtyInKgL = qtyWithLossAndYield / 1000;
 
-            // Custo total
-            const total = costPerGramMl * qtyWithLoss;
+            // ✅ Arredondar quantidade para cima (sempre comprar pelo menos o necessário)
+            const qtyRounded = Math.ceil(qtyInKgL);
+            const qtyRoundedInGrams = qtyRounded * 1000;
+
+            // Custo total - calculado sobre a quantidade ARREDONDADA (não a exata)
+            // Exemplo: 22.5 kg → arredonda para 23 kg → custo baseado em 23 kg
+            const total = costPerGramMl * qtyRoundedInGrams;
 
             // 🐛 DEBUG: Log do cálculo por peso
-            console.log('💰 [calculateItems] Cálculo POR PESO:', {
+            if (DEBUG) console.log('💰 [calculateItems] Cálculo POR PESO:', {
                 itemName: item.name,
                 qtyPerPerson: item.qtyPerPerson,
                 unit: item.unit,
                 qtyInGramsMl,
                 totalQtyNeeded,
+                loss: item.loss + '%',
                 qtyWithLoss,
+                yieldMultiplier: yieldMultiplier + 'x',
+                qtyWithLossAndYield,
                 ingredientCost,
                 unitSize,
                 costPerGramMl: costPerGramMl.toFixed(4),
@@ -216,7 +235,7 @@ export function calculateItems(items, ingredients, guests) {
 
             return {
                 ...item,
-                name: ingredient.name || ingredient.ingredientName || item.name,  // Garantir que name está presente
+                name: ingredient.name || ingredient.ingredientName || item.name,  // ✅ Usar nome do banco (via ID) como fonte de verdade
                 ingredient,
                 category,              // Categoria normalizada do ingrediente
                 costPerGramMl,

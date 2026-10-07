@@ -36,7 +36,8 @@ export function calculateCostPerServing(totalCost, servings) {
         return 0;
     }
 
-    return total / portions;
+    // Arredondar para cima (2 casas decimais)
+    return Math.ceil((total / portions) * 100) / 100;
 }
 
 /**
@@ -349,7 +350,10 @@ export function roundToDecimals(value, decimals = 2) {
 
 /**
  * Detecta se um prato deve ser calculado por porções (não por peso)
- * REGRA: Se houver pelo menos 1 ingrediente por unidade, calcular por porções
+ * REGRAS (em ordem de prioridade):
+ * 1. Se totalWeight = 0, é por PORÇÃO (não tem peso definido)
+ * 2. Se useWeightCalculation = true → calcular por PORÇÃO (usar servings)
+ * 3. Caso contrário → calcular por PESO (usar 100g/porção)
  * @param {Object} dish - Prato com array de ingredients ou dishIngredients
  * @returns {boolean} True se deve calcular por porções
  */
@@ -358,29 +362,24 @@ export function isDishPortionBased(dish) {
         return false;
     }
 
-    // Aceitar tanto 'ingredients' (do prato) quanto 'dishIngredients' (do cardápio)
-    const ingredientsList = dish.ingredients || dish.dishIngredients;
-
-    if (!ingredientsList || !Array.isArray(ingredientsList)) {
-        return false;
+    // ✅ REGRA 1: Se totalWeight = 0, o prato é por porção (não tem peso definido)
+    // Isso resolve o problema de pratos como "Picolé" que não têm peso
+    const totalWeight = dish.totalWeight || 0;
+    if (totalWeight === 0) {
+        console.log(`🔍 [isDishPortionBased] ${dish.dishName || dish.name}: POR PORÇÃO (totalWeight=0)`);
+        return true;
     }
 
-    // Checar se existe pelo menos 1 ingrediente por unidade
-    const hasUnitIngredient = ingredientsList.some(ing => {
-        const unitType = ing.unitType || ing.unit;
-        return unitType === 'unit' || unitType === 'un' || unitType === 'unidade';
-    });
+    // ✅ REGRA 2: Usar campo useWeightCalculation como fonte secundária
+    const usePortionCalculation = dish.useWeightCalculation === true;
 
     console.log(`🔍 [isDishPortionBased] ${dish.dishName || dish.name}:`, {
-        hasUnitIngredient,
-        usedField: dish.ingredients ? 'ingredients' : 'dishIngredients',
-        ingredients: ingredientsList.map(ing => ({
-            name: ing.name || ing.ingredientName,
-            unitType: ing.unitType || ing.unit
-        }))
+        totalWeight: totalWeight,
+        useWeightCalculation: dish.useWeightCalculation,
+        result: usePortionCalculation ? 'POR PORÇÃO' : 'POR PESO'
     });
 
-    return hasUnitIngredient;
+    return usePortionCalculation;
 }
 
 // Exportar todas as funções como objeto também

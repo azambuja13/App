@@ -197,6 +197,7 @@ export class SavedMenusManager extends CrudManager {
             return {
                 totalDishes: 0,
                 totalCost: 0,
+                totalPrice: 0, // ✅ Preço com margem
                 totalWeight: 0,
                 byCategory: {}
             };
@@ -205,38 +206,90 @@ export class SavedMenusManager extends CrudManager {
         const stats = {
             totalDishes: dishes.length,
             totalCost: 0,
+            totalPrice: 0, // ✅ Preço com margem
             totalWeight: 0,
             byCategory: {}
         };
 
         dishes.forEach(dish => {
-            // Calcular custo proporcional baseado em porções (1 porção = 100g)
+            // Calcular custo proporcional baseado em porções
             const totalWeight = dish.totalWeight || 0;
             const baseCost = dish.dishCost || dish.totalCost || 0;
             const portionsPerPerson = dish.portionsPerPerson || 1;
-            const gramsPerPerson = portionsPerPerson * 100; // 1 porção = 100g fixo
+            const servings = dish.servings || 0;
 
             console.log(`📊 [calculateMenuStats] Prato: ${dish.dishName}`, {
                 totalWeight,
                 baseCost,
                 portionsPerPerson,
-                gramsPerPerson
+                servings
             });
 
-            // Se não tem peso, não podemos calcular custo por grama
+            // ✅ Considerar useWeightCalculation OU totalWeight === 0
+            const isPortionBased = dish.useWeightCalculation || (servings > 0 && totalWeight === 0);
             let dishCost = 0;
-            if (totalWeight > 0) {
-                const costPerGram = baseCost / totalWeight;
-                dishCost = costPerGram * gramsPerPerson;
+
+            if (isPortionBased) {
+                // Por porção do prato: totalCost / servings × porções por pessoa
+                const costPerDishPortion = servings > 0 ? baseCost / servings : baseCost;
+                dishCost = costPerDishPortion * portionsPerPerson;
+                console.log(`  📊 Calculando por PORÇÃO: ${baseCost} / ${servings} × ${portionsPerPerson} = R$ ${dishCost.toFixed(2)}`);
             } else {
-                console.warn(`⚠️ Prato "${dish.dishName}" sem peso (totalWeight), usando custo base direto`);
-                dishCost = baseCost; // Usar custo total como fallback
+                // Por peso (100g por porção)
+                const gramsPerPerson = portionsPerPerson * 100;
+                if (totalWeight > 0) {
+                    const costPerGram = baseCost / totalWeight;
+                    dishCost = costPerGram * gramsPerPerson;
+                    console.log(`  📊 Calculando por PESO: ${baseCost} / ${totalWeight}g × ${gramsPerPerson}g = R$ ${dishCost.toFixed(2)}`);
+                } else {
+                    console.warn(`⚠️ Prato "${dish.dishName}" sem peso e sem servings, usando custo base direto`);
+                    dishCost = baseCost;
+                }
             }
 
             stats.totalCost += dishCost;
 
-            // Peso por pessoa em gramas
-            const dishWeight = gramsPerPerson;
+            // ✅ Calcular preço com margem por pessoa
+            let dishPrice = 0;
+
+            console.log(`🔍 [${dish.dishName}] DEBUG MARGIN (SavedMenusManager):`);
+            console.log(`   - dishCost: R$ ${dishCost.toFixed(2)}`);
+            console.log(`   - profitMargin: ${dish.profitMargin}%`);
+            console.log(`   - suggestedPrice: R$ ${dish.suggestedPrice}`);
+
+            // ✅ Prioridade 1: Calcular com profitMargin (sempre atualizado)
+            if (dish.profitMargin && dish.profitMargin > 0) {
+                dishPrice = dishCost * (1 + dish.profitMargin / 100);
+                console.log(`   ✅ Usando profitMargin: ${dishCost.toFixed(2)} × (1 + ${dish.profitMargin}/100) = R$ ${dishPrice.toFixed(2)}`);
+            }
+            // Prioridade 2: Usar suggestedPrice se profitMargin não disponível
+            else if (dish.suggestedPrice && dish.suggestedPrice > 0) {
+                if (isPortionBased) {
+                    // Por porção: suggestedPrice / servings × porções por pessoa
+                    const pricePerPortion = servings > 0 ? dish.suggestedPrice / servings : dish.suggestedPrice;
+                    dishPrice = pricePerPortion * portionsPerPerson;
+                    console.log(`   ⚠️ Usando suggestedPrice por PORÇÃO: ${dish.suggestedPrice.toFixed(2)} / ${servings} × ${portionsPerPerson} = R$ ${dishPrice.toFixed(2)}`);
+                } else if (totalWeight > 0) {
+                    // Por peso: suggestedPrice / totalWeight × gramas por pessoa
+                    const gramsPerPerson = portionsPerPerson * 100;
+                    const pricePerGram = dish.suggestedPrice / totalWeight;
+                    dishPrice = pricePerGram * gramsPerPerson;
+                    console.log(`   ⚠️ Usando suggestedPrice por PESO: ${dish.suggestedPrice.toFixed(2)} / ${totalWeight}g × ${gramsPerPerson}g = R$ ${dishPrice.toFixed(2)}`);
+                } else {
+                    dishPrice = dish.suggestedPrice;
+                    console.log(`   ⚠️ Usando suggestedPrice direto: R$ ${dishPrice.toFixed(2)}`);
+                }
+            }
+            // Fallback: Usar apenas o custo (sem margem)
+            else {
+                dishPrice = dishCost;
+                console.log(`   ⚠️ Sem margem, usando apenas custo: R$ ${dishPrice.toFixed(2)}`);
+            }
+
+            stats.totalPrice += dishPrice;
+
+            // Peso por pessoa em gramas (100g por porção)
+            const dishWeight = portionsPerPerson * 100;
             stats.totalWeight += dishWeight;
 
             // Por categoria
@@ -245,11 +298,13 @@ export class SavedMenusManager extends CrudManager {
                 stats.byCategory[category] = {
                     count: 0,
                     cost: 0,
+                    price: 0, // ✅ Preço com margem por categoria
                     weight: 0
                 };
             }
             stats.byCategory[category].count++;
             stats.byCategory[category].cost += dishCost;
+            stats.byCategory[category].price += dishPrice; // ✅ Adicionar preço com margem
             stats.byCategory[category].weight += dishWeight;
         });
 
@@ -376,6 +431,12 @@ export class SavedMenusManager extends CrudManager {
      * @private
      */
     groupByEventType(menus) {
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.groupBy) {
+            return window.statisticsUtils.groupBy(menus, 'eventType', 'Sem tipo');
+        }
+
+        // Fallback para garantir compatibilidade
         return menus.reduce((acc, menu) => {
             const type = menu.eventType || 'Sem tipo';
             if (!acc[type]) {

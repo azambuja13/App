@@ -16,7 +16,7 @@
  * @param {boolean} props.selectMode - Se está em modo de seleção
  * @param {Set} props.dishesInUse - Set de IDs de pratos que estão no cardápio
  */
-function DishList({
+const DishList = React.memo(function DishList({
   onEdit,
   onSelect,
   selectMode = false,
@@ -49,6 +49,62 @@ function DishList({
   React.useEffect(() => {
     localStorage.setItem('dishList_viewMode', viewMode);
   }, [viewMode]);
+
+  // ⚡ Performance: Memoizar loadDishes para evitar recriação
+  const loadDishes = React.useCallback(async () => {
+    try {
+      const startTime = performance.now();
+      console.log('⏱️ [DishList] Iniciando carregamento de pratos...');
+
+      // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
+      const dishManager = window.ManagerHelper?.getDishManager() || window.PrecificacaoAPI?.dishManager || window.dishManager;
+      if (!dishManager) {
+        console.error('❌ [DishList] dishManager não disponível');
+        setDishes([]);
+        return;
+      }
+
+      // Usar getActive() para não mostrar pratos deletados
+      const t1 = performance.now();
+      const activeDishes = await dishManager.getActive();
+      const t2 = performance.now();
+      console.log(`⏱️ [DishList] getActive() levou ${(t2 - t1).toFixed(0)}ms - ${activeDishes?.length || 0} pratos`);
+
+      setDishes(activeDishes || []);
+
+      // ⚡ Performance: Atualizar timestamp da última carga
+      lastLoadTime.current = Date.now();
+
+      // ⚡ OTIMIZADO: Calcular estatísticas localmente (evita 2ª chamada à API)
+      const t3 = performance.now();
+      const localStats = (activeDishes || []).reduce((acc, dish) => {
+        // Contar por categoria
+        const cat = dish.category || 'outro';
+        acc.byCategory[cat] = (acc.byCategory[cat] || 0) + 1;
+        // Somar custos
+        acc.totalCostPerServing += (dish.costPerServing || 0);
+        // Contar favoritos
+        if (dish.isFavorite) acc.favorites++;
+        return acc;
+      }, { byCategory: {}, totalCostPerServing: 0, favorites: 0 });
+
+      setStats({
+        total: activeDishes?.length || 0,
+        active: activeDishes?.length || 0,
+        byCategory: localStats.byCategory,
+        avgCostPerServing: activeDishes?.length > 0 ? localStats.totalCostPerServing / activeDishes.length : 0,
+        favorites: localStats.favorites
+      });
+      const t4 = performance.now();
+      console.log(`⏱️ [DishList] Estatísticas calculadas localmente em ${(t4 - t3).toFixed(0)}ms`);
+
+      const totalTime = performance.now() - startTime;
+      console.log(`⏱️ [DishList] ✅ Carregamento completo em ${totalTime.toFixed(0)}ms`);
+    } catch (error) {
+      console.error('Erro ao carregar pratos:', error);
+      setDishes([]); // Garantir que seja array
+    }
+  }, []);
 
   // Carregar pratos ao montar E quando dados estiverem prontos
   React.useEffect(() => {
@@ -101,58 +157,10 @@ function DishList({
       window.removeEventListener('tab-changed', handleTabChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [loadDishes]);
 
-  // Aplicar filtros e resetar página
-  React.useEffect(() => {
-    applyFilters();
-    setCurrentPage(1); // Resetar para página 1 quando filtros mudarem
-  }, [dishes, searchTerm, categoryFilter, sortBy]);
-  const loadDishes = async () => {
-    try {
-      const startTime = performance.now();
-      console.log('⏱️ [DishList] Iniciando carregamento de pratos...');
-
-      // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
-      const dishManager = window.ManagerHelper?.getDishManager() || window.PrecificacaoAPI?.dishManager || window.dishManager;
-      if (!dishManager) {
-        console.error('❌ [DishList] dishManager não disponível');
-        setDishes([]);
-        return;
-      }
-
-      // Usar getActive() para não mostrar pratos deletados
-      const t1 = performance.now();
-      const activeDishes = await dishManager.getActive();
-      const t2 = performance.now();
-      console.log(`⏱️ [DishList] getActive() levou ${(t2 - t1).toFixed(0)}ms - ${activeDishes?.length || 0} pratos`);
-
-      setDishes(activeDishes || []);
-
-      // ⚡ Performance: Atualizar timestamp da última carga
-      lastLoadTime.current = Date.now();
-
-      // Usar getDetailedStatistics() que retorna avgCostPerServing e byCategory
-      const t3 = performance.now();
-      if (dishManager.getDetailedStatistics) {
-        const statistics = await dishManager.getDetailedStatistics();
-        setStats(statistics);
-      } else if (dishManager.getStatistics) {
-        // Fallback para getStatistics() básico
-        const statistics = await dishManager.getStatistics();
-        setStats(statistics);
-      }
-      const t4 = performance.now();
-      console.log(`⏱️ [DishList] getDetailedStatistics() levou ${(t4 - t3).toFixed(0)}ms`);
-
-      const totalTime = performance.now() - startTime;
-      console.log(`⏱️ [DishList] ✅ Carregamento completo em ${totalTime.toFixed(0)}ms`);
-    } catch (error) {
-      console.error('Erro ao carregar pratos:', error);
-      setDishes([]); // Garantir que seja array
-    }
-  };
-  const applyFilters = () => {
+  // ⚡ Performance: Memoizar applyFilters
+  const applyFilters = React.useCallback(() => {
     // Garantir que dishes é um array antes de fazer spread
     if (!Array.isArray(dishes)) {
       console.warn('⚠️ dishes não é um array:', dishes);
@@ -186,8 +194,16 @@ function DishList({
       }
     });
     setFilteredDishes(filtered);
-  };
-  const handleToggleFavorite = async dishId => {
+  }, [dishes, searchTerm, categoryFilter, sortBy]);
+
+  // Aplicar filtros e resetar página quando dependências mudarem
+  React.useEffect(() => {
+    applyFilters();
+    setCurrentPage(1); // Resetar para página 1 quando filtros mudarem
+  }, [applyFilters]);
+
+  // ⚡ Performance: Memoizar callbacks para evitar re-renders desnecessários
+  const handleToggleFavorite = React.useCallback(async (dishId) => {
     try {
       // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
       const dishManager = window.ManagerHelper?.getDishManager() || window.PrecificacaoAPI?.dishManager || window.dishManager;
@@ -200,8 +216,9 @@ function DishList({
     } catch (error) {
       console.error('Erro ao favoritar:', error);
     }
-  };
-  const handleDuplicate = async dishId => {
+  }, [loadDishes]);
+
+  const handleDuplicate = React.useCallback(async (dishId) => {
     try {
       console.log('🔄 Duplicando prato:', dishId);
 
@@ -223,8 +240,9 @@ function DishList({
       console.error('❌ Erro ao duplicar:', error);
       alert('Erro ao duplicar prato. Veja o console para detalhes.');
     }
-  };
-  const handleDelete = async dishId => {
+  }, [loadDishes]);
+
+  const handleDelete = React.useCallback(async (dishId) => {
     try {
       console.log('🗑️ Deletando prato:', dishId);
 
@@ -249,16 +267,39 @@ function DishList({
       console.error('❌ Erro ao deletar:', error);
       alert('Erro ao deletar prato. Veja o console para detalhes.');
     }
-  };
-  const handleAddToMenu = async dish => {
+  }, [loadDishes]);
+
+  const handleAddToMenu = React.useCallback(async (dish) => {
     try {
       console.log('🍽️ Adicionando prato ao cardápio:', dish.name);
-      if (!dish.ingredients || dish.ingredients.length === 0) {
+
+      // ✅ Verificar se tem ingredientes usando ingredientsCount (do endpoint summary)
+      const hasIngredients = (dish.ingredientsCount || dish.ingredients?.length || 0) > 0;
+      if (!hasIngredients) {
         alert('⚠️ Este prato não tem ingredientes cadastrados!');
         return;
       }
+
+      // ✅ Se os ingredientes não estão carregados, carregar prato completo do backend
+      let dishWithIngredients = dish;
+      if (!dish.ingredients || dish.ingredients.length === 0) {
+        console.log('📥 Carregando prato completo do backend (com ingredientes)...');
+
+        // ✅ Usar api.getDish() para buscar endpoint /api/dishes/:id com ingredientes completos
+        if (window.PrecificacaoAPI?.api) {
+          const response = await window.PrecificacaoAPI.api.getDish(dish.id);
+          dishWithIngredients = response.data || response;  // ✅ Extrair .data da resposta {success: true, data: dish}
+          console.log(`✅ ${dishWithIngredients.ingredients?.length || 0} ingredientes carregados do backend`);
+        } else {
+          // Fallback para dishManager local (planos offline)
+          const dishManager = window.ManagerHelper?.getDishManager() || window.dishManager;
+          dishWithIngredients = await dishManager.getById(dish.id);
+          console.log(`✅ ${dishWithIngredients.ingredients?.length || 0} ingredientes carregados (fallback local)`);
+        }
+      }
+
       const menuManager = window.menuManager;
-      const result = await menuManager.addDishToMenu(dish, 1.0); // 1 porção por pessoa por padrão
+      const result = await menuManager.addDishToMenu(dishWithIngredients, 1.0); // 1 porção por pessoa por padrão
 
       if (result.success) {
         console.log(`✅ Prato "${dish.name}" adicionado ao cardápio!`);
@@ -278,8 +319,9 @@ function DishList({
       console.error('❌ Erro ao adicionar prato ao cardápio:', error);
       alert('Erro ao adicionar prato ao cardápio: ' + (error.message || 'Erro desconhecido'));
     }
-  };
-  const handlePrintTechnicalSheet = dish => {
+  }, []);
+
+  const handlePrintTechnicalSheet = React.useCallback((dish) => {
     try {
       console.log('🖨️ Imprimindo ficha técnica:', dish.name);
 
@@ -515,8 +557,9 @@ function DishList({
       console.error('❌ Erro ao imprimir ficha técnica:', error);
       alert('Erro ao gerar ficha técnica para impressão.');
     }
-  };
-  const handleExport = async () => {
+  }, []);
+
+  const handleExport = React.useCallback(async () => {
     try {
       // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
       const dishManager = window.ManagerHelper?.getDishManager() || window.PrecificacaoAPI?.dishManager || window.dishManager;
@@ -540,7 +583,7 @@ function DishList({
     } catch (error) {
       console.error('Erro ao exportar:', error);
     }
-  };
+  }, []);
 
   // Categorias
   const categories = [{
@@ -572,9 +615,12 @@ function DishList({
     const cat = categories.find(c => c.value === category);
     return cat ? cat.icon : '🍴';
   };
+  // Valores default para renderização imediata
+  const safeStats = stats || { total: 0, favorites: 0, avgCostPerServing: 0, byCategory: {} };
+
   return /*#__PURE__*/React.createElement("div", {
     className: "dish-list"
-  }, stats && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-6 mb-6 shadow-lg"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold mb-4"
@@ -584,27 +630,27 @@ function DishList({
     className: "text-blue-100 text-sm"
   }, "Total de Pratos"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold"
-  }, stats.total)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, safeStats.total)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Favoritos"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold"
-  }, "\u2B50 ", stats.favorites)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, "\u2B50 ", safeStats.favorites)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Custo M\xE9dio"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold"
-  }, "R$ ", stats.avgCostPerServing?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, "R$ ", safeStats.avgCostPerServing?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Mais Usada"), /*#__PURE__*/React.createElement("p", {
     className: "text-xl font-bold"
-  }, stats.byCategory && Object.keys(stats.byCategory).length > 0 ? (() => {
-    const mostUsed = Object.entries(stats.byCategory).sort((a, b) => b[1] - a[1])[0];
+  }, safeStats.byCategory && Object.keys(safeStats.byCategory).length > 0 ? (() => {
+    const mostUsed = Object.entries(safeStats.byCategory).sort((a, b) => b[1] - a[1])[0];
     return `${getCategoryIcon(mostUsed[0])} ${mostUsed[0]}`;
   })() : '-')))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center justify-between gap-3 mb-4"
+    className: "flex flex-wrap items-center justify-between mb-4 gap-3 dish-search-toolbar"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 min-w-[200px] max-w-md"
+    className: "flex-1 max-w-md min-w-0 dish-search-container"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: searchTerm,
@@ -704,13 +750,14 @@ function DishList({
     onClick: () => handleDelete(showDeleteConfirm),
     className: "px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
   }, "Excluir")))));
-}
+}); // Fechamento do React.memo
 
 /**
  * Componente DishCard
  * Card individual de prato
+ * ⚡ Performance: Memoizado para evitar re-renders desnecessários
  */
-function DishCard({
+const DishCard = React.memo(function DishCard({
   dish,
   viewMode,
   selectMode,
@@ -767,7 +814,13 @@ function DishCard({
       className: "text-sm text-gray-600 line-clamp-1"
     }, dish.description), /*#__PURE__*/React.createElement("div", {
       className: "flex items-center space-x-4 mt-2 text-sm text-gray-500"
-    }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCB0 R$ ", dish.totalCost?.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")))), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCB0 R$ ", dish.totalCost?.toFixed(2)), dish.sellingPrice && /*#__PURE__*/React.createElement("span", {
+      className: "text-green-600 font-semibold",
+      title: "Pre\xE7o com margem"
+    }, "\uD83D\uDCB5 R$ ", dish.sellingPrice.toFixed(2)), !dish.sellingPrice && dish.suggestedPrice && /*#__PURE__*/React.createElement("span", {
+      className: "text-green-500 font-semibold",
+      title: "Pre\xE7o sugerido (informativo)"
+    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")))), /*#__PURE__*/React.createElement("div", {
       className: "flex flex-wrap items-center justify-end gap-2"
     }, selectMode ? /*#__PURE__*/React.createElement("button", {
       onClick: () => onSelect(dish),
@@ -870,7 +923,21 @@ function DishCard({
     className: "text-gray-600"
   }, "\uD83D\uDCB0 Custo total:"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
-  }, "R$ ", dish.totalCost?.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+  }, "R$ ", dish.totalCost?.toFixed(2))), dish.sellingPrice && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-sm"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "\uD83D\uDCB5 Pre\xE7o com margem:"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-green-600",
+    title: "Pre\xE7o com margem"
+  }, "R$ ", dish.sellingPrice.toFixed(2))), !dish.sellingPrice && dish.suggestedPrice && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-sm"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "\uD83D\uDCB5 Pre\xE7o sugerido:"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-green-500",
+    title: "Pre\xE7o sugerido (informativo)"
+  }, "R$ ", dish.suggestedPrice.toFixed(2))), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-600"
@@ -888,7 +955,7 @@ function DishCard({
     className: "text-gray-600"
   }, "\uD83E\uDDD1\u200D\uD83C\uDF73 Ingredientes:"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
-  }, dish.ingredients?.length || 0))), selectMode ? /*#__PURE__*/React.createElement("button", {
+  }, dish.ingredientsCount || dish.ingredients?.length || 0))), selectMode ? /*#__PURE__*/React.createElement("button", {
     onClick: () => onSelect(dish),
     className: "w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
   }, "Selecionar") : /*#__PURE__*/React.createElement("div", {
@@ -920,8 +987,22 @@ function DishCard({
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
     onClick: onDelete,
     className: "flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-  }, "\uD83D\uDDD1\uFE0F")))));
-}
+    }, "\uD83D\uDDD1\uFE0F")))));
+}, (prevProps, nextProps) => {
+  // ⚡ Performance: Comparação customizada para evitar re-renders desnecessários
+  return (
+    prevProps.dish?.id === nextProps.dish?.id &&
+    prevProps.dish?.isFavorite === nextProps.dish?.isFavorite &&
+    prevProps.dish?.totalCost === nextProps.dish?.totalCost &&
+    prevProps.dish?.suggestedPrice === nextProps.dish?.suggestedPrice &&
+    prevProps.dish?.totalWeight === nextProps.dish?.totalWeight &&
+    prevProps.dish?.ingredients?.length === nextProps.dish?.ingredients?.length &&
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.selectMode === nextProps.selectMode &&
+    prevProps.isInMenu === nextProps.isInMenu
+  );
+});
+
 function getCategoryIcon(category) {
   const icons = {
     entrada: '🥗',

@@ -5,12 +5,24 @@
 
 // Socket.io já está carregado via CDN no HTML como window.io
 // Não precisamos importar
+const DEBUG = (typeof window !== 'undefined' && window.__DEBUG__ === true);
 
 class WebSocketService {
     constructor() {
         this.socket = null;
         this.isConnected = false;
         this.listeners = new Map();
+
+        // Reconectar com novo token quando ele for renovado pelo api-client
+        if (typeof window !== 'undefined') {
+            window.addEventListener('auth:tokenRefreshed', (event) => {
+                const newToken = event.detail?.accessToken;
+                if (newToken && this.socket) {
+                    if (DEBUG) console.log('🔑 WebSocket: token renovado, reconectando...');
+                    this.updateToken(newToken);
+                }
+            });
+        }
     }
 
     /**
@@ -25,7 +37,7 @@ class WebSocketService {
 
         const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
-        console.log('🔌 Conectando ao WebSocket...', backendURL);
+        if (DEBUG) console.log('🔌 Conectando ao WebSocket...', backendURL);
 
         // Usar io do window (carregado via CDN)
         if (!window.io) {
@@ -46,12 +58,12 @@ class WebSocketService {
 
         // Eventos de conexão
         this.socket.on('connect', () => {
-            console.log('✅ WebSocket conectado:', this.socket.id);
+            if (DEBUG) console.log('✅ WebSocket conectado:', this.socket.id);
             this.isConnected = true;
         });
 
         this.socket.on('disconnect', (reason) => {
-            console.log('❌ WebSocket desconectado:', reason);
+            if (DEBUG) console.log('❌ WebSocket desconectado:', reason);
             this.isConnected = false;
         });
 
@@ -61,22 +73,41 @@ class WebSocketService {
         });
 
         this.socket.on('reconnect', (attemptNumber) => {
-            console.log(`🔄 WebSocket reconectado após ${attemptNumber} tentativas`);
+            if (DEBUG) console.log(`🔄 WebSocket reconectado após ${attemptNumber} tentativas`);
             this.isConnected = true;
         });
 
         this.socket.on('reconnect_attempt', (attemptNumber) => {
-            console.log(`🔄 Tentando reconectar WebSocket (tentativa ${attemptNumber})...`);
+            if (DEBUG) console.log(`🔄 Tentando reconectar WebSocket (tentativa ${attemptNumber})...`);
         });
 
         this.socket.on('reconnect_error', (error) => {
-            console.error('❌ Erro ao reconectar WebSocket:', error.message);
+            if (DEBUG) console.error('❌ Erro ao reconectar WebSocket:', error.message);
         });
 
         this.socket.on('reconnect_failed', () => {
-            console.error('❌ Falha ao reconectar WebSocket após todas as tentativas');
+            if (DEBUG) console.error('❌ Falha ao reconectar WebSocket após todas as tentativas');
             this.isConnected = false;
         });
+    }
+
+    /**
+     * Atualiza o token de autenticação e reconecta
+     * @param {string} newToken - Novo access token
+     */
+    updateToken(newToken) {
+        if (!newToken) return;
+        if (DEBUG) console.log('🔑 WebSocket: atualizando token');
+        try {
+            if (this.socket) {
+                this.socket.auth = { token: newToken };
+                if (this.isConnected) {
+                    if (DEBUG) console.log('🔄 WebSocket: reconectando com novo token...');
+                    this.socket.disconnect();
+                }
+            }
+        } catch (_) {}
+        this.connect(newToken);
     }
 
     /**
@@ -103,7 +134,7 @@ class WebSocketService {
             return;
         }
 
-        console.log(`📤 Emitindo evento: ${event}`);
+        if (DEBUG) console.log(`📤 Emitindo evento: ${event}`);
         this.socket.emit(event, data);
     }
 
@@ -118,7 +149,7 @@ class WebSocketService {
             return;
         }
 
-        console.log(`👂 Escutando evento: ${event}`);
+        if (DEBUG) console.log(`👂 Escutando evento: ${event}`);
 
         // Remover listener anterior se existir
         if (this.listeners.has(event)) {
@@ -157,7 +188,7 @@ class WebSocketService {
             return;
         }
 
-        console.log(`📤 Sincronizando ${dataType}:`, payload.operation, payload.id);
+        if (DEBUG) console.log(`📤 Sincronizando ${dataType}:`, payload.operation, payload.id);
         this.emit(`sync:${dataType}`, payload);
     }
 

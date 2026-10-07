@@ -43,25 +43,18 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
     setError(null);
 
     try {
-      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const token = localStorage.getItem('accessToken');
-
       console.log('🤖 Enviando receita para processamento...');
 
-      const response = await fetch(`${API_URL}/api/recipes/parse`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ recipeText })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      // ✅ FIX: Usar api.request() para auto-refresh de token em caso de 403
+      const api = window.PrecificacaoAPI?.api;
+      if (!api) {
+        throw new Error('API não inicializada');
       }
 
-      const result = await response.json();
+      const result = await api.request('/api/recipes/parse', {
+        method: 'POST',
+        body: JSON.stringify({ recipeText })
+      });
 
       if (!result.success) {
         throw new Error(result.error || 'Erro ao processar receita');
@@ -352,8 +345,8 @@ etc.`,
                       React.createElement('input', {
                         type: 'number',
                         step: '1',
-                        value: (ing.loss * 100).toFixed(0),
-                        onChange: (e) => updateIngredient(index, 'loss', parseFloat(e.target.value) / 100 || 0),
+                        value: (parseFloat(ing.lossPercentage) || 0).toFixed(0),
+                        onChange: (e) => updateIngredient(index, 'lossPercentage', parseFloat(e.target.value) || 0),
                         className: 'w-full px-2 py-1 border border-gray-300 rounded'
                       })
                     ),
@@ -370,8 +363,10 @@ etc.`,
                           // Calcular custo unitário (por g, ml, ou un)
                           const unitCost = (ing.costPerUnit || 0) / (ing.unitSize || 1);
 
-                          // Calcular valor total (quantidade × custo unitário × (1 + perda))
-                          const totalCost = quantityInBaseUnit * unitCost * (1 + (ing.loss || 0));
+                          // Calcular valor total com perda (quantidade a comprar considerando perda)
+                          const lossDecimal = (parseFloat(ing.lossPercentage) || 0) / 100;
+                          const quantityToBuy = lossDecimal > 0 && lossDecimal < 1 ? quantityInBaseUnit / (1 - lossDecimal) : quantityInBaseUnit;
+                          const totalCost = quantityToBuy * unitCost;
 
                           return `R$ ${totalCost.toFixed(2)}`;
                         })()

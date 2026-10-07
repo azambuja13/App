@@ -18,6 +18,10 @@ function MenuPage({
   const [stats, setStats] = React.useState(null);
   const [showSaveModal, setShowSaveModal] = React.useState(false);
   const [showMenuGenerator, setShowMenuGenerator] = React.useState(false);
+  const [editingPortions, setEditingPortions] = React.useState({}); // { [itemId]: value }
+
+  // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
+  const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
 
   // Carregar cardápio
   React.useEffect(() => {
@@ -37,6 +41,9 @@ function MenuPage({
         }
       };
       recalculateStats();
+    } else {
+      // Limpar stats quando o cardápio estiver vazio
+      setStats(null);
     }
   }, [menu]);
   const loadMenu = async () => {
@@ -47,14 +54,84 @@ function MenuPage({
       setMenu(activeMenu);
       setStats(statistics);
       console.log(`📋 Cardápio carregado: ${activeMenu.length} pratos`);
+      console.log('📊 Stats do cardápio:', {
+        totalCost: statistics.totalCost,
+        totalPrice: statistics.totalPrice,
+        hasMargin: statistics.totalPrice > statistics.totalCost
+      });
+      console.log('🍽️ Pratos no cardápio:', activeMenu.map(item => ({
+        name: item.dishName,
+        profitMargin: item.profitMargin,
+        suggestedPrice: item.suggestedPrice,
+        dishCost: item.dishCost
+      })));
     } catch (error) {
       console.error('Erro ao carregar cardápio:', error);
     }
   };
+  // Atualiza valor visual durante digitação (sem validar)
+  const handlePortionsChange = (menuItemId, value) => {
+    setEditingPortions(prev => ({ ...prev, [menuItemId]: value }));
+  };
+
+  // Valida e salva apenas ao sair do campo (onBlur)
+  const handlePortionsBlur = async (menuItemId, originalValue) => {
+    const editedValue = editingPortions[menuItemId];
+
+    // Se não editou, apenas retorna
+    if (editedValue === undefined) return;
+
+    const trimmedValue = String(editedValue).trim();
+
+    // Se está vazio ou é valor parcial (0, 0., 0,), apenas restaurar valor original sem erro
+    // Usuário pode estar no meio de digitar 0.5
+    if (trimmedValue === '' || trimmedValue === '0' || trimmedValue === '0.' || trimmedValue === '0,') {
+      setEditingPortions(prev => {
+        const updated = { ...prev };
+        delete updated[menuItemId];
+        return updated;
+      });
+      return;
+    }
+
+    const newGrams = parseFloat(editedValue);
+
+    // Validar: não pode ser negativo ou inválido
+    if (isNaN(newGrams) || newGrams <= 0) {
+      alert('Valor inválido. Use um número maior que 0.');
+      // Restaurar valor original
+      setEditingPortions(prev => {
+        const updated = { ...prev };
+        delete updated[menuItemId];
+        return updated;
+      });
+      return;
+    }
+
+    try {
+      const menuManager = window.menuManager;
+      const result = await menuManager.updatePortions(menuItemId, newGrams);
+      if (result.success) {
+        await loadMenu();
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar gramas por pessoa:', error);
+    }
+
+    // Limpar estado de edição
+    setEditingPortions(prev => {
+      const updated = { ...prev };
+      delete updated[menuItemId];
+      return updated;
+    });
+  };
+
+  // Mantém compatibilidade com código antigo (para chamadas diretas)
   const handleUpdateGramsPerPerson = async (menuItemId, newGrams) => {
     try {
       const menuManager = window.menuManager;
-      // Atualizar usando a mesma função, mas agora interpretando como gramas
       const result = await menuManager.updatePortions(menuItemId, parseFloat(newGrams));
       if (result.success) {
         await loadMenu();
@@ -84,6 +161,13 @@ function MenuPage({
       const menuManager = window.menuManager;
       const guests = state.guests || 100;
 
+      // ✅ EXPOR ingredientes do state no window.ingredientsManager para MenuManager usar
+      if (!window.ingredientsManager) {
+        window.ingredientsManager = {};
+      }
+      window.ingredientsManager.ingredients = state.ingredientsDatabase || [];
+      console.log(`🔧 [MenuPage] Expondo ${window.ingredientsManager.ingredients.length} ingredientes no window.ingredientsManager`);
+
       // Gerar lista consolidada de ingredientes
       const ingredientsList = await menuManager.generateIngredientsList(guests);
       console.log('📋 Lista de ingredientes gerada:', ingredientsList);
@@ -99,47 +183,15 @@ function MenuPage({
         total: allIngredients.length
       });
 
-      // Limpar itens atuais do evento
-      state.setItems([]);
+      // ✅ Usar função compartilhada para processar ingredientes
+      const newItems = window.ShoppingListGenerator.processIngredientsToItems(
+        ingredientsList,
+        guests,
+        allIngredients
+      );
 
-      // Adicionar ingredientes consolidados aos itens do evento
-      ingredientsList.forEach(ing => {
-        const isUnitType = ing.unitType === 'unit' || ing.unit === 'un';
-
-        // Buscar ingrediente na base para pegar perda e outros dados
-        let ingredientData = null;
-        if (ing.ingredientId) {
-          ingredientData = allIngredients.find(i => i.id === ing.ingredientId);
-        }
-        // Se não encontrou por ID, buscar por nome
-        if (!ingredientData && ing.ingredientName) {
-          ingredientData = allIngredients.find(i => (i.name || i.ingredientName)?.toLowerCase() === ing.ingredientName.toLowerCase());
-        }
-        console.log('🔍 [MenuPage] Buscando perda para:', {
-          ingredientName: ing.ingredientName,
-          ingredientId: ing.ingredientId,
-          found: !!ingredientData,
-          loss: ingredientData?.loss,
-          totalIngredients: allIngredients.length
-        });
-        const newItem = {
-          id: Date.now() + Math.random(),
-          name: ing.ingredientName,
-          // Nome do ingrediente
-          ingredientId: ing.ingredientId,
-          qtyPerPerson: ing.totalQuantity / guests,
-          // Quantidade por pessoa (g ou un)
-          unit: ing.unit,
-          // Preservar unidade ('g' ou 'un')
-          unitType: ing.unitType,
-          // Preservar tipo ('weight' ou 'unit')
-          loss: ingredientData?.loss || 0,
-          // Perda do ingrediente
-          active: true
-        };
-        console.log('📦 [MenuPage] Item criado com loss:', newItem.loss);
-        state.setItems(prevItems => [...prevItems, newItem]);
-      });
+      // Substituir itens do evento
+      state.setItems(newItems);
       alert(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento.`);
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
@@ -183,6 +235,17 @@ function MenuPage({
         dishes: []
       };
 
+      // Se for sobrescrita, usar o ID do cardápio existente
+      if (formData.id && formData.overwrite) {
+        menuData.id = formData.id;
+        console.log('🔄 [MenuPage] SOBRESCREVENDO cardápio existente:');
+        console.log('  - ID:', formData.id);
+        console.log('  - Nome:', formData.name);
+        console.log('  - menuData com ID:', menuData);
+      } else {
+        console.log('📝 [MenuPage] Criando NOVO cardápio:', formData.name);
+      }
+
       // Processar pratos de forma assíncrona
       console.log('🔍 [MenuPage] Processando pratos do menu:', menu.length);
       for (const item of menu) {
@@ -199,11 +262,27 @@ function MenuPage({
         let servings = item.servings || item.dishServings || 1;
         let dishIngredients = item.dishIngredients || [];
         let useWeightCalculation = item.useWeightCalculation || false;
+        let profitMargin = item.profitMargin || 0;  // ✅ Margem de lucro
+        let suggestedPrice = item.suggestedPrice || 0;  // ✅ Preço sugerido
 
         // Se não tem peso, custo, servings ou ingredientes, buscar do prato original
-        if ((totalWeight === 0 || dishCost === 0 || servings === 1 || dishIngredients.length === 0) && dishManager && item.dishId) {
+        if ((totalWeight === 0 || dishCost === 0 || servings === 1 || dishIngredients.length === 0 || profitMargin === 0) && item.dishId) {
           console.log(`🔍 Buscando dados do prato original: ${item.dishId}`);
-          const originalDish = await dishManager.getById(item.dishId);
+
+          // ✅ Usar API para buscar prato completo com ingredientes (não cache!)
+          let originalDish = null;
+          if (window.PrecificacaoAPI?.api) {
+            console.log('📡 Buscando prato completo da API...');
+            const response = await window.PrecificacaoAPI.api.getDish(item.dishId);
+            originalDish = response.data || response;
+            console.log('📦 Prato da API:', originalDish);
+          } else if (dishManager) {
+            // Fallback para cache local (planos offline)
+            console.log('💾 Fallback: buscando do cache local...');
+            originalDish = await dishManager.getById(item.dishId);
+            console.log('📦 Prato do cache:', originalDish);
+          }
+
           console.log('📦 Prato original encontrado:', originalDish);
           if (originalDish) {
             if (totalWeight === 0 && originalDish.totalWeight) {
@@ -225,6 +304,15 @@ function MenuPage({
             if (dishIngredients.length === 0 && originalDish.ingredients && originalDish.ingredients.length > 0) {
               dishIngredients = originalDish.ingredients;
               console.log(`✅ Ingredientes recuperados: ${dishIngredients.length} itens`);
+            }
+            // ✅ Buscar margem e preço do prato original
+            if (profitMargin === 0 && originalDish.profitMargin) {
+              profitMargin = originalDish.profitMargin;
+              console.log(`✅ Margem recuperada: ${profitMargin}%`);
+            }
+            if (suggestedPrice === 0 && originalDish.suggestedPrice) {
+              suggestedPrice = originalDish.suggestedPrice;
+              console.log(`✅ Preço sugerido recuperado: R$ ${suggestedPrice}`);
             }
           }
         }
@@ -256,14 +344,16 @@ function MenuPage({
             unitType: fullIngredient?.unitType || dishIng.unitType || 'weight',
             costPerUnit: fullIngredient?.costPerUnit || fullIngredient?.price || 0,
             unitSize: fullIngredient?.unitSize || 1000,
-            loss: fullIngredient?.loss || 0,
+            lossPercentage: fullIngredient?.lossPercentage || 0,
+            yieldMultiplier: fullIngredient?.yieldMultiplier || 1,
             unit_cost: fullIngredient?.unit_cost || fullIngredient?.unitCost || 0
           };
           console.log(`  📦 Ingrediente "${ingredientSnapshot.name}":`, {
             found: !!fullIngredient,
             category: ingredientSnapshot.category,
             costPerUnit: ingredientSnapshot.costPerUnit,
-            loss: ingredientSnapshot.loss
+            lossPercentage: ingredientSnapshot.lossPercentage,
+            yieldMultiplier: ingredientSnapshot.yieldMultiplier
           });
           enrichedIngredients.push(ingredientSnapshot);
         }
@@ -272,6 +362,8 @@ function MenuPage({
           dishName: item.dishName,
           dishCategory: item.dishCategory,
           dishCost: dishCost,
+          profitMargin: profitMargin,  // ✅ Salvar margem de lucro
+          suggestedPrice: suggestedPrice,  // ✅ Salvar preço sugerido
           dishIngredients: enrichedIngredients,
           // ✅ USAR ingredientes enriquecidos
           servings: servings,
@@ -283,6 +375,8 @@ function MenuPage({
         console.log(`✅ Prato FINAL para salvar "${item.dishName}":`, {
           dishId: dishData.dishId,
           dishCost: dishData.dishCost,
+          profitMargin: dishData.profitMargin,
+          suggestedPrice: dishData.suggestedPrice,
           totalWeight: dishData.totalWeight,
           servings: dishData.servings,
           ingredientsCount: dishData.dishIngredients.length,
@@ -290,13 +384,35 @@ function MenuPage({
         });
         menuData.dishes.push(dishData);
       }
-      console.log('💾 [MenuPage] Dados COMPLETOS sendo enviados para savedMenusManager.saveItem():', menuData);
+      console.log('💾 [MenuPage] Dados COMPLETOS sendo enviados para savedMenusManager.saveItem():');
+      console.log('  - menuData.id:', menuData.id);
+      console.log('  - menuData.name:', menuData.name);
+      console.log('  - menuData.dishes.length:', menuData.dishes.length);
+      console.log('  - formData.overwrite:', formData.overwrite);
+
       const result = await savedMenusManager.saveItem(menuData);
+
+      console.log('📦 [MenuPage] Resultado do saveItem:', result);
+
       if (result && result.success) {
-        alert(`✅ Cardápio "${formData.name}" salvo com sucesso!\n\nVocê pode carregá-lo em "Cardápios Salvos".`);
+        const savedId = result.data?.id || result.data?.menu?.id;
+        const savedName = formData.name;
+        const action = formData.overwrite ? 'atualizado' : 'salvo';
+        console.log(`✅ [MenuPage] Cardápio ${action} com sucesso! ID final:`, savedId);
+
+        // Vincular cardápio salvo ao evento
+        if (savedId) {
+          window.dispatchEvent(new CustomEvent('menu-linked', {
+            detail: { id: savedId, name: savedName }
+          }));
+          console.log('📋 [MenuPage] Cardápio vinculado ao evento:', savedId, savedName);
+        }
+
+        alert(`✅ Cardápio "${savedName}" ${action} com sucesso!`);
         setShowSaveModal(false);
       } else {
         const errorMsg = result?.message || 'Erro desconhecido ao salvar cardápio';
+        console.error('❌ [MenuPage] Erro ao salvar:', errorMsg, result);
         alert(`❌ ${errorMsg}`);
       }
     } catch (error) {
@@ -304,27 +420,52 @@ function MenuPage({
       alert(`❌ Erro ao salvar cardápio: ${error.message || 'Erro desconhecido'}`);
     }
   };
+  // Nome do cardápio vinculado (se existir)
+  const linkedMenuName = state?.linkedMenuName;
+
   return /*#__PURE__*/React.createElement("div", {
     className: "menu-page"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg p-6 mb-6 shadow-lg"
   }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-2xl font-bold mb-4"
-  }, "\uD83C\uDF7D\uFE0F Card\xE1pio do Evento"), stats && /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-1 sm:grid-cols-3 gap-4"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-purple-100 text-sm"
-  }, "Pratos no Card\xE1pio"), /*#__PURE__*/React.createElement("p", {
-    className: "text-3xl font-bold"
-  }, stats.totalDishes)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-purple-100 text-sm"
+    className: "text-2xl font-bold mb-2"
+  }, "🍽️ Cardápio do Evento"), linkedMenuName && /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-sm mb-4"
+  }, "📋 ", linkedMenuName), !linkedMenuName && /*#__PURE__*/React.createElement("div", {
+    className: "mb-4"
+  }), stats && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-start justify-between gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
+  }, "Pratos no Cardápio"), /*#__PURE__*/React.createElement("p", {
+    className: "text-2xl font-bold text-center"
+  }, stats.totalDishes)), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
   }, "Convidados"), /*#__PURE__*/React.createElement("p", {
-    className: "text-3xl font-bold"
-  }, state.guests || 0)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    className: "text-purple-100 text-sm"
+    className: "text-2xl font-bold text-center"
+  }, state.guests || 0)), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
   }, "Custo/Pessoa"), /*#__PURE__*/React.createElement("p", {
-    className: "text-3xl font-bold"
-  }, "R$ ", stats.totalCost.toFixed(2))))), menu.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl font-bold text-center"
+  }, "R$ ", stats.totalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
+  }, "Valor/Pessoa"), /*#__PURE__*/React.createElement("p", {
+    className: "text-2xl font-bold text-center"
+  }, "R$ ", stats.totalPrice ? stats.totalPrice.toFixed(2) : stats.totalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
+  }, "Total Geral"), /*#__PURE__*/React.createElement("p", {
+    className: "text-2xl font-bold text-center"
+  }, "R$ ", ((stats.totalPrice || stats.totalCost) * (state.guests || 0)).toFixed(2))))), menu.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 border-l-4 border-blue-500 p-4 mb-6"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-900 font-medium"
@@ -360,43 +501,33 @@ function MenuPage({
   })())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500"
   }, (() => {
-    // ✅ Usar useWeightCalculation ao invés de isDishPortionBased
-    const isPortionBased = item.useWeightCalculation;
+    // ✅ Considerar useWeightCalculation OU totalWeight === 0
+    const servings = item.servings || 1;
+    const totalWeight = item.totalWeight || 0;
+    const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
     return isPortionBased ? 'Custo por pessoa' : 'Custo por porção (100g)';
   })()), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-gray-800"
   }, "R$ ", (() => {
     const dishCost = item.dishCost || 0;
     const numPortions = item.portionsPerPerson || 0;
-    console.log(`🧮 [MenuPage] Calculando custo para "${item.dishName}"`);
-    console.log(`   dishCost: R$ ${dishCost}`);
-    console.log(`   servings: ${item.servings}`);
-    console.log(`   totalWeight: ${item.totalWeight}g`);
-    console.log(`   portionsPerPerson: ${numPortions}`);
-    console.log(`   useWeightCalculation: ${item.useWeightCalculation}`);
 
-    // ✅ Usar useWeightCalculation do checkbox ao invés de detectar automaticamente
-    const isPortionBased = item.useWeightCalculation;
+    const servings = item.servings || 1;
+    const totalWeight = item.totalWeight || 0;
+    const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+
     if (isPortionBased) {
-      // Custo por porção do prato
-      const servings = item.servings || 1;
-      const costPerDishPortion = dishCost / servings;
-      console.log(`   ➡️ Prato POR PORÇÃO: R$ ${dishCost} ÷ ${servings} = R$ ${costPerDishPortion}/porção`);
-
-      // Multiplicar pelas porções que cada pessoa consome
+      // Prato por PORÇÃO: totalCost / servings × porções por pessoa
+      const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
       const costPerPerson = costPerDishPortion * numPortions;
-      console.log(`   ➡️ Custo por pessoa: R$ ${costPerDishPortion} × ${numPortions} = R$ ${costPerPerson}`);
+      return costPerPerson.toFixed(2);
+    } else {
+      // Prato por PESO: custo por grama × (porções × 100g)
+      const gramsPerPerson = numPortions * 100;
+      const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+      const costPerPerson = costPerGram * gramsPerPerson;
       return costPerPerson.toFixed(2);
     }
-
-    // Se o prato é por peso, calcular por grama (comportamento original)
-    const totalWeight = item.totalWeight || 1;
-    const gramsPerPerson = numPortions * 100; // 1 porção = 100g fixo
-    const costPerGram = dishCost / totalWeight;
-    const costPerPortion = costPerGram * gramsPerPerson;
-    console.log(`   ➡️ Prato POR PESO: R$ ${dishCost} ÷ ${totalWeight}g = R$ ${costPerGram}/g`);
-    console.log(`   ➡️ Custo por porção: R$ ${costPerGram}/g × ${gramsPerPerson}g = R$ ${costPerPortion}`);
-    return costPerPortion.toFixed(2);
   })())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500"
   }, "Total para ", state.guests, " pessoas"), /*#__PURE__*/React.createElement("p", {
@@ -405,67 +536,132 @@ function MenuPage({
     const dishCost = item.dishCost || 0;
     const numPortions = item.portionsPerPerson || 0;
 
-    // ✅ Se useWeightCalculation=true, calcular por PORÇÃO
-    if (item.useWeightCalculation && item.servings > 0) {
-      // Custo por porção do prato
-      const costPerDishPortion = dishCost / item.servings;
-      // Multiplicar pelas porções que cada pessoa consome
+    const servings = item.servings || 1;
+    const totalWeight = item.totalWeight || 0;
+    const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+
+    if (isPortionBased) {
+      // Prato por PORÇÃO
+      const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
       const costPerPerson = costPerDishPortion * numPortions;
-      // Total para todos os convidados
       const totalCost = costPerPerson * state.guests;
-      console.log(`   💰 [PORÇÃO] R$ ${costPerPerson.toFixed(2)} × ${state.guests} pessoas = R$ ${totalCost.toFixed(2)}`);
+      return totalCost.toFixed(2);
+    } else {
+      // Prato por PESO
+      const gramsPerPerson = numPortions * 100;
+      const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+      const costPerPerson = costPerGram * gramsPerPerson;
+      const totalCost = costPerPerson * state.guests;
       return totalCost.toFixed(2);
     }
+  })())),
+  (() => {
+    const profitMargin = item.profitMargin || 0;
+    // ✅ Sempre mostrar valores, mesmo com margem 0% (preço = custo)
+    return /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", null),
+      /*#__PURE__*/React.createElement("div", {
+        className: "mt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-gray-500"
+      }, "Valor/Pessoa (margem ", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
+        className: profitMargin > 0 ? "text-lg font-bold text-green-600" : "text-lg font-bold text-gray-700"
+      }, "R$ ", (() => {
+        const dishCost = item.dishCost || 0;
+        const numPortions = item.portionsPerPerson || 0;
+        const totalWeight = item.totalWeight || 0;
+        const servings = item.servings || 1;
+        const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+        let costPerPerson = 0;
 
-    // ✅ Se useWeightCalculation=false (ou desmarcado), calcular por PESO (100g)
-    const totalWeight = item.totalWeight || 1;
-    const gramsPerPerson = numPortions * 100; // 1 porção = 100g fixo
-    const costPerGram = dishCost / totalWeight;
-    const costPerPortion = costPerGram * gramsPerPerson;
-    const totalCost = costPerPortion * state.guests;
-    console.log(`   ⚖️ [PESO] R$ ${dishCost.toFixed(2)} ÷ ${totalWeight}g × ${gramsPerPerson}g × ${state.guests} pessoas = R$ ${totalCost.toFixed(2)}`);
-    return totalCost.toFixed(2);
-  })()))), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center gap-4"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "text-sm font-medium text-gray-700"
+        if (isPortionBased) {
+          const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+          costPerPerson = costPerDishPortion * numPortions;
+        } else {
+          const gramsPerPerson = numPortions * 100;
+          const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+          costPerPerson = costPerGram * gramsPerPerson;
+        }
+
+        const pricePerPerson = costPerPerson * (1 + profitMargin / 100);
+        return pricePerPerson.toFixed(2);
+      })())),
+      /*#__PURE__*/React.createElement("div", {
+        className: "mt-2"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "text-xs text-gray-500"
+      }, "Total com margem (", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
+        className: profitMargin > 0 ? "text-lg font-bold text-green-600" : "text-lg font-bold text-gray-700"
+      }, "R$ ", (() => {
+        const dishCost = item.dishCost || 0;
+        const numPortions = item.portionsPerPerson || 0;
+        const totalWeight = item.totalWeight || 0;
+        const servings = item.servings || 1;
+        const isPortionBased = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+        let costPerPerson = 0;
+
+        if (isPortionBased) {
+          const costPerDishPortion = servings > 0 ? dishCost / servings : dishCost;
+          costPerPerson = costPerDishPortion * numPortions;
+        } else {
+          const gramsPerPerson = numPortions * 100;
+          const costPerGram = totalWeight > 0 ? dishCost / totalWeight : dishCost;
+          costPerPerson = costPerGram * gramsPerPerson;
+        }
+
+        const pricePerPerson = costPerPerson * (1 + profitMargin / 100);
+        const totalPrice = pricePerPerson * state.guests;
+        return totalPrice.toFixed(2);
+      })()))
+    );
+  })()),
+  /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm font-medium text-gray-700 whitespace-nowrap"
   }, (() => {
-    // ✅ Usar useWeightCalculation ao invés de isDishPortionBased
     const isPortionBased = item.useWeightCalculation;
-    return isPortionBased ? 'Porções do prato por pessoa:' : 'Porções por pessoa (1 porção = 100g):';
+    if (isPortionBased) {
+      return "Porções do prato por pessoa:";
+    } else {
+      return "Porções por pessoa (1 porção = 100g):";
+    }
   })()), /*#__PURE__*/React.createElement("input", {
     type: "number",
-    value: item.portionsPerPerson === 0 ? '' : item.portionsPerPerson,
-    onChange: e => handleUpdateGramsPerPerson(item.id, e.target.value),
-    step: "0.25",
-    min: "0.25",
+    value: editingPortions[item.id] !== undefined ? editingPortions[item.id] : (item.portionsPerPerson === 0 ? '' : item.portionsPerPerson),
+    onChange: e => handlePortionsChange(item.id, e.target.value),
+    onBlur: () => handlePortionsBlur(item.id, item.portionsPerPerson),
+    step: "0.1",
+    min: "0",
     max: "10",
     className: "w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent",
     placeholder: "1"
   }), /*#__PURE__*/React.createElement("span", {
-    className: "text-sm text-gray-600"
+    className: "text-sm text-gray-600 whitespace-nowrap"
   }, (() => {
-    // ✅ Usar useWeightCalculation ao invés de isDishPortionBased
     const isPortionBased = item.useWeightCalculation;
     return isPortionBased ?
-    // Para pratos por porção: mostrar total de porções necessárias
     `= ${(() => {
       const numPortions = item.portionsPerPerson || 0;
       const totalPortionsNeeded = numPortions * state.guests;
       const totalDishesNeeded = Math.ceil(totalPortionsNeeded / (item.servings || 1));
       return `${totalPortionsNeeded.toFixed(1)} porções (≈ ${totalDishesNeeded} prato${totalDishesNeeded > 1 ? 's' : ''})`;
     })()}` :
-    // Para pratos por peso: mostrar total em gramas
     `= ${(() => {
       const numPortions = item.portionsPerPerson || 0;
       const gramsPerPerson = numPortions * 100;
       const totalGrams = gramsPerPerson * state.guests;
       return window.unitConversions?.formatWeight?.(totalGrams, 1) || `${totalGrams.toFixed(0)}g`;
     })()} total`;
-  })()))), /*#__PURE__*/React.createElement("button", {
+  })()))),
+  /*#__PURE__*/React.createElement("div", null),
+  /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-end"
+  }, /*#__PURE__*/React.createElement("button", {
     onClick: () => handleRemoveDish(item.id),
-    className: "ml-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-  }, "\uD83D\uDDD1\uFE0F Remover"))))) : /*#__PURE__*/React.createElement("div", {
+    className: "px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+  }, "\uD83D\uDDD1\uFE0F Remover"))
+)))) : /*#__PURE__*/React.createElement("div", {
     className: "text-center py-12 text-gray-400"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-6xl mb-4"
@@ -479,7 +675,7 @@ function MenuPage({
     className: "flex flex-col sm:flex-row items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex gap-3"
-  }, /*#__PURE__*/React.createElement("button", {
+  }, isPremium ? /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       console.log('🔘 [MenuPage] Botão "Montar com IA" clicado');
       console.log('📦 [MenuPage] state.event:', state.event);
@@ -491,7 +687,11 @@ function MenuPage({
       setShowMenuGenerator(true);
     },
     className: "px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-colors font-medium shadow-md"
-  }, "\uD83E\uDD16 Montar com IA"), menu.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+  }, "\uD83E\uDD16 Montar com IA") : /*#__PURE__*/React.createElement("button", {
+    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    className: "px-6 py-3 bg-gray-400 text-white rounded-lg font-medium shadow-md opacity-60 cursor-not-allowed",
+    title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
+  }, "\uD83E\uDD16 Montar com IA \uD83D\uDD12"), menu.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: handleSaveCurrentMenu,
     className: "px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md",
     title: "Salvar este card\xE1pio como template reutiliz\xE1vel"

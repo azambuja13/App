@@ -18,6 +18,8 @@ function SaveMenuModal({
     eventType: 'churrasco',
     description: ''
   });
+  const [existingMenu, setExistingMenu] = React.useState(null);
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = React.useState(false);
   const eventTypes = [{
     value: 'casamento',
     label: 'Casamento',
@@ -53,14 +55,56 @@ function SaveMenuModal({
       [field]: value
     }));
   };
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
     if (!formData.name.trim()) {
       alert('❌ Por favor, digite um nome para o cardápio');
       return;
     }
+
+    // Verificar se já existe um cardápio com o mesmo nome
+    // ✅ USAR a mesma ordem de prioridade que MenuPage
+    try {
+      const savedMenusManager = window.ManagerHelper?.getSavedMenusManager() || window.PrecificacaoAPI?.savedMenusManager || window.savedMenusManager;
+      if (savedMenusManager) {
+        console.log('🔍 [SaveMenuModal] Verificando cardápios existentes...');
+        const allMenus = await savedMenusManager.getAll();
+        console.log('📋 [SaveMenuModal] Total de cardápios:', allMenus.length);
+
+        const existing = allMenus.find(m =>
+          m.name && m.name.toLowerCase().trim() === formData.name.toLowerCase().trim()
+        );
+
+        if (existing) {
+          console.log('⚠️ [SaveMenuModal] Cardápio já existe:', existing.id, existing.name);
+          setExistingMenu(existing);
+          setShowOverwriteConfirm(true);
+          return;
+        } else {
+          console.log('✅ [SaveMenuModal] Nenhum cardápio com esse nome encontrado');
+        }
+      } else {
+        console.warn('⚠️ [SaveMenuModal] SavedMenusManager não disponível');
+      }
+    } catch (error) {
+      console.error('❌ [SaveMenuModal] Erro ao verificar cardápios existentes:', error);
+    }
+
     onSave(formData);
     handleClose();
+  };
+
+  const handleOverwrite = () => {
+    // Passar o ID do cardápio existente para sobrescrever
+    onSave({ ...formData, id: existingMenu.id, overwrite: true });
+    setShowOverwriteConfirm(false);
+    setExistingMenu(null);
+    handleClose();
+  };
+
+  const handleCancelOverwrite = () => {
+    setShowOverwriteConfirm(false);
+    setExistingMenu(null);
   };
   const handleClose = () => {
     setFormData({
@@ -68,6 +112,8 @@ function SaveMenuModal({
       eventType: 'churrasco',
       description: ''
     });
+    setExistingMenu(null);
+    setShowOverwriteConfirm(false);
     onClose();
   };
   if (!isOpen) return null;
@@ -211,7 +257,33 @@ function SaveMenuModal({
   }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
     type: "submit",
     className: "px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-colors font-bold shadow-lg"
-  }, "\uD83D\uDCBE Salvar Card\xE1pio")))));
+  }, "\uD83D\uDCBE Salvar Card\xE1pio")))), showOverwriteConfirm && /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-60"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-3xl"
+  }, "\u26A0\uFE0F")), /*#__PURE__*/React.createElement("h3", {
+    className: "text-xl font-bold text-gray-800 mb-2"
+  }, "Card\xE1pio j\xE1 existe!"), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600 mb-2"
+  }, "J\xE1 existe um card\xE1pio com o nome:"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-semibold text-purple-600 mb-4"
+  }, "\"", existingMenu?.name, "\""), /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600 mb-6"
+  }, "Deseja sobrescrever o card\xE1pio existente?")), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: handleCancelOverwrite,
+    className: "flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: handleOverwrite,
+    className: "flex-1 px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-bold"
+  }, "\uD83D\uDD04 Sobrescrever")))));
 }
 
 // Expor para window

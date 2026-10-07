@@ -215,7 +215,18 @@ const SupportList = React.memo(function SupportList({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "trash",
     className: "w-5 h-5"
-  }))))))))))));
+  })))))))), /*#__PURE__*/React.createElement("tfoot", null, /*#__PURE__*/React.createElement("tr", {
+    className: "bg-gray-100 border-t-2 border-gray-300"
+  }, /*#__PURE__*/React.createElement("td", {
+    className: "no-print"
+  }), /*#__PURE__*/React.createElement("td", {
+    className: "px-4 py-3 font-bold text-gray-800 text-lg",
+    colSpan: 3
+  }, "Total Apoio & Logística"), /*#__PURE__*/React.createElement("td", {
+    className: "px-4 py-3 text-right font-bold text-orange-700 text-xl"
+  }, "R$ ", supportItems.filter(function(i) { return i.active; }).reduce(function(sum, i) { return sum + (i.total || 0); }, 0).toFixed(2)), /*#__PURE__*/React.createElement("td", {
+    className: "no-print"
+  })))))));
 });
 
 // Expor ao window para uso com Babel

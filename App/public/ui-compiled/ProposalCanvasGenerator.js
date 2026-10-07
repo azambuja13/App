@@ -161,7 +161,7 @@ function ProposalCanvasGenerator({
           if (fullDish?.photos?.length > 0) {
             try {
               const photoData = fullDish.photos[0];
-              const imgSrc = typeof photoData === 'string' ? photoData : photoData?.data || photoData?.src || photoData?.url;
+              const imgSrc = typeof photoData === 'string' ? photoData : photoData?.photoData || photoData?.data || photoData?.src || photoData?.url;
               if (imgSrc) {
                 const img = await loadImage(imgSrc);
 

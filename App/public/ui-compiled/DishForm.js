@@ -21,13 +21,14 @@ const normalizeText = text => {
 /**
  * Componente DishForm
  * Formulário para cadastrar/editar pratos
+ * ⚡ Performance: Memoizado para evitar re-renders desnecessários
  *
  * @param {Object} props
  * @param {Object} props.dish - Prato para editar (null para novo)
  * @param {Function} props.onSave - Callback ao salvar
  * @param {Function} props.onCancel - Callback ao cancelar
  */
-function DishForm({
+const DishForm = React.memo(function DishForm({
   dish = null,
   onSave,
   onCancel
@@ -44,7 +45,9 @@ function DishForm({
     // Ficha técnica
     isFavorite: false,
     useWeightCalculation: false, // false = cálculo por PESO (100g) | true = cálculo por PORÇÃO
-    photos: [] // Array de até 3 fotos (base64)
+    photos: [], // Array de até 3 fotos (base64)
+    profitMargin: '', // Margem de lucro em % (ex: 300 = 300%) - INFORMATIVO
+    suggestedPrice: '' // Preço sugerido - editável bidirecionalmente com margem
   });
   const [availableIngredients, setAvailableIngredients] = React.useState([]);
   const [showIngredientSelector, setShowIngredientSelector] = React.useState(false);
@@ -53,11 +56,20 @@ function DishForm({
   const [isSaving, setIsSaving] = React.useState(false);
   const fileInputRef = React.useRef(null);
 
+  // Carregar fotos do prato para edição (isolado para não resetar fotos adicionadas pelo usuário)
+  React.useEffect(() => {
+    if (dish) {
+      setFormData(prev => ({ ...prev, photos: dish.photos || [] }));
+    }
+  }, [dish?.id]);
+
   // Carregar dados do prato para edição
   React.useEffect(() => {
     if (dish && availableIngredients.length > 0) {
       console.log('📝 Carregando prato para edição:', dish);
       console.log('📝 useWeightCalculation do backend:', dish.useWeightCalculation);
+      console.log('💰 profitMargin do backend:', dish.profitMargin);
+      console.log('💵 suggestedPrice do backend:', dish.suggestedPrice);
       console.log('📝 Ingredientes do backend:', dish.ingredients?.map(i => ({name: i.ingredientName, isDiscarded: i.isDiscarded})));
       console.log('📦 Ingredientes disponíveis:', availableIngredients.length);
 
@@ -78,7 +90,11 @@ function DishForm({
         const quantity = parseFloat(ing.quantity) || 0;
         const unit = ing.unit || 'g';
         const unitCost = parseFloat(ing.unitCost) || 0;
-        const lossPercentage = parseFloat(ing.lossPercentage) || lossFromDB || 0;
+
+        // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
+        let lossValue = parseFloat(ing.lossPercentage) || lossFromDB || 0;
+        // Se loss está entre 0-1, é decimal, converter para %
+        const lossPercentage = lossValue > 0 && lossValue <= 1 ? lossValue * 100 : lossValue;
 
         // ✅ FIX: Converter quantidade para gramas antes de calcular custo
         let quantityInGrams = quantity;
@@ -92,8 +108,10 @@ function DishForm({
         const ingredientCost = baseCost * lossMultiplier;
         return {
           ...ing,
-          loss: lossFromDB,
-          // Sempre usar a perda atualizada do banco
+          loss: lossPercentage / 100,
+          // Decimal para compatibilidade (0.20)
+          lossPercentage: lossPercentage,
+          // ✅ Porcentagem normalizada (20)
           ingredientCost,
           // Adicionar custo total calculado
           costPerUnit: unitCost, // Mapear unitCost para costPerUnit também
@@ -101,7 +119,8 @@ function DishForm({
         };
       });
       console.log('🎯 Ingredientes enriquecidos:', enrichedIngredients);
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: dish.name || '',
         description: dish.description || '',
         category: dish.category || 'principal',
@@ -110,9 +129,10 @@ function DishForm({
         observations: dish.observations || '',
         technicalSheet: dish.technicalSheet || '',
         isFavorite: dish.isFavorite || false,
-        useWeightCalculation: dish.useWeightCalculation || false, // ✅ Manter configuração de cálculo
-        photos: dish.photos || []
-      });
+        useWeightCalculation: dish.useWeightCalculation || false,
+        profitMargin: dish.profitMargin || '',
+        suggestedPrice: dish.suggestedPrice || ''
+      }));
     }
   }, [dish, availableIngredients]);
 
@@ -190,7 +210,7 @@ function DishForm({
   }, {
     value: 'acompanhamento',
     label: 'Acompanhamento',
-    icon: '🥘'
+    icon: '🍚'
   }, {
     value: 'sobremesa',
     label: 'Sobremesa',
@@ -202,29 +222,19 @@ function DishForm({
   }, {
     value: 'outro',
     label: 'Outro',
-    icon: '🍴'
+    icon: '📌'
   }];
 
-  // Calcular custo total do prato (usar módulo calculations)
-  const calculateTotalCost = () => {
+  // ⚡ Performance: Memoizar cálculos pesados para evitar recálculos desnecessários
+  const calculateTotalCost = React.useMemo(() => {
     if (window.calculateIngredientsCost) {
       return window.calculateIngredientsCost(formData.ingredients);
     }
     // Fallback se módulo não estiver carregado
     return formData.ingredients.reduce((sum, ing) => sum + (ing.ingredientCost || 0), 0);
-  };
+  }, [formData.ingredients]);
 
-  // Calcular custo por porção (usar módulo calculations)
-  const calculateCostPerServing = () => {
-    const totalCost = calculateTotalCost();
-    if (window.calculations && window.calculations.calculateCostPerServing) {
-      return window.calculations.calculateCostPerServing(totalCost, formData.servings);
-    }
-    // Fallback
-    return formData.servings > 0 ? totalCost / formData.servings : 0;
-  };
-
-  // Usar função de conversão do módulo utilitário
+  // Usar função de conversão do módulo utilitário (definir antes de usar em useMemo)
   const convertToGrams = (quantity, unit) => {
     if (window.unitConversions && window.unitConversions.convertToGrams) {
       return window.unitConversions.convertToGrams(quantity, unit);
@@ -237,10 +247,7 @@ function DishForm({
     return 0;
   };
 
-  // Calcular peso total: somatório do peso dos ingredientes NÃO descartáveis COM perda aplicada
-  // - Exclui ingredientes com isDiscarded=true (sal, açúcar, vinho usado na cura)
-  // - Aplica perda (loss) de cada ingrediente: peso_final = quantidade × (1 - loss)
-  const calculateTotalWeight = () => {
+  const calculateTotalWeight = React.useMemo(() => {
     return formData.ingredients.reduce((sum, ing) => {
       // ✅ Pular ingredientes descartáveis (não contam no peso final)
       if (ing.isDiscarded) {
@@ -249,12 +256,52 @@ function DishForm({
 
       const quantityInGrams = convertToGrams(ing.quantity, ing.unit);
 
-      // ✅ Aplicar perda (loss) - peso final = quantidade × (1 - loss)
-      const finalWeight = quantityInGrams * (1 - (ing.loss || 0));
+      // ✅ Aplicar perda e rendimento - peso final = quantidade × (1 - perda%) × rendimento
+      const lossMultiplier = 1 - ((ing.lossPercentage || 0) / 100);
+      const yieldFactor = parseFloat(ing.yieldMultiplier) || 1;
+      const finalWeight = quantityInGrams * lossMultiplier * yieldFactor;
 
       return sum + finalWeight;
     }, 0);
-  };
+  }, [formData.ingredients]);
+
+  // Calcular custo por porção (usar módulo calculations)
+  const calculateCostPerServing = React.useMemo(() => {
+    if (window.calculations && window.calculations.calculateCostPerServing) {
+      return window.calculations.calculateCostPerServing(calculateTotalCost, formData.servings);
+    }
+    // Fallback - arredondar para cima (2 casas decimais)
+    return formData.servings > 0 ? Math.ceil((calculateTotalCost / formData.servings) * 100) / 100 : 0;
+  }, [calculateTotalCost, formData.servings]);
+
+  // Calcular preço sugerido baseado no modo de cálculo - INFORMATIVO
+  const calculateSuggestedPrice = React.useMemo(() => {
+    const margin = parseFloat(formData.profitMargin) || 0;
+
+    if (margin <= 0) {
+      return 0;
+    }
+
+    let baseCost = 0;
+
+    if (formData.useWeightCalculation) {
+      // Modo PORÇÃO: aplicar margem sobre o custo por porção
+      baseCost = calculateCostPerServing;
+    } else {
+      // Modo PESO (100g): aplicar margem sobre o custo por 100g
+      if (calculateTotalWeight > 0) {
+        baseCost = (calculateTotalCost / calculateTotalWeight) * 100; // Custo por 100g
+      }
+    }
+
+    if (baseCost <= 0) {
+      return 0;
+    }
+
+    // Fórmula: Preço = Custo + (Custo * Margem / 100)
+    // Ex: Custo R$ 10, Margem 300% = R$ 10 + (10 * 3) = R$ 40
+    return baseCost + (baseCost * margin / 100);
+  }, [formData.profitMargin, formData.useWeightCalculation, calculateCostPerServing, calculateTotalCost, calculateTotalWeight]);
 
   // Usar função de formatação do módulo utilitário
   const formatWeight = grams => {
@@ -278,6 +325,56 @@ function DishForm({
         [field]: null
       }));
     }
+  };
+
+  // Calcular custo base para precificação (reutilizável)
+  const getBaseCost = React.useCallback(() => {
+    if (formData.useWeightCalculation) {
+      // Modo PORÇÃO: custo por porção
+      return calculateCostPerServing;
+    } else {
+      // Modo PESO (100g): custo por 100g
+      if (calculateTotalWeight > 0) {
+        return (calculateTotalCost / calculateTotalWeight) * 100;
+      }
+    }
+    return 0;
+  }, [formData.useWeightCalculation, calculateCostPerServing, calculateTotalCost, calculateTotalWeight]);
+
+  // Handler bidirecional: quando margem muda → calcular preço
+  const handleMarginChange = (value) => {
+    const margin = parseFloat(value) || 0;
+    const baseCost = getBaseCost();
+
+    // Calcular preço baseado na margem
+    // Fórmula: Preço = Custo + (Custo × Margem / 100)
+    const newPrice = baseCost > 0 && margin > 0
+      ? baseCost + (baseCost * margin / 100)
+      : '';
+
+    setFormData(prev => ({
+      ...prev,
+      profitMargin: value,
+      suggestedPrice: newPrice ? newPrice.toFixed(2) : ''
+    }));
+  };
+
+  // Handler bidirecional: quando preço muda → calcular margem
+  const handlePriceChange = (value) => {
+    const price = parseFloat(value) || 0;
+    const baseCost = getBaseCost();
+
+    // Calcular margem reversa baseada no preço
+    // Fórmula reversa: Margem = ((Preço - Custo) / Custo) × 100
+    const newMargin = baseCost > 0 && price > baseCost
+      ? ((price - baseCost) / baseCost) * 100
+      : '';
+
+    setFormData(prev => ({
+      ...prev,
+      suggestedPrice: value,
+      profitMargin: newMargin ? newMargin.toFixed(0) : ''
+    }));
   };
 
   // Gerenciamento de Fotos com Compressão SUPER AGRESSIVA
@@ -455,6 +552,13 @@ function DishForm({
     const totalCost = quantityToBuy * costPerGramMl;
     console.log('📝 [handleAddIngredient] isUnitType:', isUnitType, 'quantity:', initialQuantity, 'unit:', initialUnit);
     console.log('📝 [handleAddIngredient] quantityToBuy:', quantityToBuy, 'totalCost:', totalCost);
+    // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
+    let lossPercentage = parseFloat(ingredient.lossPercentage) || parseFloat(ingredient.loss) || 0;
+    // Se loss está entre 0-1, é decimal, converter para %
+    if (lossPercentage > 0 && lossPercentage <= 1) {
+      lossPercentage = lossPercentage * 100;
+    }
+
     const newIngredient = {
       id: `ing_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       ingredientId: ingredient.id ? String(ingredient.id) : null,
@@ -468,7 +572,12 @@ function DishForm({
       // Custo por grama/ml OU por unidade
       ingredientCost: totalCost,
       // Custo total considerando perda
-      loss: loss,
+      loss: lossPercentage / 100,
+      // Decimal para compatibilidade (0.20)
+      lossPercentage: lossPercentage,
+      // ✅ Porcentagem normalizada (20)
+      yieldMultiplier: ingredient.yieldMultiplier || 1,
+      // ✅ Adicionar yieldMultiplier
       isOptional: false,
       notes: null,
       displayOrder: formData.ingredients.length + 1
@@ -496,7 +605,7 @@ function DishForm({
       ingredients: prev.ingredients.map(ing => {
         if (ing.id === ingredientId) {
           const quantity = parseFloat(newQuantity) || 0;
-          const loss = parseFloat(ing.loss) || 0;
+          const loss = (parseFloat(ing.lossPercentage) || 0) / 100;
 
           // Para ingredientes por unidade, não converter - usar quantidade diretamente
           // Para ingredientes por peso, converter para gramas/ml
@@ -556,7 +665,7 @@ function DishForm({
           }
 
           // Aplicar perda: quantidade a comprar considerando a perda
-          const loss = parseFloat(ing.loss) || 0;
+          const loss = (parseFloat(ing.lossPercentage) || 0) / 100;
           const quantityToBuy = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss ? window.lossCalculations.calculateQuantityWithLoss(quantityInGrams, loss) : loss > 0 && loss < 1 ? quantityInGrams / (1 - loss) : quantityInGrams;
           const finalCost = quantityToBuy * costPerGramMl;
           return {
@@ -635,9 +744,10 @@ function DishForm({
           unitType: ing.unitType,
           unitCost: ing.costPerUnit || ing.unitCost || 0,
           // Frontend usa costPerUnit, backend usa unitCost
-          loss: ing.loss || 0,
-          // ✅ FIX: Preservar loss em formato decimal (0.15)
-          lossPercentage: (ing.loss || 0) * 100, // Frontend usa loss (0-1), backend usa lossPercentage (0-100)
+          lossPercentage: Math.min(parseFloat(ing.lossPercentage) || 0, 100),
+          // Enviar lossPercentage limitado a 100 (0-100)
+          yieldMultiplier: parseFloat(ing.yieldMultiplier) || 1,
+          // Incluir yieldMultiplier
           isDiscarded: ing.isDiscarded || false // ✅ Incluir campo isDiscarded
         };
       });
@@ -647,9 +757,11 @@ function DishForm({
         // Se for edição, manter ID
         ingredients: mappedIngredients,
         // Usar ingredientes mapeados
-        totalCost: calculateTotalCost(),
-        costPerServing: calculateCostPerServing(),
-        totalWeight: calculateTotalWeight() // Peso total em gramas
+        totalCost: calculateTotalCost,
+        costPerServing: calculateCostPerServing,
+        totalWeight: calculateTotalWeight, // Peso total em gramas
+        profitMargin: formData.profitMargin ? parseFloat(formData.profitMargin) : null, // Margem de lucro (informativo)
+        suggestedPrice: calculateSuggestedPrice > 0 ? calculateSuggestedPrice : null // Preço sugerido (informativo)
       };
       console.log('💾 [DishForm] Salvando prato com useWeightCalculation:', dishData.useWeightCalculation);
       console.log('💾 [DishForm] Ingredientes com isDiscarded:', dishData.ingredients.map(i => ({name: i.ingredientName, isDiscarded: i.isDiscarded})));
@@ -828,9 +940,13 @@ function DishForm({
     className: "mt-2 flex items-center justify-between text-sm text-gray-600"
   }, /*#__PURE__*/React.createElement("span", null, "Custo total: ", /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
-  }, "R$ ", ing.ingredientCost.toFixed(2))), ing.loss > 0 && /*#__PURE__*/React.createElement("span", {
+  }, "R$ ", ing.ingredientCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3"
+  }, ing.lossPercentage > 0 && /*#__PURE__*/React.createElement("span", {
     className: "text-orange-600 font-medium"
-  }, "\uD83D\uDD25 Perda: ", (ing.loss * 100).toFixed(0), "%")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD25 Perda: ", (parseFloat(ing.lossPercentage) || 0).toFixed(0), "%"), ing.yieldMultiplier && parseFloat(ing.yieldMultiplier) !== 1 && /*#__PURE__*/React.createElement("span", {
+    className: "text-green-600 font-medium"
+  }, "\uD83D\uDCC8 Rend.: ", (parseFloat(ing.yieldMultiplier) || 1).toFixed(1), "x"))), /*#__PURE__*/React.createElement("div", {
     className: "mt-3 flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("input", {
     type: "checkbox",
@@ -846,6 +962,60 @@ function DishForm({
   }, "N\u00E3o conta no peso final, mas conta no custo")))))) : /*#__PURE__*/React.createElement("div", {
     className: "border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500"
   }, "Nenhum ingrediente adicionado ainda")), /*#__PURE__*/React.createElement("div", {
+    className: "mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "text-sm font-semibold text-green-900 mb-3 flex items-center gap-2"
+  }, "\uD83D\uDCB0 Precifica\xE7\xE3o Sugerida", /*#__PURE__*/React.createElement("span", {
+    className: "text-xs font-normal text-green-700 bg-green-100 px-2 py-1 rounded-full"
+  }, "\u21C4 Bidirecional")), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-4"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-medium text-gray-700 mb-2"
+  }, "Margem de Lucro (%)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: formData.profitMargin,
+    onChange: e => handleMarginChange(e.target.value),
+    min: "0",
+    step: "1",
+    placeholder: "Ex: 300 (para 300%)",
+    className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-500 mt-1"
+  }, "\uD83D\uDCA1 Ex: 300% = vender por 4x o custo")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-medium text-gray-700 mb-2"
+  }, "Pre\xE7o Sugerido ", formData.useWeightCalculation ? "por Por\xE7\xE3o" : "por 100g"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: formData.suggestedPrice,
+    onChange: e => handlePriceChange(e.target.value),
+    min: "0",
+    step: "0.01",
+    placeholder: "Ex: 40.00",
+    className: "w-full px-4 py-2 border border-green-300 rounded-lg text-lg font-bold text-green-600 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-500 mt-1"
+  }, "\uD83D\uDCCA Custo base: R$ ", formData.useWeightCalculation ? calculateCostPerServing.toFixed(2) : (calculateTotalCost / calculateTotalWeight * 100).toFixed(2)))), /*#__PURE__*/React.createElement("div", {
+    className: "mt-4 p-3 bg-white rounded-lg border border-green-200"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-4 text-sm"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600"
+  }, "Custo Total do Prato"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-bold text-gray-800"
+  }, "R$ ", calculateTotalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600"
+  }, "Valor com Margem ", formData.useWeightCalculation ? `(${formData.servings} por\xE7\xF5es)` : "(total)"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-bold text-green-600"
+  }, "R$ ", (() => {
+    const price = parseFloat(formData.suggestedPrice) || 0;
+    if (formData.useWeightCalculation && formData.servings > 0) {
+      // Modo porção: multiplicar preço por porção × número de porções
+      return (price * formData.servings).toFixed(2);
+    } else {
+      // Modo peso: multiplicar preço por 100g × peso total / 100
+      const totalWeight = calculateTotalWeight;
+      return (price * (totalWeight / 100)).toFixed(2);
+    }
+  })()))))), /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-4 mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-semibold text-blue-900 mb-3"
@@ -857,7 +1027,7 @@ function DishForm({
     className: "text-sm text-blue-700 mb-2"
   }, "\uD83D\uDCB0 Custo Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold text-blue-900"
-  }, "R$ ", calculateTotalCost().toFixed(2)), /*#__PURE__*/React.createElement("p", {
+  }, "R$ ", calculateTotalCost.toFixed(2)), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-blue-600 mt-1"
   }, formData.ingredients.length, " ingrediente", formData.ingredients.length !== 1 ? 's' : '')), /*#__PURE__*/React.createElement("div", {
     className: "text-center p-3 bg-white rounded-lg"
@@ -865,7 +1035,7 @@ function DishForm({
     className: "text-sm text-green-700 mb-2"
   }, "\u2696\uFE0F Peso Final"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold text-green-900"
-  }, formatWeight(calculateTotalWeight())), /*#__PURE__*/React.createElement("p", {
+  }, formatWeight(calculateTotalWeight)), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-green-600 mt-1"
   }, "ap\xF3s perda dos ingredientes")))), /*#__PURE__*/React.createElement("div", {
     className: "mb-6"
@@ -1048,8 +1218,16 @@ function DishForm({
     strokeLinejoin: "round",
     strokeWidth: 2,
     d: "M6 18L18 6M6 6l12 12"
-  })), "Cancelar")))));
-}
+    })), "Cancelar")))));
+}, (prevProps, nextProps) => {
+  // ⚡ Performance: Comparação customizada para evitar re-renders desnecessários
+  return (
+    prevProps.dish?.id === nextProps.dish?.id &&
+    prevProps.dish?.name === nextProps.dish?.name &&
+    prevProps.dish?.totalCost === nextProps.dish?.totalCost &&
+    prevProps.dish?.ingredients?.length === nextProps.dish?.ingredients?.length
+  );
+});
 
 // export default DishForm;
 

@@ -172,18 +172,26 @@ const ItemsList = React.memo(function ItemsList({
   }, "\uD83D\uDCCB Imprimir Lista de Compras")), Object.entries(groupedItems).map(([category, categoryItems]) => {
     const totalCost = categoryStats[category]?.total || 0;
 
-    // ✅ FIX: Calcular soma do consumo por pessoa da categoria (bruto - sem perda)
-    const totalQtyPerPersonBruto = categoryItems.reduce((sum, item) => {
+    // ✅ qtyPerPerson agora é LÍQUIDO (vem do MenuPage já como líquido)
+    // Calcular total LÍQUIDO por pessoa (somando qtyPerPerson que já é líquido)
+    const totalQtyPerPersonLiquid = categoryItems.reduce((sum, item) => {
       return sum + (item.qtyPerPerson || 0);
     }, 0);
 
-    // ✅ FIX: Calcular total líquido POR PESSOA somando consumo líquido de cada item
-    const totalQtyPerPersonLiquid = categoryItems.reduce((sum, item) => {
+    // ✅ Calcular total BRUTO por pessoa (aplicando perda e rendimento INVERSOS)
+    const totalQtyPerPersonBruto = categoryItems.reduce((sum, item) => {
       const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-      const qtyPerPersonLiquid = lossDecimal > 0 && lossDecimal < 1
-        ? item.qtyPerPerson * (1 - lossDecimal)
+      const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
+
+      // Aplicar perda inversa: líquido / (1 - perda) = bruto
+      const qtyWithLoss = lossDecimal > 0 && lossDecimal < 1
+        ? item.qtyPerPerson / (1 - lossDecimal)
         : item.qtyPerPerson;
-      return sum + (qtyPerPersonLiquid || 0);
+
+      // Aplicar rendimento inverso: qty / yieldMultiplier
+      const qtyPerPersonBruto = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
+
+      return sum + (qtyPerPersonBruto || 0);
     }, 0);
 
     // Determinar se categoria é de unidades ou gramas/kg
@@ -193,7 +201,7 @@ const ItemsList = React.memo(function ItemsList({
       key: category,
       className: "bg-white rounded-xl shadow-lg overflow-hidden"
     }, /*#__PURE__*/React.createElement("div", {
-      // ✅ MOBILE (iPhone): cards empilhados em vez da tabela de 6 colunas com rolagem lateral
+      // ✅ MOBILE (celular/iPad em pé): cards empilhados em vez da tabela de 6 colunas com rolagem lateral
       className: "lg:hidden"
     }, /*#__PURE__*/React.createElement("div", {
       className: "bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3"
@@ -202,16 +210,17 @@ const ItemsList = React.memo(function ItemsList({
     }, category, " ", /*#__PURE__*/React.createElement("span", {
       className: "text-xs text-orange-100"
     }, "(", categoryItems.length, ")")), /*#__PURE__*/React.createElement("div", {
-      className: "grid grid-cols-3 gap-2 mt-2"
+      className: "grid gap-2 mt-2",
+      style: { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }
     }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       className: "text-xs text-orange-100"
-    }, "Total Bruto"), /*#__PURE__*/React.createElement("div", {
+    }, "A Servir"), /*#__PURE__*/React.createElement("div", {
       className: "text-sm font-bold text-white"
-    }, allUnitItems ? `${totalQtyPerPersonBruto.toFixed(2)} un` : `${totalQtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    }, allUnitItems ? `${totalQtyPerPersonLiquid.toFixed(2)} un` : `${totalQtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       className: "text-xs text-orange-100"
-    }, "Total L\xEDquido"), /*#__PURE__*/React.createElement("div", {
+    }, "A Comprar"), /*#__PURE__*/React.createElement("div", {
       className: "text-sm font-bold text-white"
-    }, allUnitItems ? `${totalQtyPerPersonLiquid.toFixed(2)} un` : `${totalQtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", {
+    }, allUnitItems ? `${totalQtyPerPersonBruto.toFixed(2)} un` : `${totalQtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", {
       className: "text-right"
     }, /*#__PURE__*/React.createElement("div", {
       className: "text-xs text-orange-100"
@@ -219,8 +228,11 @@ const ItemsList = React.memo(function ItemsList({
       className: "text-sm font-bold text-white"
     }, formatCurrency(totalCost))))), categoryItems.map((item, idx) => {
       const isUnitType = item.unitType === 'unit' || item.unit === 'un';
+      // Mesma conta da tabela: qtyPerPerson é LÍQUIDO (preparado); bruto (cru) = perda e rendimento inversos
       const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-      const qtyPerPersonLiquid = lossDecimal > 0 && lossDecimal < 1 ? item.qtyPerPerson * (1 - lossDecimal) : item.qtyPerPerson;
+      const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
+      const qtyWithLoss = lossDecimal > 0 && lossDecimal < 1 ? item.qtyPerPerson / (1 - lossDecimal) : item.qtyPerPerson;
+      const qtyPerPersonBruto = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
       const fmtPerPerson = v => !v || v === 0 ? '0' : isUnitType ? `${v.toFixed(2)} un` : `${v.toFixed(2)} g`;
       const cell = (label, value) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
         className: "text-xs text-gray-500"
@@ -234,13 +246,14 @@ const ItemsList = React.memo(function ItemsList({
         className: "flex justify-between items-start gap-3"
       }, /*#__PURE__*/React.createElement("span", {
         className: "font-semibold text-gray-800 min-w-0"
-      }, item.ingredient?.nome || item.ingredient?.name || item.name || 'Sem nome'), /*#__PURE__*/React.createElement("span", {
+      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome'), /*#__PURE__*/React.createElement("span", {
         className: "font-bold text-orange-600 whitespace-nowrap"
       }, formatCurrency(item.total))), /*#__PURE__*/React.createElement("div", {
-        className: "grid grid-cols-2 gap-2 mt-2"
-      }, cell("Consumo/pessoa (bruto)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (l\xEDquido)", fmtPerPerson(qtyPerPersonLiquid)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Quantidade (arredondado)", isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)));
+        className: "grid gap-2 mt-2",
+        style: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }
+      }, cell("Consumo/pessoa (preparado)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (cru)", fmtPerPerson(qtyPerPersonBruto)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Quantidade (arredondado)", isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)));
     })), /*#__PURE__*/React.createElement("div", {
-      // Desktop/iPad deitado: tabela original
+      // Telas largas (lg): tabela original
       className: "hidden lg:block overflow-x-auto"
     }, /*#__PURE__*/React.createElement("table", {
       className: "w-full"
@@ -254,15 +267,15 @@ const ItemsList = React.memo(function ItemsList({
       className: "px-4 py-3 text-center"
     }, /*#__PURE__*/React.createElement("div", {
       className: "text-xs text-orange-100"
-    }, "Total Bruto"), /*#__PURE__*/React.createElement("div", {
+    }, "A Servir"), /*#__PURE__*/React.createElement("div", {
       className: "text-lg font-bold text-white"
-    }, allUnitItems ? `${totalQtyPerPersonBruto.toFixed(2)} un` : `${totalQtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("th", {
+    }, allUnitItems ? `${totalQtyPerPersonLiquid.toFixed(2)} un` : `${totalQtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-center"
     }, /*#__PURE__*/React.createElement("div", {
       className: "text-xs text-orange-100"
-    }, "Total L\xEDquido"), /*#__PURE__*/React.createElement("div", {
+    }, "A Comprar"), /*#__PURE__*/React.createElement("div", {
       className: "text-lg font-bold text-white"
-    }, allUnitItems ? `${totalQtyPerPersonLiquid.toFixed(2)} un` : `${totalQtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("th", {
+    }, allUnitItems ? `${totalQtyPerPersonBruto.toFixed(2)} un` : `${totalQtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-right"
     }), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-right"
@@ -284,7 +297,7 @@ const ItemsList = React.memo(function ItemsList({
         color: '#6c757d',
         fontSize: '10px'
       }
-    }, "(bruto s/ perda)")), /*#__PURE__*/React.createElement("th", {
+    }, "(preparado)")), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-center text-xs font-semibold text-gray-600"
     }, /*#__PURE__*/React.createElement("div", null, "Consumo/Pessoa"), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -292,7 +305,7 @@ const ItemsList = React.memo(function ItemsList({
         color: '#6c757d',
         fontSize: '10px'
       }
-    }, "(l\xEDquido c/ perda)")), /*#__PURE__*/React.createElement("th", {
+    }, "(cru)")), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-right text-xs font-semibold text-gray-600"
     }, /*#__PURE__*/React.createElement("div", null, "Comprar"), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -319,21 +332,25 @@ const ItemsList = React.memo(function ItemsList({
     }, "(baseado em Quantidade)")))), /*#__PURE__*/React.createElement("tbody", null, categoryItems.map((item, idx) => {
       const isUnitType = item.unitType === 'unit' || item.unit === 'un';
 
-      // ✅ FIX: Inverter lógica - qtyPerPerson é BRUTO (sem perda), calcular LÍQUIDO (com perda)
-      // Bruto = o que está no cardápio (o que vai comprar)
-      // Líquido = bruto × (1 - perda) (o que vai servir após aplicar a perda)
-      // Exemplo: 100g bruto com 10% perda = 100 × 0.9 = 90g líquido
+      // ✅ qtyPerPerson agora é LÍQUIDO (vem do MenuPage)
+      // Calcular BRUTO aplicando perda e rendimento INVERSOS
       const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-      const qtyPerPersonLiquid = lossDecimal > 0 && lossDecimal < 1
-        ? item.qtyPerPerson * (1 - lossDecimal)
+      const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
+
+      // Aplicar perda inversa: líquido / (1 - perda) = bruto
+      const qtyWithLoss = lossDecimal > 0 && lossDecimal < 1
+        ? item.qtyPerPerson / (1 - lossDecimal)
         : item.qtyPerPerson;
+
+      // Aplicar rendimento inverso: qty / yieldMultiplier
+      const qtyPerPersonBruto = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
 
       return /*#__PURE__*/React.createElement("tr", {
         key: item.id,
         className: `border-b hover:bg-orange-50 transition ${!item.active ? 'opacity-40' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
       }, /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 font-medium text-gray-800"
-      }, item.ingredient?.nome || item.ingredient?.name || item.name || 'Sem nome'), /*#__PURE__*/React.createElement("td", {
+      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome'), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-center"
       }, /*#__PURE__*/React.createElement("div", {
         className: "text-center font-medium text-gray-800"
@@ -341,7 +358,7 @@ const ItemsList = React.memo(function ItemsList({
         className: "px-4 py-3 text-center"
       }, /*#__PURE__*/React.createElement("div", {
         className: "text-center font-medium text-gray-700"
-      }, !qtyPerPersonLiquid || qtyPerPersonLiquid === 0 ? '0' : isUnitType ? `${qtyPerPersonLiquid.toFixed(2)} un` : `${qtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("td", {
+      }, !qtyPerPersonBruto || qtyPerPersonBruto === 0 ? '0' : isUnitType ? `${qtyPerPersonBruto.toFixed(2)} un` : `${qtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-right font-medium text-gray-700"
       }, isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-right font-medium text-gray-700"

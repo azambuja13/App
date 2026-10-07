@@ -35,7 +35,9 @@ export const UNIT_CONVERSIONS = {
     'unidade': 1,
     'pct': 1,        // Pacote
     'pacote': 1,
-    'caixa': 1
+    'caixa': 1,
+    'hora': 1,       // Hora (para mão de obra)
+    'h': 1
 };
 
 /**
@@ -56,7 +58,7 @@ export const CULINARY_UNITS = ['xícara', 'colher_sopa', 'colher_cha', 'copo'];
 /**
  * Unidades discretas (não conversíveis)
  */
-export const DISCRETE_UNITS = ['un', 'unidade', 'pct', 'pacote', 'caixa'];
+export const DISCRETE_UNITS = ['un', 'unidade', 'pct', 'pacote', 'caixa', 'hora', 'h'];
 
 /**
  * Todas as unidades disponíveis
@@ -216,7 +218,10 @@ export function normalizeUnit(unit) {
         'col.': 'colher_sopa',
         'colher': 'colher_sopa',
         'cs': 'colher_sopa',
-        'cc': 'colher_cha'
+        'cc': 'colher_cha',
+        'hr': 'hora',
+        'hrs': 'hora',
+        'horas': 'hora'
     };
 
     return aliases[u] || u;
@@ -249,6 +254,8 @@ export function formatWithUnit(value, unit, decimals = 2) {
         'pct': 'pct',
         'pacote': 'pct',
         'caixa': 'cx',
+        'hora': 'h',
+        'h': 'h',
         'xícara': 'xíc',
         'colher_sopa': 'c. sopa',
         'colher_cha': 'c. chá',
@@ -311,6 +318,8 @@ export function getUnitDescription(unit) {
         'pct': 'Pacote',
         'pacote': 'Pacote',
         'caixa': 'Caixa',
+        'hora': 'Hora',
+        'h': 'Hora',
         'xícara': 'Xícara',
         'colher_sopa': 'Colher de Sopa',
         'colher_cha': 'Colher de Chá',

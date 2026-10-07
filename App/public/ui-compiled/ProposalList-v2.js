@@ -397,9 +397,9 @@ function ProposalList({
   }, "R$ ", stats.avgTicket?.toFixed(2) || '0.00')))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center justify-between gap-3 mb-4"
+    className: "flex flex-wrap items-center justify-between mb-4 gap-3 proposal-search-toolbar"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 max-w-md"
+    className: "flex-1 max-w-md min-w-0 proposal-search-container"
   }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: searchTerm,
@@ -407,7 +407,7 @@ function ProposalList({
     placeholder: "\uD83D\uDD0D Buscar propostas...",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
   })), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center gap-3"
+    className: "flex items-center gap-3 flex-wrap"
   }, selectedProposals.length > 0 && /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowDeleteSelectedConfirm(true),
     className: "px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold shadow-md flex items-center gap-2"
@@ -586,32 +586,38 @@ function ProposalCard({
   }, typeBadge.icon, " ", typeBadge.label)), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600"
   }, "\uD83D\uDCCB ", proposal.proposalNumber, " \u2022 \uD83D\uDCC5 ", window.formatDate(proposal.createdAt))))), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
+    className: "flex gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gray-50 rounded-lg p-3"
+    className: "bg-gray-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-600 mb-1"
   }, "Pratos"), /*#__PURE__*/React.createElement("p", {
-    className: "text-lg font-bold text-gray-800"
+    className: "text-base font-bold text-gray-800"
   }, "\uD83C\uDF7D\uFE0F ", proposal.dishes?.length || 0)), /*#__PURE__*/React.createElement("div", {
-    className: "bg-blue-50 rounded-lg p-3"
+    className: "bg-blue-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-blue-600 mb-1"
   }, "Custo Total"), /*#__PURE__*/React.createElement("p", {
-    className: "text-lg font-bold text-blue-800"
+    className: "text-sm font-bold text-blue-800"
   }, "R$ ", proposal.totalCost?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", {
-    className: "bg-green-50 rounded-lg p-3"
+    className: "bg-green-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-green-600 mb-1"
   }, "Margem"), /*#__PURE__*/React.createElement("p", {
-    className: "text-lg font-bold text-green-800"
+    className: "text-base font-bold text-green-800"
   }, proposal.markupPercent || 0, "%")), /*#__PURE__*/React.createElement("div", {
-    className: "bg-purple-50 rounded-lg p-3"
+    className: "bg-purple-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-purple-600 mb-1"
   }, "Valor Final"), /*#__PURE__*/React.createElement("p", {
-    className: "text-lg font-bold text-purple-800"
-  }, "R$ ", proposal.finalTotal?.toFixed(2) || '0.00'))), proposal.dishes && proposal.dishes.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm font-bold text-purple-800"
+  }, "R$ ", proposal.finalTotal?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", {
+    className: "bg-orange-50 rounded-lg p-2 flex-1"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-orange-600 mb-1"
+  }, "Por Pessoa"), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm font-bold text-orange-800"
+  }, "R$ ", (proposal.guests && proposal.guests > 0 ? (proposal.finalTotal / proposal.guests).toFixed(2) : '0.00')))), proposal.dishes && proposal.dishes.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-4"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-medium text-gray-700 mb-2"

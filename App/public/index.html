@@ -14,17 +14,21 @@
     <!-- Mobile Optimizations CSS -->
     <link rel="stylesheet" href="mobile-optimizations.css">
 
+    <!-- ===== INDEXEDDB BLOCKER (MUST BE ABSOLUTELY FIRST!) ===== -->
+    <!-- CRITICAL: Este script DEVE ser o primeiro para interceptar todas as chamadas de IndexedDB -->
+    <script src="config/indexeddb-blocker.js?v=1762564421"></script>
+
     <!-- React 18 (PRODUCTION BUILD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js?v=1761859321"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js?v=1761859321"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js?v=1762564421"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js?v=1762564421"></script>
 
     <!-- jsPDF e html2canvas: SEMPRE CARREGADOS (necessário para WhatsApp) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js?v=1761859321"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js?v=1761859321"></script>
-    <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1761859321"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js?v=1762564421"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js?v=1762564421"></script>
+    <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1762564421"></script> -->
 
     <!-- Socket.io para WebSocket -->
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js?v=1761859321"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js?v=1762564421"></script>
 
     <style>
         body {
@@ -39,12 +43,8 @@
     <!-- Container Principal -->
     <div id="root"></div>
 
-    <!-- ===== INDEXEDDB BLOCKER (MUST BE FIRST!) ===== -->
-    <!-- CRITICAL: Este script DEVE ser o primeiro para interceptar todas as chamadas de IndexedDB -->
-    <script src="config/indexeddb-blocker.js?v=1761859321"></script>
-
     <!-- ===== CORE MODULES ===== -->
-    <script src="config/app-config.js?v=1761859321"></script>
+    <script src="config/app-config.js?v=1762564421"></script>
 
     <!-- ===== CONDITIONAL LOADING - default-ingredients.js ===== -->
     <!-- Carregado APENAS em modo OFFLINE, após app-config.js estar pronto -->
@@ -74,52 +74,55 @@
     </script>
 
     <!-- API Client - Backend Integration (CLOUD only) -->
-    <script src="api-client.js?v=1761859321"></script>
+    <script src="api-client.js?v=1771191500"></script>
 
     <!-- Storage Adapters - Sistema de storage por plano -->
-    <script src="adapters/StorageAdapter.js?v=1761859321"></script>
-    <script src="adapters/LocalStorageAdapter.js?v=1761859321"></script>
-    <script src="adapters/IndexedDBAdapter.js?v=1761859321"></script>
-    <script src="adapters/CloudStorageAdapter.js?v=1761859321"></script>
-    <script src="adapters/StorageManager.js?v=1761859321"></script>
+    <script src="adapters/StorageAdapter.js?v=1762564421"></script>
+    <script src="adapters/LocalStorageAdapter.js?v=1762564421"></script>
+    <script src="adapters/IndexedDBAdapter.js?v=1762564421"></script>
+    <script src="adapters/CloudStorageAdapter.js?v=1762564421"></script>
+    <script src="adapters/StorageManager.js?v=1762564421"></script>
 
     <!-- IndexedDB Storage Helper -->
     <!-- Smart Storage - Roteador inteligente de storage por licença -->
-    <script type="module" src="utils/smart-storage.js?v=1761859321"></script>
-    <script src="utils/indexeddb-storage-helper.js?v=1761859321"></script>
+    <script type="module" src="utils/smart-storage.js?v=1762564421"></script>
+    <script src="utils/indexeddb-storage-helper.js?v=1762564421"></script>
 
     <!-- Manager Helper - Prioriza backend sobre local -->
-    <script src="utils/manager-helper.js?v=1761859321"></script>
+    <script src="utils/manager-helper.js?v=1762564421"></script>
 
     <!-- Lazy Loader - Carrega jsPDF/XLSX sob demanda -->
-    <script src="utils/lazy-loader.js?v=1761859321"></script>
+    <script src="utils/lazy-loader.js?v=1762564421"></script>
+
+    <!-- Shopping List Generator - Gerador de lista de compras compartilhado -->
+    <script type="module" src="utils/shopping-list-generator.js?v=1762564421"></script>
 
     <!-- Markdown to PDF Converter -->
-    <script src="utils/markdown-to-pdf.js?v=1761859321"></script>
+    <script src="utils/markdown-to-pdf.js?v=1762564421"></script>
 
     <!-- IMPORTANTE: IndexedDBStorageService DEVE ser carregado ANTES de session-auth.js -->
-    <script src="adapters/IndexedDBStorageService.js?v=1761859321"></script>
+    <script src="adapters/IndexedDBStorageService.js?v=1762564421"></script>
 
     <!-- Ingredients Service - Híbrido (API + Fallback) -->
-    <script type="module" src="services/IngredientsService.js?v=1761859321"></script>
-    <script src="utils/ingredients-loader.js?v=1761859321"></script>
+    <script type="module" src="services/IngredientsService.js?v=1762564421"></script>
+    <script src="utils/ingredients-loader.js?v=1762564421"></script>
 
     <!-- WebSocket Service - Sincronização em tempo real -->
-    <script type="module" src="services/websocket.js?v=1761859321"></script>
+    <script type="module" src="services/websocket.js?v=1762564421"></script>
 
-    <script src="core/security-check.js?v=1761859321"></script>
-    <script src="core/formatters.js?v=1761859321"></script>
+    <script src="core/security-check.js?v=1762564421"></script>
+    <script src="core/formatters.js?v=1762564421"></script>
 
     <!-- Máscara de Telefone -->
-    <script type="module" src="utils/phone-mask.js?v=1761859321"></script>
+    <script type="module" src="utils/phone-mask.js?v=1762564421"></script>
 
     <!-- IMPORTANTE: PasswordManager e LicenseValidator devem ser carregados ANTES de session-auth.js -->
-    <script src="core/PasswordManager.js?v=1761859321"></script>
-    <script src="core/LicenseValidator.js?v=1761859321"></script>
+    <script src="core/PasswordManager.js?v=1762564421"></script>
+    <script src="core/LicenseValidator.js?v=1762564421"></script>
 
-    <script src="machine-fingerprint.js?v=1761859321"></script>
-    <script src="session-auth.js?t=1761570586"></script>
-    <!-- <script src="add-password-fields.js?v=1761859321"></script> --> <!-- Desabilitado - LicenseActivation.jsx já gerencia senha -->
+    <script src="machine-fingerprint.js?v=1762564421"></script>
+    <script src="session-auth.js?t=1762700000"></script>
+    <!-- <script src="add-password-fields.js?v=1762564421"></script> --> <!-- Desabilitado - LicenseActivation.jsx já gerencia senha -->
 
     <!-- ===== UTILITY MODULES ===== -->
     <!-- Módulos utilitários centralizados para evitar duplicação -->
@@ -128,18 +131,21 @@
         import * as lossCalculations from './core/utils/lossCalculations.js';
         import * as unitConversions from './core/utils/unitConversions.js';
         import * as dataTransform from './core/utils/dataTransform.js';
+        import * as statistics from './core/utils/statistics.js';
         import { isDishPortionBased } from './core/calculations.js';
 
         // Expor no window para uso global
         window.lossCalculations = lossCalculations;
         window.unitConversions = unitConversions;
         window.dataTransform = dataTransform;
+        window.statistics = statistics;
         window.isDishPortionBased = isDishPortionBased;
 
         console.log('✅ Módulos utilitários carregados:');
         console.log('  - lossCalculations (cálculos de perda)');
         console.log('  - unitConversions (conversão de unidades)');
         console.log('  - dataTransform (normalização de dados)');
+        console.log('  - statistics (funções estatísticas)');
         console.log('  - isDishPortionBased (detecção de prato por porção)');
     </script>
 
@@ -150,57 +156,58 @@
     </script>
 
     <!-- Managers Premium -->
-    <script type="module" src="init-managers.js?v=1761859321"></script>
-    <script src="core/MenuManager-standalone.js?v=1761859321"></script>
+    <script type="module" src="init-managers.js?v=1762700472"></script>
+    <script src="core/MenuManager-standalone.js?v=1762564421"></script>
     <!-- ClientManager carregado via init-managers.js -->
-    <!-- <script src="core/ClientManager.js?v=1761859321"></script> -->
-    <script src="core/CustomTemplateManager.js?v=1761859321"></script>
+    <!-- <script src="core/ClientManager.js?v=1762564421"></script> -->
+    <script src="core/CustomTemplateManager.js?v=1762564421"></script>
 
     <!-- ===== UI COMPONENTS - PREMIUM ===== -->
-    <script src="ui-compiled/FeatureGate.js?v=1761859321"></script>
-    <script src="ui-compiled/UpgradeModal.js?v=1761859321"></script>
-    <script src="ui-compiled/DishForm.js?v=1761859321"></script>
-    <script src="ui-compiled/DishList.js?v=1761859321"></script>
-    <script src="ui-compiled/DishesPage.js?v=1761859321"></script>
-    <script src="ui-compiled/SaveMenuModal.js?v=1761859321"></script>
-    <script src="ui-compiled/MenuPreview.js?v=1761859321"></script>
-    <script src="ui-compiled/MenuPage.js?v=1761936022"></script>
-    <script src="ui-compiled/SavedMenusList.js?v=1761859321"></script>
-    <script src="ui-compiled/ProposalBuilder.js?v=1761859321"></script>
-    <script src="ui-compiled/ClientsPage.js?v=1761859321"></script>
-    <script src="ui-compiled/EventsPage.js?v=1761859321"></script>
-    <script src="ui-compiled/ProposalBuilderSimple.js?v=1761859321"></script>
-    <script src="ui-compiled/ProposalPreview.js?v=1761859321"></script>
-    <script src="ui-compiled/ProposalList-v2.js?v=1761859321"></script>
-    <script src="ui-compiled/WhatsAppSettings.js?v=1761859321"></script>
-    <script src="ui-compiled/UnitConverter.js?v=1761859321"></script>
+    <script src="ui-compiled/FeatureGate.js?v=1762564421"></script>
+    <script src="ui-compiled/UpgradeModal.js?v=1762564421"></script>
+    <script src="ui-compiled/DishForm.js?v=1762564421"></script>
+    <script src="ui-compiled/DishList.js?v=1762564421"></script>
+    <script src="ui-compiled/DishesPage.js?v=1771192200"></script>
+    <script src="ui-compiled/SaveMenuModal.js?v=1762564421"></script>
+    <script src="ui-compiled/MenuPreview.js?v=1762564421"></script>
+    <script src="ui-compiled/MenuPage.js?v=1762700166"></script>
+    <script src="ui-compiled/SavedMenusList.js?v=1762564421"></script>
+    <script src="ui-compiled/ProposalBuilder.js?v=1762564421"></script>
+    <script src="ui-compiled/ClientsPage.js?v=1762564421"></script>
+    <script src="ui-compiled/EventsPage.js?v=1762710749"></script>
+    <script src="ui-compiled/ProposalBuilderSimple.js?v=1762706366"></script>
+    <script src="ui-compiled/ProposalPreview.js?v=1762564421"></script>
+    <script src="ui-compiled/ProposalList-v2.js?v=1762710632"></script>
+    <script src="ui-compiled/WhatsAppSettings.js?v=1762564421"></script>
+    <script src="ui-compiled/UnitConverter.js?v=1762564421"></script>
 
     <!-- ===== UI COMPONENTS - MAIN ===== -->
-    <script src="ui-compiled/components/Icon.js?v=1761859321"></script>
-    <script src="ui-compiled/components/PDFButton.js?v=1761859321"></script>
-    <script src="ui-compiled/components/EventForm.js?v=1761859321"></script>
-    <script src="ui-compiled/components/CostsSummary.js?v=1761859321"></script>
-    <script src="ui-compiled/components/ItemsList.js?v=1761859321"></script>
-    <script src="ui-compiled/components/IngredientTemplates.js?v=1761859321"></script>
-    <script src="ui-compiled/components/RecipeImporter.js?v=1761859321"></script>
-    <script src="ui-compiled/components/MenuGenerator.js?v=1761938961"></script>
-    <script src="ui-compiled/components/IngredientsDatabase.js?v=1761859321"></script>
-    <script src="ui-compiled/components/SupportList.js?v=1761859321"></script>
-    <script src="ui-compiled/components/TransportForm.js?v=1761859321"></script>
-    <script src="ui-compiled/components/LaborForm.js?v=1761859321"></script>
-    <script src="ui-compiled/components/SavedEventsList.js?v=1761859321"></script>
-    <script src="ui-compiled/components/LicenseActivation.js?v=1761859321"></script>
-    <script src="ui-compiled/components/PasswordLock.js?v=1761859321"></script>
-    <script src="ui-compiled/components/PasswordSetup.js?v=1761859321"></script>
-    <script src="ui-compiled/components/PasswordLogin.js?v=1761859321"></script>
-    <script src="ui-compiled/components/LoadingScreen.js?v=1761859321"></script>
+    <script src="ui-compiled/components/Icon.js?v=1762564421"></script>
+    <script src="ui-compiled/components/PDFButton.js?v=1762564421"></script>
+    <script src="ui-compiled/components/EventForm.js?v=1762564421"></script>
+    <script src="ui-compiled/components/CostsSummary.js?v=1762706366"></script>
+    <script src="ui-compiled/components/ItemsList.js?v=1762564421"></script>
+    <script src="ui-compiled/components/IngredientTemplates.js?v=1762564421"></script>
+    <script src="ui-compiled/components/RecipeImporter.js?v=1762564421"></script>
+    <script src="ui-compiled/components/MenuGenerator.js?v=1762564421"></script>
+    <script src="ui-compiled/components/IngredientsDatabase.js?v=1762564421"></script>
+    <script src="ui-compiled/components/SupportList.js?v=1762564421"></script>
+    <script src="ui-compiled/components/TransportForm.js?v=1762564421"></script>
+    <script src="ui-compiled/components/LaborForm.js?v=1762564421"></script>
+    <script src="ui-compiled/components/SavedEventsList.js?v=1762564421"></script>
+    <script src="ui-compiled/components/LicenseActivation.js?v=1762564421"></script>
+    <script src="ui-compiled/components/PasswordLock.js?v=1762564421"></script>
+    <script src="ui-compiled/components/PasswordSetup.js?v=1762564421"></script>
+    <script src="ui-compiled/components/PasswordLogin.js?v=1762564421"></script>
+    <script src="ui-compiled/components/LoadingScreen.js?v=1762564421"></script>
 
     <!-- ===== HOOKS ===== -->
-    <script src="ui/hooks/useEventState.js?v=1761859321"></script>
-    <script src="ui/hooks/useCalculations.js?v=1761859321"></script>
+    <script src="ui/hooks/usePlanContext.js?v=1762564421"></script>
+    <script src="ui/hooks/useEventState.js?v=1762564421"></script>
+    <script src="ui/hooks/useCalculations.js?v=1762564421"></script>
 
     <!-- ===== APP FULL ===== -->
-    <script src="ui-compiled/App-Full.js?v=1761859321"></script>
+    <script src="ui-compiled/App-Full.js?v=1762706686"></script>
 
     <!-- Renderizar App -->
     <script>
@@ -255,15 +262,24 @@
         function renderApp() {
             console.log('🚀 Tentando renderizar AppFull...');
 
-            if (window.AppFull && window.ReactDOM && document.getElementById('root')) {
+            if (window.AppFull && window.ReactDOM && window.PlanProvider && document.getElementById('root')) {
                 console.log('✅ Todos os componentes disponíveis, renderizando...');
                 const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(React.createElement(GlobalErrorBoundary, null, React.createElement(window.AppFull)));
-                console.log('✅ AppFull renderizado com sucesso!');
+                // Envolver AppFull com PlanProvider para contexto funcionar,
+                // e tudo dentro do GlobalErrorBoundary para nunca travar o app inteiro.
+                root.render(
+                    React.createElement(GlobalErrorBoundary, null,
+                        React.createElement(window.PlanProvider, null,
+                            React.createElement(window.AppFull)
+                        )
+                    )
+                );
+                console.log('✅ AppFull renderizado com sucesso com PlanProvider!');
             } else {
                 console.log('⏳ Aguardando componentes...', {
                     AppFull: !!window.AppFull,
                     ReactDOM: !!window.ReactDOM,
+                    PlanProvider: !!window.PlanProvider,
                     rootElement: !!document.getElementById('root')
                 });
                 setTimeout(renderApp, 100);
@@ -472,11 +488,79 @@
             }
         };
 
+        // ✅ Recalcular stats de todos os cardápios salvos (incluindo totalPrice)
+        window.recalcularCardapios = async function() {
+            console.log('🔄 Recalculando stats de todos os cardápios...');
+            console.log('🔄 Forçando reload do SavedMenusManager atualizado...');
+
+            try {
+                // Força reload do módulo com timestamp para evitar cache
+                const timestamp = Date.now();
+                const savedMenusModule = await import(`./core/SavedMenusManager.js?v=${timestamp}`);
+                const manager = savedMenusModule.savedMenusManager;
+
+                if (!manager) {
+                    console.error('❌ SavedMenusManager não disponível');
+                    return;
+                }
+
+                const menus = await manager.getAll();
+                console.log(`📋 Encontrados ${menus.length} cardápios`);
+
+                for (const menu of menus) {
+                    if (menu.dishes && menu.dishes.length > 0) {
+                        // Recalcular stats com o módulo atualizado
+                        const newStats = manager.calculateMenuStats(menu.dishes);
+                        menu.stats = newStats;
+
+                        // Salvar
+                        await manager.saveItem(menu);
+
+                        console.log(`✅ ${menu.name}:`, {
+                            custo: newStats.totalCost.toFixed(2),
+                            precoComMargem: newStats.totalPrice ? newStats.totalPrice.toFixed(2) : 'N/A',
+                            temMargem: newStats.totalPrice > newStats.totalCost
+                        });
+                    }
+                }
+
+                console.log('✅ Todos os cardápios foram recalculados!');
+            } catch (error) {
+                console.error('❌ Erro ao recalcular:', error);
+            }
+        };
+
+        // ✅ Verificar margem no cardápio ativo
+        window.verificarMargemCardapio = async function() {
+            console.log('🔍 Verificando margem no cardápio ativo...');
+
+            const stats = await window.menuManager.getStatistics();
+            console.log('📊 Estatísticas do cardápio:', {
+                totalCost: stats.totalCost?.toFixed(2),
+                totalPrice: stats.totalPrice?.toFixed(2),
+                hasMargin: stats.totalPrice > stats.totalCost,
+                marginPercent: stats.totalPrice > stats.totalCost
+                    ? (((stats.totalPrice - stats.totalCost) / stats.totalCost) * 100).toFixed(1) + '%'
+                    : 'Sem margem'
+            });
+
+            const menu = await window.menuManager.getActiveMenu();
+            console.log('🍽️ Pratos com margem:', menu.map(item => ({
+                name: item.dishName,
+                cost: item.dishCost?.toFixed(2),
+                profitMargin: item.profitMargin + '%',
+                suggestedPrice: item.suggestedPrice || 'N/A',
+                hasMargin: (item.profitMargin > 0) || (item.suggestedPrice > 0)
+            })));
+        };
+
         console.log('✅ Comandos disponíveis:');
         console.log('  📋 listarPropostas() - Lista todas as propostas');
         console.log('  🏷️ normalizarCategorias() - Normaliza categorias de ingredientes');
         console.log('  🔍 inspecionarCardapio() - Mostra dados dos pratos no cardápio');
         console.log('  🔍 inspecionarCardapioSalvo() - Mostra dados do último cardápio salvo');
+        console.log('  🔄 recalcularCardapios() - Recalcula stats de todos os cardápios (totalPrice)');
+        console.log('  🔍 verificarMargemCardapio() - Verifica margem no cardápio ativo');
     </script>
 </body>
 </html>

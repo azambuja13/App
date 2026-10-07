@@ -82,7 +82,7 @@ function SavedMenusList() {
       // Usar getAll() que é mais eficiente e usa cache
       const menus = await manager.getAll();
 
-      // Calcular estatísticas para cada cardápio
+      // Calcular estatísticas para cada cardápio usando SavedMenusManager.calculateMenuStats
       const menusWithStats = (menus || []).map(menu => {
         // Extrair dishes do menuData (formato novo) ou do menu diretamente (formato legado)
         let dishes = [];
@@ -92,35 +92,12 @@ function SavedMenusList() {
           dishes = menu.dishes;
         }
 
-        // Calcular estatísticas
-        let totalCost = 0;
-        let totalWeight = 0;
-        let totalDishes = dishes.length;
-        dishes.forEach(dish => {
-          const dishCost = dish.dishCost || 0;
-          const dishWeight = dish.totalWeight || 0;
-          const portionsPerPerson = dish.portionsPerPerson || 1;
-          const servings = dish.servings || 1;
+        // ✅ Usar calculateMenuStats do manager para incluir totalPrice (preço com margem)
+        const stats = manager.calculateMenuStats(dishes);
 
-          // Se o prato é por porção (tem servings > 0 e peso = 0)
-          if (servings > 0 && dishWeight === 0) {
-            const costPerPortion = dishCost / servings;
-            totalCost += costPerPortion * portionsPerPerson;
-          } else {
-            // Por peso (comportamento padrão)
-            const gramsPerPerson = portionsPerPerson * 100;
-            const costPerGram = dishCost / (dishWeight || 1);
-            totalCost += costPerGram * gramsPerPerson;
-            totalWeight += gramsPerPerson;
-          }
-        });
         return {
           ...menu,
-          stats: {
-            totalDishes,
-            totalCost,
-            totalWeight
-          }
+          stats: stats
         };
       });
       setSavedMenus(menusWithStats);
@@ -185,6 +162,12 @@ function SavedMenusList() {
           totalWeight: dish.totalWeight,
           portionsPerPerson: dish.portionsPerPerson
         });
+        // Mapear campos legados dos ingredientes (loss → lossPercentage)
+        const mappedIngredients = (dish.dishIngredients || []).map(ing => ({
+          ...ing,
+          lossPercentage: ing.lossPercentage ?? ing.loss ?? 0,
+          yieldMultiplier: ing.yieldMultiplier ?? 1
+        }));
         await menuManager.addDishToMenu({
           id: dish.dishId,
           name: dish.dishName,
@@ -193,7 +176,7 @@ function SavedMenusList() {
           totalWeight: dish.totalWeight,
           servings: dish.servings || 1,
           // IMPORTANTE: incluir servings!
-          ingredients: dish.dishIngredients
+          ingredients: mappedIngredients
         }, dish.portionsPerPerson || 1);
       }
       alert(`✅ Cardápio "${result.data.menu.name}" carregado com sucesso!\n\n${result.data.dishes.length} pratos adicionados.`);
@@ -204,6 +187,15 @@ function SavedMenusList() {
           menu: result.data.menu
         }
       }));
+
+      // Despachar evento para vincular cardápio ao evento atual
+      window.dispatchEvent(new CustomEvent('menu-linked', {
+        detail: {
+          id: result.data.menu.id,
+          name: result.data.menu.name
+        }
+      }));
+      console.log('📋 [SavedMenusList] Evento menu-linked disparado:', result.data.menu.id, result.data.menu.name);
     } catch (error) {
       console.error('Erro ao carregar cardápio:', error);
       alert(`❌ Erro ao carregar cardápio: ${error.message}`);
@@ -295,6 +287,13 @@ function SavedMenusList() {
         return;
       }
 
+      // ✅ EXPOR ingredientes do eventState no window.ingredientsManager para MenuManager usar
+      if (!window.ingredientsManager) {
+        window.ingredientsManager = {};
+      }
+      window.ingredientsManager.ingredients = eventState.ingredientsDatabase || [];
+      console.log(`🔧 [SavedMenusList] Expondo ${window.ingredientsManager.ingredients.length} ingredientes no window.ingredientsManager`);
+
       // ✅ FIX: Usar mesma lógica do MenuPage.jsx (linhas 88-159)
       // Gerar lista de ingredientes consolidada usando generateIngredientsListFromDishes
       console.log('📊 [SavedMenusList] Passando dishes para generateIngredientsListFromDishes:', menu.dishes?.map(d => ({
@@ -327,46 +326,12 @@ function SavedMenusList() {
       // ✅ FIX: Limpar itens existentes e criar nova lista
       console.log('🧹 [SavedMenusList] Limpando itens existentes...');
 
-      // Coletar novos itens primeiro
-      const newItems = [];
-      ingredientsList.forEach(ing => {
-        const isUnitType = ing.unitType === 'unit' || ing.unit === 'un';
-
-        // ✅ FIX: Buscar ingrediente na base para pegar perda e outros dados (mesma lógica do MenuPage.js)
-        let ingredientData = null;
-        if (ing.ingredientId) {
-          ingredientData = allIngredients.find(i => i.id === ing.ingredientId);
-        }
-        // Se não encontrou por ID, buscar por nome
-        if (!ingredientData && ing.ingredientName) {
-          ingredientData = allIngredients.find(i => (i.name || i.ingredientName)?.toLowerCase() === ing.ingredientName.toLowerCase());
-        }
-        console.log('🔍 [SavedMenusList] Buscando perda para:', {
-          ingredientName: ing.ingredientName,
-          ingredientId: ing.ingredientId,
-          found: !!ingredientData,
-          loss: ingredientData?.loss,
-          totalIngredients: allIngredients.length
-        });
-
-        const newItem = {
-          id: Date.now() + Math.random(),
-          name: ing.ingredientName,
-          // Nome do ingrediente
-          ingredientId: ing.ingredientId,
-          qtyPerPerson: ing.totalQuantity / guests,
-          // Quantidade por pessoa (g ou un)
-          unit: ing.unit,
-          // Preservar unidade ('g' ou 'un')
-          unitType: ing.unitType,
-          // Preservar tipo ('weight' ou 'unit')
-          loss: ingredientData?.loss || 0,
-          // ✅ FIX: Buscar perda do ingrediente na base (não usar snapshot)
-          active: true
-        };
-        console.log('📦 [SavedMenusList] Item criado com loss:', newItem.loss);
-        newItems.push(newItem);
-      });
+      // ✅ Usar função compartilhada para processar ingredientes (MESMA LÓGICA do MenuPage)
+      const newItems = window.ShoppingListGenerator.processIngredientsToItems(
+        ingredientsList,
+        guests,
+        allIngredients
+      );
 
       // ✅ SUBSTITUIR todos os itens (não adicionar aos existentes)
       eventState.setItems(newItems);
@@ -454,7 +419,7 @@ function SavedMenusList() {
   }, menu.isFavorite ? '⭐' : '☆')), menu.description && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mb-4"
   }, menu.description), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-3 gap-2 mb-4"
+    className: "grid grid-cols-2 gap-2 mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-3 text-center"
   }, /*#__PURE__*/React.createElement("p", {
@@ -468,12 +433,40 @@ function SavedMenusList() {
   }, "Custo/Pessoa"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-green-900"
   }, "R$ ", (menu.stats?.totalCost || 0).toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-purple-50 rounded-lg p-3 text-center"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-purple-700"
+  }, "Valor/Pessoa"), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg font-bold text-purple-900"
+  }, "R$ ", (menu.stats?.totalPrice || 0).toFixed(2))), /*#__PURE__*/React.createElement("div", {
     className: "bg-orange-50 rounded-lg p-3 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-orange-700"
-  }, "Peso"), /*#__PURE__*/React.createElement("p", {
+  }, "Peso Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-orange-900"
-  }, formatWeight(menu.stats?.totalWeight || 0))))), /*#__PURE__*/React.createElement("div", {
+  }, formatWeight(menu.stats?.totalWeight || 0)))), /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border-2 border-green-200 mt-3"
+  }, menu.stats?.totalPrice && menu.stats.totalPrice > menu.stats?.totalCost ? /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-lg"
+  }, "\u2728"), /*#__PURE__*/React.createElement("span", {
+    className: "text-xs text-green-700 font-semibold uppercase"
+  }, "Pre\xE7o com Margem")), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-green-600 font-medium mt-1"
+  }, "+", ((menu.stats.totalPrice - menu.stats.totalCost) / menu.stats.totalCost * 100).toFixed(0), "% margem \xB7 ", "R$ ", (menu.stats.totalPrice - menu.stats.totalCost).toFixed(2), " lucro")), /*#__PURE__*/React.createElement("span", {
+    className: "text-2xl font-bold text-green-600"
+  }, "R$ ", menu.stats.totalPrice.toFixed(2))) : /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-xs text-gray-600 font-semibold uppercase"
+  }, "\u2728 Pre\xE7o com Margem"), /*#__PURE__*/React.createElement("span", {
+    className: "text-lg font-bold text-gray-700"
+  }, "R$ ", (menu.stats?.totalPrice || menu.stats?.totalCost || 0).toFixed(2))))), /*#__PURE__*/React.createElement("div", {
     className: "border-t border-gray-200 p-4 bg-gray-50 flex flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setPreviewMenuId(menu.id),

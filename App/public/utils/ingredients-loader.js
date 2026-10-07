@@ -29,8 +29,10 @@ async function loadIngredientsHybrid() {
                 return ingredients;
             }
 
-            console.warn('⚠️ Usuário sem ingredientes - usando default como fallback');
-            return await loadDefaultIngredients();
+            console.warn('⚠️ Usuário sem ingredientes - carregando default como fallback');
+            const defaultIngredients = await loadDefaultIngredients();
+            console.log(`✅ ${defaultIngredients.length} ingredientes padrão carregados como fallback`);
+            return defaultIngredients;
         }
 
         // CASO 2: OFFLINE ou sem autenticação → Carregar ingredientes PADRÃO

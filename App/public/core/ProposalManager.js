@@ -409,6 +409,12 @@ export class ProposalManager extends CrudManager {
      * @private
      */
     groupByStatus(proposals) {
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.groupBy) {
+            return window.statisticsUtils.groupBy(proposals, 'status', 'draft');
+        }
+
+        // Fallback para garantir compatibilidade
         return proposals.reduce((acc, proposal) => {
             const status = proposal.status || 'draft';
             if (!acc[status]) {
@@ -424,8 +430,13 @@ export class ProposalManager extends CrudManager {
      * @private
      */
     getHighestValue(proposals) {
-        if (proposals.length === 0) return null;
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.findExtreme) {
+            return window.statisticsUtils.findExtreme(proposals, 'finalTotal', 'max');
+        }
 
+        // Fallback para garantir compatibilidade
+        if (proposals.length === 0) return null;
         return proposals.reduce((max, p) => {
             return (p.finalTotal || 0) > (max.finalTotal || 0) ? p : max;
         });
@@ -436,8 +447,13 @@ export class ProposalManager extends CrudManager {
      * @private
      */
     getLowestValue(proposals) {
-        if (proposals.length === 0) return null;
+        // Usar função utilitária genérica
+        if (window.statisticsUtils?.findExtreme) {
+            return window.statisticsUtils.findExtreme(proposals, 'finalTotal', 'min');
+        }
 
+        // Fallback para garantir compatibilidade
+        if (proposals.length === 0) return null;
         return proposals.reduce((min, p) => {
             return (p.finalTotal || 0) < (min.finalTotal || 0) ? p : min;
         });

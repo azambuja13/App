@@ -14,7 +14,7 @@ const {
  * @param {string} props.email - E-mail digitado
  * @param {Function} props.onEmailChange - Callback para atualizar o e-mail
  * @param {string} props.licenseError - Mensagem de erro (se houver)
- * @param {Function} props.onActivate - Callback para ativar licença e senha
+ * @param {Function} props.onActivate - Callback para fazer login
  * @param {boolean} props.needsPassword - Se precisa configurar senha
  * @returns {JSX.Element}
  */

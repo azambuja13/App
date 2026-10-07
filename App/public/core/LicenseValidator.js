@@ -136,26 +136,22 @@ class LicenseValidator {
                 return { valid: false, error: 'Formato de email inválido na licença' };
             }
 
-            // Validar data de expiração
+            // Parse da data de expiração (mas NÃO validar ainda - será validado via API)
             const expiry = this.parseExpiryDate(expiryDate);
             if (!expiry) {
                 return { valid: false, error: 'Data de expiração inválida' };
             }
 
-            // Verificar se expirou
-            if (new Date() > expiry) {
-                return {
-                    valid: false,
-                    error: `Licença expirada em ${expiry.toLocaleDateString('pt-BR')}`
-                };
-            }
+            // ⚠️ NÃO validar expiração aqui - a data real vem do banco de dados via API
+            // A data na chave é apenas informativa
+            console.log('📅 Data da chave (informativa):', expiry.toLocaleDateString('pt-BR'));
 
             return {
                 valid: true,
                 clientName: clientName.replace(/_/g, ' '),
                 email,
                 licenseType,
-                expiryDate: expiry,
+                expiryDate: expiry, // Data da chave (informativa apenas)
                 hash
             };
         } catch (error) {
@@ -189,8 +185,8 @@ class LicenseValidator {
      */
     static validateHash(licenseData) {
         // TODO: Implementar validação criptográfica real
-        // Por enquanto, apenas verificar se existe
-        return licenseData.hash && licenseData.hash.length > 10;
+        // Por enquanto, apenas verificar se existe (mínimo 8 caracteres para compatibilidade)
+        return licenseData.hash && licenseData.hash.length >= 8;
     }
 
     /**
@@ -237,6 +233,21 @@ class LicenseValidator {
                     };
                 }
 
+                // ✅ VALIDAR EXPIRAÇÃO usando data do banco de dados
+                if (userData.licenseExpiry) {
+                    const expiryDate = new Date(userData.licenseExpiry);
+                    const now = new Date();
+
+                    if (now > expiryDate) {
+                        return {
+                            valid: false,
+                            error: `⛔ Licença expirada em ${expiryDate.toLocaleDateString('pt-BR')}. Entre em contato para renovação.`
+                        };
+                    }
+
+                    console.log('✅ Licença válida até:', expiryDate.toLocaleDateString('pt-BR'));
+                }
+
                 // Verificar revogação (se campo existir)
                 if (userData.revoked || userData.blocked) {
                     return {
@@ -248,7 +259,8 @@ class LicenseValidator {
                 return {
                     valid: true,
                     serverValidated: true,
-                    isActive: userData.isActive
+                    isActive: userData.isActive,
+                    licenseExpiry: userData.licenseExpiry // Incluir data real do banco
                 };
             }
 
@@ -392,19 +404,15 @@ class LicenseValidator {
 
     /**
      * Verifica se licença salva ainda é válida
+     * ⚠️ NÃO valida expiração aqui - a validação é feita via API usando data do banco
      */
     static async checkSavedLicense() {
         const saved = await this.loadSavedLicense();
         if (!saved) return { valid: false };
 
-        // Verificar se expirou
-        if (saved.expiryDate && new Date() > saved.expiryDate) {
-            await this.removeLicense();
-            return {
-                valid: false,
-                error: `Licença expirada em ${saved.expiryDate.toLocaleDateString('pt-BR')}`
-            };
-        }
+        // ⚠️ NÃO verificar expiração localmente - a data real vem do banco via API
+        // A data local pode estar desatualizada se a licença foi renovada
+        console.log('📋 Licença salva localmente encontrada');
 
         return {
             valid: true,
