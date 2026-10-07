@@ -799,4 +799,8 @@
     .mobile-nav-spacer {
         padding-bottom: calc(130px + env(safe-area-inset-bottom)) !important;
     }
+    /* Botões fixos do Cardápio (sticky) ficavam escondidos atrás da barra inferior */
+    .menu-actions-sticky {
+        bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+    }
 }

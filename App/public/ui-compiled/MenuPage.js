@@ -434,37 +434,39 @@ function MenuPage({
   }, "📋 ", linkedMenuName), !linkedMenuName && /*#__PURE__*/React.createElement("div", {
     className: "mb-4"
   }), stats && /*#__PURE__*/React.createElement("div", {
-    className: "flex items-start justify-between gap-4"
+    // ✅ Grade que quebra em várias linhas: no celular os 5 números não cabiam numa linha só e eram cortados
+    className: "grid gap-4",
+    style: { gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))' }
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"
   }, "Pratos no Cardápio"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-bold text-center"
+    className: "text-xl font-bold text-center"
   }, stats.totalDishes)), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"
   }, "Convidados"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-bold text-center"
+    className: "text-xl font-bold text-center"
   }, state.guests || 0)), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"
   }, "Custo/Pessoa"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-bold text-center"
+    className: "text-xl font-bold text-center"
   }, "R$ ", stats.totalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"
   }, "Valor/Pessoa"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-bold text-center"
+    className: "text-xl font-bold text-center"
   }, "R$ ", stats.totalPrice ? stats.totalPrice.toFixed(2) : stats.totalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"
   }, "Total Geral"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-bold text-center"
+    className: "text-xl font-bold text-center"
   }, "R$ ", ((stats.totalPrice || stats.totalCost) * (state.guests || 0)).toFixed(2))))), menu.length === 0 && /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 border-l-4 border-blue-500 p-4 mb-6"
   }, /*#__PURE__*/React.createElement("p", {
@@ -479,9 +481,13 @@ function MenuPage({
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-start justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1"
+    // ✅ min-w-0: sem isso a linha "Porções por pessoa" (que não quebrava) esticava o card além da tela
+    className: "flex-1 min-w-0",
+    // flexBasis: no celular o botão Remover vai pra linha de baixo em vez de espremer as informações
+    style: { flexBasis: '240px' }
   }, /*#__PURE__*/React.createElement("h3", {
-    className: "text-xl font-bold text-gray-800 mb-1"
+    className: "text-xl font-bold text-gray-800 mb-1",
+    style: { overflowWrap: 'anywhere' }
   }, item.dishName), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mb-3"
   }, item.dishCategory), /*#__PURE__*/React.createElement("div", {
@@ -616,9 +622,9 @@ function MenuPage({
     );
   })()),
   /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 flex items-center gap-3"
+    className: "mt-4 flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-medium text-gray-700 whitespace-nowrap"
+    className: "text-sm font-medium text-gray-700"
   }, (() => {
     const isPortionBased = item.useWeightCalculation;
     if (isPortionBased) {
@@ -670,11 +676,12 @@ function MenuPage({
   }, "Nenhum prato no card\xE1pio ainda"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm"
   }, "Adicione pratos da aba \"Pratos\"")), /*#__PURE__*/React.createElement("div", {
-    className: "sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border border-gray-200"
+    className: "sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border border-gray-200 menu-actions-sticky"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col sm:flex-row items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-3"
+    // ✅ flex-wrap: no celular os 3 botões não cabiam lado a lado e vazavam pra fora do quadro
+    className: "flex flex-wrap justify-center gap-2"
   }, isPremium ? /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       console.log('🔘 [MenuPage] Botão "Montar com IA" clicado');
