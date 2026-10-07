@@ -1670,6 +1670,27 @@ class ClientManager {
         };
     }
 
+    // Método para buscar cliente por ID
+    async getById(clientId) {
+        // Carregar clientes se o cache estiver vazio
+        if (this.clients.length === 0) {
+            await this.loadClients();
+        }
+
+        // Buscar no cache
+        const client = this.clients.find(c => c.id === clientId);
+
+        if (client) {
+            return client;
+        }
+
+        // Se não encontrou no cache, tentar buscar da API diretamente
+        // (caso o cliente tenha sido criado recentemente por outro processo)
+        console.log(`⚠️ [ClientManager] Cliente ${clientId} não encontrado no cache, recarregando...`);
+        await this.loadClients();
+        return this.clients.find(c => c.id === clientId) || null;
+    }
+
     async saveClient(clientData) {
         // Verificar se é atualização (tem ID) ou criação (sem ID)
         const isUpdate = clientData.id && clientData.id !== null;
