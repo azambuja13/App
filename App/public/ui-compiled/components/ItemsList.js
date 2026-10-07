@@ -163,9 +163,9 @@ const ItemsList = React.memo(function ItemsList({
   return /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between items-center"
+    className: "flex flex-wrap justify-between items-center gap-3"
   }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-3xl font-bold text-gray-800"
+    className: "text-2xl font-bold text-gray-800"
   }, "Itens do Evento"), /*#__PURE__*/React.createElement("button", {
     onClick: printShoppingList,
     className: "px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 text-sm font-medium transition-colors"
@@ -193,7 +193,55 @@ const ItemsList = React.memo(function ItemsList({
       key: category,
       className: "bg-white rounded-xl shadow-lg overflow-hidden"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "overflow-x-auto"
+      // ✅ MOBILE (iPhone): cards empilhados em vez da tabela de 6 colunas com rolagem lateral
+      className: "lg:hidden"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-gradient-to-r from-orange-500 to-red-500 px-4 py-3"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "text-lg font-bold text-white"
+    }, category, " ", /*#__PURE__*/React.createElement("span", {
+      className: "text-xs text-orange-100"
+    }, "(", categoryItems.length, ")")), /*#__PURE__*/React.createElement("div", {
+      className: "grid grid-cols-3 gap-2 mt-2"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-orange-100"
+    }, "Total Bruto"), /*#__PURE__*/React.createElement("div", {
+      className: "text-sm font-bold text-white"
+    }, allUnitItems ? `${totalQtyPerPersonBruto.toFixed(2)} un` : `${totalQtyPerPersonBruto.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-orange-100"
+    }, "Total L\xEDquido"), /*#__PURE__*/React.createElement("div", {
+      className: "text-sm font-bold text-white"
+    }, allUnitItems ? `${totalQtyPerPersonLiquid.toFixed(2)} un` : `${totalQtyPerPersonLiquid.toFixed(2)} g`)), /*#__PURE__*/React.createElement("div", {
+      className: "text-right"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-orange-100"
+    }, "Custo Total"), /*#__PURE__*/React.createElement("div", {
+      className: "text-sm font-bold text-white"
+    }, formatCurrency(totalCost))))), categoryItems.map((item, idx) => {
+      const isUnitType = item.unitType === 'unit' || item.unit === 'un';
+      const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+      const qtyPerPersonLiquid = lossDecimal > 0 && lossDecimal < 1 ? item.qtyPerPerson * (1 - lossDecimal) : item.qtyPerPerson;
+      const fmtPerPerson = v => !v || v === 0 ? '0' : isUnitType ? `${v.toFixed(2)} un` : `${v.toFixed(2)} g`;
+      const cell = (label, value) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        className: "text-xs text-gray-500"
+      }, label), /*#__PURE__*/React.createElement("div", {
+        className: "text-sm font-medium text-gray-800"
+      }, value));
+      return /*#__PURE__*/React.createElement("div", {
+        key: item.id,
+        className: `px-4 py-3 border-b border-gray-100 ${!item.active ? 'opacity-40' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "flex justify-between items-start gap-3"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "font-semibold text-gray-800 min-w-0"
+      }, item.ingredient?.nome || item.ingredient?.name || item.name || 'Sem nome'), /*#__PURE__*/React.createElement("span", {
+        className: "font-bold text-orange-600 whitespace-nowrap"
+      }, formatCurrency(item.total))), /*#__PURE__*/React.createElement("div", {
+        className: "grid grid-cols-2 gap-2 mt-2"
+      }, cell("Consumo/pessoa (bruto)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (l\xEDquido)", fmtPerPerson(qtyPerPersonLiquid)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Quantidade (arredondado)", isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)));
+    })), /*#__PURE__*/React.createElement("div", {
+      // Desktop/iPad deitado: tabela original
+      className: "hidden lg:block overflow-x-auto"
     }, /*#__PURE__*/React.createElement("table", {
       className: "w-full"
     }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {

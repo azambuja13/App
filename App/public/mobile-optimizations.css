@@ -710,3 +710,21 @@
 @media (prefers-color-scheme: dark) {
     /* Ajustes para modo escuro podem ser adicionados aqui */
 }
+
+
+/* ============================================
+   BARRA DE NAVEGAÇÃO INFERIOR (mobile, 2 linhas)
+   A barra é fixed e tem ~100px de altura + a área do indicador
+   de início do iPhone. O conteúdo só reservava 80px (pb-20), então
+   o fim das telas (botões de salvar/excluir etc.) ficava escondido
+   atrás da barra. Reserva espaço suficiente e afasta a barra do
+   indicador de início.
+   ============================================ */
+@media (max-width: 1023px) {
+    .mobile-bottom-nav {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    .mobile-nav-spacer {
+        padding-bottom: calc(130px + env(safe-area-inset-bottom)) !important;
+    }
+}

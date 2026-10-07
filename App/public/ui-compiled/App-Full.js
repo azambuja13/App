@@ -1827,7 +1827,7 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col lg:flex-row min-h-screen"
   }, /*#__PURE__*/React.createElement("div", {
-    className: `lg:w-96 bg-white shadow-2xl overflow-y-auto ${state.activeTab === 'config' ? 'block' : 'hidden'} lg:block pb-20 lg:pb-0`
+    className: `lg:w-96 bg-white shadow-2xl overflow-y-auto ${state.activeTab === 'config' ? 'block' : 'hidden'} lg:block pb-20 lg:pb-0 mobile-nav-spacer`
   }, /*#__PURE__*/React.createElement("div", {
     className: "p-6 bg-gradient-to-br from-orange-600 to-red-600 text-white"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2380,7 +2380,7 @@ window.AppFull = function AppFull() {
     lockoutTime: state.lockoutTime ? new Date(state.lockoutTime) : null,
     passwordAttempts: state.passwordAttempts
   }))), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 overflow-y-auto pb-20 lg:pb-0"
+    className: "flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer"
   }, /*#__PURE__*/React.createElement("div", {
     className: "p-8"
   }, (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
@@ -2783,7 +2783,7 @@ window.AppFull = function AppFull() {
     onExportEvents: handleExportEvents,
     onClose: () => state.setShowEventsList(false)
   }), /*#__PURE__*/React.createElement("div", {
-    className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50"
+    className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 mobile-bottom-nav"
   }, /*#__PURE__*/React.createElement("div", {
     className: "safe-bottom"
   }, /*#__PURE__*/React.createElement("div", {
