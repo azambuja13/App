@@ -2121,7 +2121,7 @@ window.AppFull = function AppFull() {
       className: "text-xs font-bold uppercase"
     }, plan.label), /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] opacity-90"
-    }, plan.subtitle)));
+    }, window.isNativeApp && window.isNativeApp() ? '' : plan.subtitle)));
   })(), state.licenseValid && /*#__PURE__*/React.createElement("button", {
     onClick: handleOpenLicenseModal,
     className: "flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-lg hover:shadow-xl hover:from-amber-600 hover:to-yellow-700 transition-all cursor-pointer",
@@ -2733,7 +2733,7 @@ window.AppFull = function AppFull() {
   }, "\u2728 Vantagens:"), /*#__PURE__*/React.createElement("ul", {
     className: "text-green-800 text-xs space-y-0.5"
   }, /*#__PURE__*/React.createElement("li", null, "\u2022 Abre em tela cheia"), /*#__PURE__*/React.createElement("li", null, "\u2022 Mais r\xE1pido de acessar"), /*#__PURE__*/React.createElement("li", null, "\u2022 Funciona offline"), /*#__PURE__*/React.createElement("li", null, "\u2022 Parece app nativo")))))))), /*#__PURE__*/React.createElement("div", {
-    className: "hidden lg:flex gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg"
+    className: "hidden lg:flex flex-wrap gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'clients' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`

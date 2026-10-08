@@ -40,6 +40,26 @@ function UpgradeModal({
   }, [isOpen, onClose]);
   if (!isOpen) return null;
 
+  // App nativo: sem planos, preços nem botões de compra (regra da App Store)
+  if (window.isNativeApp && window.isNativeApp()) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-4xl mb-3"
+    }, "\uD83D\uDD12"), /*#__PURE__*/React.createElement("h2", {
+      className: "text-xl font-bold text-gray-800 mb-2"
+    }, "Recurso de outro plano"), /*#__PURE__*/React.createElement("p", {
+      className: "text-gray-600 mb-4"
+    }, "Este recurso n\xE3o est\xE1 inclu\xEDdo no seu plano atual."), /*#__PURE__*/React.createElement("button", {
+      onClick: onClose,
+      className: "w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700"
+    }, "Entendi")));
+  }
+
   // Configuração dos planos
   const plans = [{
     id: 'offline',

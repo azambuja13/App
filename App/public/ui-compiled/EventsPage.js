@@ -225,13 +225,13 @@ function EventsPage({
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg p-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-6"
+    className: "flex flex-wrap items-center justify-between gap-3 mb-6"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
-    className: "text-3xl font-bold text-gray-800"
+    className: "text-2xl font-bold text-gray-800"
   }, "\uD83D\uDCC5 Eventos"), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600 mt-1"
   }, "Gerencie seus eventos e or\xE7amentos")), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-3"
+    className: "flex flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: handleSaveEvent,
     disabled: isSavingEvent,

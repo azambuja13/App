@@ -695,7 +695,7 @@ function MenuPage({
     },
     className: "px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-colors font-medium shadow-md"
   }, "\uD83E\uDD16 Montar com IA") : /*#__PURE__*/React.createElement("button", {
-    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    onClick: () => alert(window.premiumOnlyMessage ? window.premiumOnlyMessage() : '🔒 Recurso disponível apenas no plano PREMIUM'),
     className: "px-6 py-3 bg-gray-400 text-white rounded-lg font-medium shadow-md opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, "\uD83E\uDD16 Montar com IA \uD83D\uDD12"), menu.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {

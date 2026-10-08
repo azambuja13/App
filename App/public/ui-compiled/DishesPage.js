@@ -175,13 +175,13 @@ const DishesPage = React.memo(function DishesPage() {
   return /*#__PURE__*/React.createElement("div", {
     className: "dishes-page container mx-auto px-4 py-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between mb-6"
+    className: "flex flex-wrap items-center justify-between gap-3 mb-6"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
-    className: "text-3xl font-bold text-gray-800"
+    className: "text-2xl font-bold text-gray-800"
   }, "\uD83C\uDF7D\uFE0F Gerenciar Pratos"), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600 mt-1"
   }, "Crie e gerencie pratos reutiliz\xE1veis para suas propostas")), currentView === 'list' && /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-3"
+    className: "flex flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: handleRecalculateCosts,
     disabled: isRecalculating,
@@ -193,7 +193,7 @@ const DishesPage = React.memo(function DishesPage() {
     onClick: () => setShowRecipeImporter(true),
     className: "px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-semibold"
   }, "\uD83E\uDD16 Importar Receita com IA") : /*#__PURE__*/React.createElement("button", {
-    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    onClick: () => alert(window.premiumOnlyMessage ? window.premiumOnlyMessage() : '🔒 Recurso disponível apenas no plano PREMIUM'),
     className: "px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, "\uD83E\uDD16 Importar Receita com IA \uD83D\uDD12"), /*#__PURE__*/React.createElement("button", {

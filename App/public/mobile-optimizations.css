@@ -348,144 +348,6 @@
         margin-top: 6px !important;
     }
 
-    /* MOBILE CARD VIEW - Esconder tabela e mostrar cards */
-    .ingredients-table-wrapper {
-        display: none !important; /* Esconder tabela em mobile */
-    }
-
-    .ingredients-mobile-cards {
-        display: block !important; /* Mostrar cards em mobile */
-    }
-
-    .ingredient-card {
-        background: white;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e5e7eb;
-        transition: all 0.2s ease;
-    }
-
-    .ingredient-card:active {
-        transform: scale(0.98);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-    }
-
-    .ingredient-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-        gap: 12px;
-    }
-
-    .ingredient-card-title {
-        font-size: 17px !important;
-        font-weight: 700 !important;
-        color: #1f2937;
-        margin: 0;
-        flex: 1;
-        line-height: 1.3;
-    }
-
-    .ingredient-card-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 13px !important;
-        font-weight: 600;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .ingredient-card-body {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .ingredient-card-field {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .ingredient-card-field-label {
-        font-size: 12px !important;
-        font-weight: 600;
-        color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .ingredient-card-field-value {
-        font-size: 15px !important;
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .ingredient-card-field-value.highlight {
-        font-size: 18px !important;
-        color: #059669;
-        font-weight: 700;
-    }
-
-    .ingredient-card-actions {
-        display: flex;
-        gap: 8px;
-        padding-top: 12px;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .ingredient-card-actions button {
-        flex: 1;
-        min-height: 44px !important;
-        padding: 10px 16px !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        transition: all 0.2s ease;
-    }
-
-    .ingredient-card-actions button svg {
-        width: 18px !important;
-        height: 18px !important;
-    }
-
-    /* Formulário de edição em card */
-    .ingredient-edit-card {
-        background: #fef3c7;
-        border: 2px solid #fbbf24;
-    }
-
-    .ingredient-edit-card input,
-    .ingredient-edit-card select {
-        width: 100%;
-        min-height: 44px !important;
-        padding: 10px 12px !important;
-        font-size: 15px !important;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: white;
-    }
-
-    .ingredient-edit-card .ingredient-card-body {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .ingredient-edit-card .ingredient-card-field {
-        width: 100%;
-    }
-
     /* ============================================
        FORMULÁRIO DE TRANSPORTE E MÃO DE OBRA
        ============================================ */
@@ -810,5 +672,150 @@
     /* Botões fixos do Cardápio (sticky) ficavam escondidos atrás da barra inferior */
     .menu-actions-sticky {
         bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+    }
+}
+
+/* ============================================
+   CARDS DE INGREDIENTES - celular e iPad
+   (antes só abaixo de 768px; no iPad a tabela ficava com a coluna
+   Ações fora da tela)
+   ============================================ */
+@media only screen and (max-width: 1279px) {
+    /* MOBILE CARD VIEW - Esconder tabela e mostrar cards */
+    .ingredients-table-wrapper {
+        display: none !important; /* Esconder tabela em mobile */
+    }
+
+    .ingredients-mobile-cards {
+        display: block !important; /* Mostrar cards em mobile */
+    }
+
+    .ingredient-card {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+    }
+
+    .ingredient-card:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+
+    .ingredient-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        gap: 12px;
+    }
+
+    .ingredient-card-title {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: #1f2937;
+        margin: 0;
+        flex: 1;
+        line-height: 1.3;
+    }
+
+    .ingredient-card-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px !important;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .ingredient-card-body {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .ingredient-card-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ingredient-card-field-label {
+        font-size: 12px !important;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ingredient-card-field-value {
+        font-size: 15px !important;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .ingredient-card-field-value.highlight {
+        font-size: 18px !important;
+        color: #059669;
+        font-weight: 700;
+    }
+
+    .ingredient-card-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .ingredient-card-actions button {
+        flex: 1;
+        min-height: 44px !important;
+        padding: 10px 16px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .ingredient-card-actions button svg {
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    /* Formulário de edição em card */
+    .ingredient-edit-card {
+        background: #fef3c7;
+        border: 2px solid #fbbf24;
+    }
+
+    .ingredient-edit-card input,
+    .ingredient-edit-card select {
+        width: 100%;
+        min-height: 44px !important;
+        padding: 10px 12px !important;
+        font-size: 15px !important;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: white;
+    }
+
+    .ingredient-edit-card .ingredient-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .ingredient-edit-card .ingredient-card-field {
+        width: 100%;
     }
 }

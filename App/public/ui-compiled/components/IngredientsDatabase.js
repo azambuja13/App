@@ -474,7 +474,7 @@ function IngredientsDatabase({
     onChange: handleImportWithAI,
     className: "hidden"
   })) : /*#__PURE__*/React.createElement("button", {
-    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    onClick: () => alert(window.premiumOnlyMessage ? window.premiumOnlyMessage() : '🔒 Recurso disponível apenas no plano PREMIUM'),
     className: "flex items-center gap-2 px-5 py-3 bg-gray-400 text-white rounded-xl font-bold opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -491,7 +491,7 @@ function IngredientsDatabase({
     className: "flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg font-semibold hover:shadow-lg transition",
     title: "Adicionar ingredientes de templates pré-definidos"
   }, "📋 Templates") : /*#__PURE__*/React.createElement("button", {
-    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    onClick: () => alert(window.premiumOnlyMessage ? window.premiumOnlyMessage() : '🔒 Recurso disponível apenas no plano PREMIUM'),
     className: "flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg font-semibold opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, "📋 Templates 🔒"), isPremium ? /*#__PURE__*/React.createElement("button", {
@@ -534,7 +534,7 @@ function IngredientsDatabase({
   }, "Atualizar ", /*#__PURE__*/React.createElement("span", {
     style: { color: '#ffffff', fontSize: '0.875rem', opacity: 0.9 }
   }, "Preços com IA")))) : /*#__PURE__*/React.createElement("button", {
-    onClick: () => alert('🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app'),
+    onClick: () => alert(window.premiumOnlyMessage ? window.premiumOnlyMessage() : '🔒 Recurso disponível apenas no plano PREMIUM'),
     className: "flex items-center gap-2 px-5 py-3 bg-gray-400 text-white rounded-xl font-bold opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, /*#__PURE__*/React.createElement("span", {

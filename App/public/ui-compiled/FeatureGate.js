@@ -98,6 +98,11 @@ function FeatureGate({
     return null;
   };
   const upgradeMessage = getUpgradeMessage();
+  // App nativo: sem preços nem botão de compra (regra da App Store)
+  if (upgradeMessage && window.isNativeApp && window.isNativeApp()) {
+    upgradeMessage.plans = [];
+    upgradeMessage.native = true;
+  }
 
   // Handler de clique no bloqueio
   const handleBlockClick = e => {
@@ -191,7 +196,7 @@ function FeatureGate({
           className: "font-semibold text-gray-800"
         }, "Recurso ", requiredPlan.toUpperCase()), /*#__PURE__*/React.createElement("p", {
           className: "text-sm text-gray-600"
-        }, "Clique para fazer upgrade"))))));
+        }, window.isNativeApp && window.isNativeApp() ? "Dispon\xEDvel em outro plano" : "Clique para fazer upgrade"))))));
     }
   };
   return /*#__PURE__*/React.createElement(React.Fragment, null, renderFallback(), showUpgradePrompt && upgradeMessage && /*#__PURE__*/React.createElement("div", {
@@ -256,7 +261,7 @@ function FeatureGate({
       setShowUpgradePrompt(false);
     },
     className: "w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-  }, "Comprar Plano ", plan.name))))), /*#__PURE__*/React.createElement("div", {
+  }, "Comprar Plano ", plan.name))))), !upgradeMessage.native && /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-50 px-6 py-4 rounded-b-xl border-t"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 text-center"

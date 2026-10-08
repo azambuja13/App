@@ -147,7 +147,7 @@ function LicenseActivation({
     onClick: handleSubmit,
     disabled: !email.trim() || !password.trim(),
     className: "w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-  }, "\uD83D\uDD13 ", needsPassword ? 'Criar Senha e Entrar' : 'Entrar'), licenseError && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD13 ", needsPassword ? 'Criar Senha e Entrar' : 'Entrar'), licenseError && !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("div", {
     className: "relative"
   }, /*#__PURE__*/React.createElement("div", {
     className: "absolute inset-0 flex items-center"
@@ -157,7 +157,7 @@ function LicenseActivation({
     className: "relative flex justify-center text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "px-2 bg-white text-gray-500"
-  }, "ou"))), licenseError && /*#__PURE__*/React.createElement("button", {
+  }, "ou"))), licenseError && !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("button", {
     onClick: () => window.open('https://precificacao-vendas-production.up.railway.app', '_blank'),
     className: "w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
   }, "\uD83D\uDED2 Comprar Licen\xE7a")), /*#__PURE__*/React.createElement("div", {

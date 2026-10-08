@@ -355,7 +355,35 @@ function ClientsPage() {
   }, "\u274C Cancelar"))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "overflow-x-auto"
+    // ✅ MOBILE (celular/iPad em pé): cards em vez da tabela de 5 colunas com rolagem lateral
+    className: "lg:hidden"
+  }, clients.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    className: "px-4 py-8 text-center text-gray-500"
+  }, searchQuery ? '🔍 Nenhum cliente encontrado' : '📋 Nenhum cliente cadastrado') : clients.map((client, index) => /*#__PURE__*/React.createElement("div", {
+    key: client.id || `client-m-${index}`,
+    className: `px-4 py-3 border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-semibold text-gray-900",
+    style: { overflowWrap: 'anywhere' }
+  }, client.name), client.phone && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-gray-600 mt-1"
+  }, "\uD83D\uDCDE ", window.formatPhoneDisplay ? window.formatPhoneDisplay(client.phone) : client.phone), client.email && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-gray-600 mt-1",
+    style: { overflowWrap: 'anywhere' }
+  }, "\u2709\uFE0F ", client.email), client.address && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-gray-600 mt-1",
+    style: { overflowWrap: 'anywhere' }
+  }, "\uD83D\uDCCD ", client.address), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleEditClient(client),
+    className: "flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition text-sm font-medium"
+  }, "\u270F\uFE0F Editar"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleDeleteClient(client),
+    className: "flex-1 px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium"
+  }, "\uD83D\uDDD1\uFE0F Excluir"))))), /*#__PURE__*/React.createElement("div", {
+    // Telas largas (lg): tabela original
+    className: "hidden lg:block overflow-x-auto"
   }, React.createElement("table", {
     className: "w-full"
   }, /*#__PURE__*/React.createElement("thead", {

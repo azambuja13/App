@@ -501,3 +501,21 @@ if (typeof window !== 'undefined') {
         getCurrentPlan: () => ConfigHelper.getCurrentPlan()
     };
 }
+
+// ============================================================================
+// APP NATIVO (Capacitor iOS/Android)
+// No app da App Store não pode haver botão, preço nem link de compra fora da
+// loja (regra 3.1.1/3.1.3(b) da Apple). Estes helpers escondem isso só no app.
+// ============================================================================
+window.isNativeApp = function () {
+    try {
+        return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    } catch (e) {
+        return false;
+    }
+};
+window.premiumOnlyMessage = function () {
+    return window.isNativeApp()
+        ? '🔒 Recurso disponível apenas no plano PREMIUM'
+        : '🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app';
+};
