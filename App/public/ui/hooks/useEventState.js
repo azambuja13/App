@@ -277,7 +277,7 @@ function useEventState() {
     // ====================================
     const [guests, setGuests] = useState(100);
     const [monthsUntilEvent, setMonthsUntilEvent] = useState(0);
-    const [activeTab, setActiveTabInternal] = useState('events');
+    const [activeTab, setActiveTabInternal] = useState('calendar'); // Agenda é a aba inicial
     const [isCompanyExpanded, setIsCompanyExpanded] = useState(false);
 
     // Wrapper para setActiveTab que dispara evento customizado

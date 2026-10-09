@@ -2768,6 +2768,9 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement("li", null, "\u2022 Abre em tela cheia"), /*#__PURE__*/React.createElement("li", null, "\u2022 Mais r\xE1pido de acessar"), /*#__PURE__*/React.createElement("li", null, "\u2022 Funciona offline"), /*#__PURE__*/React.createElement("li", null, "\u2022 Parece app nativo")))))))), /*#__PURE__*/React.createElement("div", {
     className: "hidden lg:flex flex-wrap gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg"
   }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('calendar'),
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'calendar' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
+  }, "\uD83D\uDCC6 Agenda"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'clients' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -2832,7 +2835,13 @@ window.AppFull = function AppFull() {
     onCancelEditing: handleCancelEditingIngredient,
     onDeleteIngredient: handleDeleteIngredient,
     onAddToEvent: handleAddToEvent
-  })), state.activeTab === 'clients' && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab === 'calendar' && /*#__PURE__*/React.createElement("div", {
+    className: "space-y-6"
+  }, window.CalendarPage ? /*#__PURE__*/React.createElement(window.CalendarPage, null) : /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-lg shadow p-6 text-center"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-gray-600"
+  }, "Carregando agenda..."))), state.activeTab === 'clients' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, window.ClientsPage ? /*#__PURE__*/React.createElement(window.ClientsPage, null) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"
@@ -3048,6 +3057,21 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex justify-around items-center py-1.5 px-1 border-b border-gray-100"
   }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('calendar'),
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'calendar' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("svg", {
+    className: "w-4 h-4",
+    fill: "none",
+    stroke: "currentColor",
+    viewBox: "0 0 24 24"
+  }, /*#__PURE__*/React.createElement("path", {
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    strokeWidth: 2,
+    d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Agenda")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
