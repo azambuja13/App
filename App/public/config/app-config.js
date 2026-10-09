@@ -517,7 +517,7 @@ window.isNativeApp = function () {
 window.premiumOnlyMessage = function () {
     return window.isNativeApp()
         ? '🔒 Recurso disponível apenas no plano PREMIUM'
-        : '🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app';
+        : '🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://www.chefazambuja.com/precificacao/';
 };
 
 // ============================================================================

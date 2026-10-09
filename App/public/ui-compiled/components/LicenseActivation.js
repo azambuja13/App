@@ -158,7 +158,7 @@ function LicenseActivation({
   }, /*#__PURE__*/React.createElement("span", {
     className: "px-2 bg-white text-gray-500"
   }, "ou"))), licenseError && !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("button", {
-    onClick: () => window.open('https://precificacao-vendas-production.up.railway.app', '_blank'),
+    onClick: () => window.open('https://www.chefazambuja.com/precificacao/', '_blank'),
     className: "w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
   }, "\uD83D\uDED2 Comprar Licen\xE7a")), /*#__PURE__*/React.createElement("div", {
     className: "mt-6 pt-6 border-t border-gray-200"

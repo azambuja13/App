@@ -257,7 +257,7 @@ function FeatureGate({
   })), feature))), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       // Abrir landing page de vendas em nova aba
-      window.open('https://precificacao-vendas-production.up.railway.app', '_blank');
+      window.open('https://www.chefazambuja.com/precificacao/', '_blank');
       setShowUpgradePrompt(false);
     },
     className: "w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
