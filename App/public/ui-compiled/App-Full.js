@@ -2612,7 +2612,7 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,
@@ -2642,7 +2642,7 @@ window.AppFull = function AppFull() {
     className: "flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer"
   }, /*#__PURE__*/React.createElement("div", {
     className: "p-8"
-  }, (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
+  }, state.activeTab !== 'calendar' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between flex-wrap gap-4"
@@ -2682,7 +2682,7 @@ window.AppFull = function AppFull() {
     className: "text-sm text-blue-100"
   }, "Custo por Pessoa"), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-bold"
-  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
@@ -2704,7 +2704,7 @@ window.AppFull = function AppFull() {
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
-  })), state.activeTab !== 'whatsapp' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-lg"
