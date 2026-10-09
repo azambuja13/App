@@ -183,7 +183,18 @@ window.AppFull = function AppFull() {
   // Estados de Autenticação
   // ====================================
   const [passwordSet, setPasswordSet] = React.useState(false);
-  const [authenticated, setAuthenticated] = React.useState(false);
+  // Após trocar de conta a página recarrega para limpar a memória; a senha já foi
+  // verificada nesse mesmo instante, então não pedimos de novo (flag de uso único).
+  const [authenticated, setAuthenticated] = React.useState(() => {
+    try {
+      if (sessionStorage.getItem('accountSwitchReload') === 'true') {
+        sessionStorage.removeItem('accountSwitchReload');
+        sessionStorage.setItem('authenticated', 'true');
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  });
   const [isLoadingAuth, setIsLoadingAuth] = React.useState(true); // Flag para prevenir flash
 
   // Estados de progresso de carregamento
@@ -363,39 +374,42 @@ window.AppFull = function AppFull() {
             } : d));
 
             // Carregar dados da empresa do backend e aplicar ao state.proposalData
-            if (backend.companyManager?.companyData) {
-              console.log('📦 Carregando dados da empresa do backend...');
-              const companyData = backend.companyManager.companyData;
-              console.log('  - Dados da empresa:', companyData);
-
-              // Aplicar ao state.proposalData
+            // ✅ FIX: o backend é a fonte da verdade (dados por usuário). Antes, campos vazios
+            // caíam no valor anterior (cache do aparelho), e uma conta via a empresa de outra.
+            {
+              const companyData = backend.companyManager?.companyData || {};
+              console.log('📦 Dados da empresa do backend:', backend.companyManager?.companyData ? 'encontrados' : 'vazios');
               state.setProposalData(prev => ({
                 ...prev,
-                companyName: companyData.companyName || prev.companyName || '',
-                companyPhone: companyData.companyPhone || prev.companyPhone || '',
-                companyEmail: companyData.companyEmail || prev.companyEmail || '',
-                companyAddress: companyData.companyAddress || prev.companyAddress || '',
-                companyHistory: companyData.companyHistory || prev.companyHistory || '',
-                companyMission: companyData.companyMission || prev.companyMission || '',
-                companyVision: companyData.companyVision || prev.companyVision || '',
-                companyValues: companyData.companyValues || prev.companyValues || '',
-                companyMotivation: companyData.companyMotivation || prev.companyMotivation || '',
-                companyLogo: companyData.companyLogo || prev.companyLogo || null,
-                companyPhoto1: companyData.companyPhoto1 || prev.companyPhoto1 || null,
-                companyPhoto2: companyData.companyPhoto2 || prev.companyPhoto2 || null,
-                companyPhoto3: companyData.companyPhoto3 || prev.companyPhoto3 || null
+                companyName: companyData.companyName || '',
+                companyPhone: companyData.companyPhone || '',
+                companyEmail: companyData.companyEmail || '',
+                companyAddress: companyData.companyAddress || '',
+                companyHistory: companyData.companyHistory || '',
+                companyMission: companyData.companyMission || '',
+                companyVision: companyData.companyVision || '',
+                companyValues: companyData.companyValues || '',
+                companyMotivation: companyData.companyMotivation || '',
+                companyLogo: companyData.companyLogo || null,
+                companyPhoto1: companyData.companyPhoto1 || null,
+                companyPhoto2: companyData.companyPhoto2 || null,
+                companyPhoto3: companyData.companyPhoto3 || null
               }));
-
-              console.log('✅ Dados da empresa carregados e aplicados ao state');
-              console.log('🖼️ Logo da empresa:', companyData.companyLogo ? 'PRESENTE' : 'AUSENTE');
-
-              // Atualizar logo imediatamente se veio do backend
-              if (companyData.companyLogo) {
-                console.log('📦 Aplicando logo do backend ao estado local');
-                setCompanyLogo(companyData.companyLogo);
-              }
-            } else {
-              console.warn('⚠️ Nenhum dado de empresa encontrado no backend');
+              setCompanyLogo(companyData.companyLogo || null);
+              // Atualizar o cache local da empresa com os dados desta conta
+              try {
+                if (window.companyManager && typeof window.companyManager.saveCompanyData === 'function' && window.companyManager !== backend.companyManager) {
+                  window.companyManager.saveCompanyData({
+                    companyName: companyData.companyName || '', companyPhone: companyData.companyPhone || '',
+                    companyEmail: companyData.companyEmail || '', companyAddress: companyData.companyAddress || '',
+                    companyHistory: companyData.companyHistory || '', companyMission: companyData.companyMission || '',
+                    companyVision: companyData.companyVision || '', companyValues: companyData.companyValues || '',
+                    companyMotivation: companyData.companyMotivation || '', companyLogo: companyData.companyLogo || null,
+                    companyPhoto1: companyData.companyPhoto1 || null, companyPhoto2: companyData.companyPhoto2 || null,
+                    companyPhoto3: companyData.companyPhoto3 || null
+                  });
+                }
+              } catch (e) { console.warn('⚠️ Erro ao atualizar cache local da empresa:', e); }
             }
 
             // MIGRAÇÃO: Enviar dados do IndexedDB para PostgreSQL ANTES de sincronizar
@@ -1705,6 +1719,11 @@ window.AppFull = function AppFull() {
           console.log('  🔄 Salvando e recarregando página para limpar estado...');
         }
 
+        // 🔄 Outra conta neste aparelho? Limpar dados locais da conta anterior
+        const accountChanged = window.resetLocalDataIfAccountChanged
+          ? await window.resetLocalDataIfAccountChanged(result.email, state.licenseKey)
+          : false;
+
         // Salvar licença
         await window.LicenseValidator.saveLicense(state.licenseKey, result);
 
@@ -1725,11 +1744,14 @@ window.AppFull = function AppFull() {
         }));
 
         // 🔄 Se houve troca de licença, recarregar página para limpar estado
-        if (isLicenseChange) {
+        if (isLicenseChange || accountChanged) {
+          if (accountChanged) {
+            try { sessionStorage.setItem('accountSwitchReload', 'true'); } catch (e) {}
+          }
           setTimeout(() => {
             console.log('🔄 Recarregando página...');
             window.location.reload();
-          }, 1000);
+          }, accountChanged ? 0 : 1000);
           return; // Não continuar com o restante do código
         }
 
@@ -1935,6 +1957,11 @@ window.AppFull = function AppFull() {
           console.log('  🔄 Salvando e recarregando página para limpar estado...');
         }
 
+        // 🔄 Outra conta neste aparelho? Limpar dados locais da conta anterior
+        const accountChanged = window.resetLocalDataIfAccountChanged
+          ? await window.resetLocalDataIfAccountChanged(result.email || email, activeLicenseKey)
+          : false;
+
         // Salvar licença
         await window.LicenseValidator.saveLicense(activeLicenseKey, result);
 
@@ -1955,11 +1982,14 @@ window.AppFull = function AppFull() {
         }));
 
         // 🔄 Se houve troca de licença, recarregar página para limpar estado
-        if (isLicenseChange) {
+        if (isLicenseChange || accountChanged) {
+          if (accountChanged) {
+            try { sessionStorage.setItem('accountSwitchReload', 'true'); } catch (e) {}
+          }
           setTimeout(() => {
             console.log('🔄 Recarregando página...');
             window.location.reload();
-          }, 1000);
+          }, accountChanged ? 0 : 1000);
           return; // Não continuar com o restante do código
         }
 
@@ -2136,7 +2166,10 @@ window.AppFull = function AppFull() {
     className: "text-[10px] opacity-90 truncate max-w-[120px]"
   }, state.licensedTo), state.licenseExpiry && /*#__PURE__*/React.createElement("span", {
     className: "text-[9px] opacity-75 mt-0.5"
-  }, "At\xE9 ", new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("div", {
+  }, "At\xE9 ", new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("a", {
+    href: window.supportMailto ? window.supportMailto() : 'mailto:rafael.oliveira.azambuja@gmail.com',
+    className: "mx-4 my-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50"
+  }, "\u2709\uFE0F Falar com o suporte"), /*#__PURE__*/React.createElement("div", {
     className: "p-4 border-t border-gray-200 bg-blue-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-blue-200"

@@ -640,9 +640,17 @@ function useEventState() {
                 // Atualizar dados da proposta
                 if (backendData.proposalData) {
                     console.log('📦 [useEventState] Atualizando dados da proposta do backend');
+                    // Os dados da empresa vêm só da tabela da empresa (aplicados pelo App após
+                    // inicializar o backend). A cópia guardada nas configurações pode estar
+                    // desatualizada ou ser de outra conta que usou o aparelho, então os campos
+                    // company* daqui são ignorados.
+                    const settingsProposal = {};
+                    Object.keys(backendData.proposalData).forEach(k => {
+                        if (!k.startsWith('company')) settingsProposal[k] = backendData.proposalData[k];
+                    });
                     setProposalData(prev => ({
                         ...prev,
-                        ...backendData.proposalData
+                        ...settingsProposal
                     }));
                 }
 

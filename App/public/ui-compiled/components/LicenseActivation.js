@@ -164,7 +164,10 @@ function LicenseActivation({
     className: "mt-6 pt-6 border-t border-gray-200"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 text-center"
-  }, "N\xE3o encontra sua conta? Entre em contato com o suporte."))));
+  }, "Ainda n\xE3o tem acesso ou n\xE3o encontra sua conta?"), /*#__PURE__*/React.createElement("a", {
+    href: window.supportMailto ? window.supportMailto('Calculadora Precifica\xE7\xE3o - Acesso ao app') : 'mailto:rafael.oliveira.azambuja@gmail.com',
+    className: "mt-2 flex items-center justify-center gap-2 text-sm font-semibold text-orange-600 hover:text-orange-700"
+  }, "\u2709\uFE0F Fale com o suporte por e-mail"))));
 }
 
 // Expor no window para uso global

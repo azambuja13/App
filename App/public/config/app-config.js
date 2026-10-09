@@ -519,3 +519,71 @@ window.premiumOnlyMessage = function () {
         ? '🔒 Recurso disponível apenas no plano PREMIUM'
         : '🔒 Recurso disponível apenas no plano PREMIUM\n\nAtualize seu plano em: https://precificacao-vendas-production.up.railway.app';
 };
+
+// ============================================================================
+// TROCA DE CONTA NO MESMO APARELHO
+// Os dados locais (rascunho do evento, dados da empresa, logo, caches) eram do
+// aparelho e não do usuário: ao entrar com outra conta, o app mostrava os dados
+// da conta anterior (e podia até gravá-los na conta nova). Aqui guardamos de quem
+// são os dados locais e, se a conta mudar, limpamos tudo antes de recarregar.
+// Retorna true quando a conta mudou (o chamador deve recarregar a página).
+// ============================================================================
+window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey) {
+    const norm = function (v) { return (v || '').toString().trim().toLowerCase(); };
+    const newId = norm(newEmail) || norm(newLicenseKey);
+    if (!newId) return false;
+
+    let oldId = norm(localStorage.getItem('local_data_owner'));
+    if (!oldId) {
+        // Aparelhos que já usavam o app antes deste controle: deduzir pela licença salva
+        try {
+            const idb = window.indexedDBStorage;
+            const oldEmail = idb ? await idb.get('licensedEmail', null) : localStorage.getItem('licensedEmail');
+            const oldKey = idb ? await idb.get('appLicenseKey', null) : localStorage.getItem('appLicenseKey');
+            oldId = norm(oldEmail) || norm(oldKey);
+        } catch (e) { /* sem licença anterior */ }
+    }
+
+    const changed = !!oldId && oldId !== newId;
+    if (changed) {
+        console.log('🔄 [Conta] Troca de conta detectada - limpando dados locais da conta anterior');
+        const lsKeys = [
+            'precificacao_event_data', 'eventPricingData', 'precificacao_company_data', 'temp_precificacao_company_data', 'precificacao_company_data_timestamp',
+            'company_name', 'company_phone', 'company_email', 'company_address', 'company_history',
+            'company_logo', 'company_mission', 'company_vision', 'company_values', 'company_motivation',
+            'company_photo1', 'company_photo2', 'company_photo3',
+            'saved_events', 'ingredients_database', 'precificacao_pratos', 'precificacao_saved_menus',
+            'precificacao_clients', 'precificacao_propostas', 'custom_templates', 'backup_before_migration'
+            // (as chaves da licença não são apagadas aqui: o salvamento da licença nova as sobrescreve,
+            // e o armazenamento usado depende de 'licenseType' estar presente)
+        ];
+        lsKeys.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) { } });
+        // Dados de outra conta nunca devem ser "migrados" para a conta nova
+        localStorage.setItem('migrated_to_backend', 'true');
+        localStorage.setItem('dataMigrationDone', 'true');
+        try {
+            if (window.indexedDBStorage) {
+                await window.indexedDBStorage.remove('precificacao_event_data');
+                await window.indexedDBStorage.remove('precificacao_company_data');
+            }
+        } catch (e) { console.warn('⚠️ [Conta] Erro ao limpar IndexedDB (keyValue):', e); }
+        try {
+            if (typeof IndexedDBAdapter !== 'undefined') {
+                const adapter = new IndexedDBAdapter();
+                await adapter.clearAll();
+            }
+        } catch (e) { console.warn('⚠️ [Conta] Erro ao limpar IndexedDB (appData):', e); }
+        window.userSettings = null;
+        try { if (window.companyManager && typeof window.companyManager.clearCompanyData === 'function') await window.companyManager.clearCompanyData(); } catch (e) { }
+    }
+    localStorage.setItem('local_data_owner', newId);
+    return changed;
+};
+
+// ============================================================================
+// SUPORTE - e-mail mostrado na tela de login e dentro do app
+// ============================================================================
+window.SUPPORT_EMAIL = 'rafael.oliveira.azambuja@gmail.com';
+window.supportMailto = function (assunto) {
+    return 'mailto:' + window.SUPPORT_EMAIL + '?subject=' + encodeURIComponent(assunto || 'Calculadora Precificação - Suporte');
+};
