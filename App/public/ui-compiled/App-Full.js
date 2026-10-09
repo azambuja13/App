@@ -2838,10 +2838,13 @@ window.AppFull = function AppFull() {
     onCancelEditing: handleCancelEditingIngredient,
     onDeleteIngredient: handleDeleteIngredient,
     onAddToEvent: handleAddToEvent
-  })), state.activeTab === 'pipeline' && /*#__PURE__*/React.createElement("div", null, window.PipelinePage && window.CRM ? /*#__PURE__*/React.createElement(window.PipelinePage, null) : /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab === 'pipeline' && /*#__PURE__*/React.createElement(FeatureGate, {
+    featureName: "crm",
+    requiredPlan: "premium"
+  }, /*#__PURE__*/React.createElement("div", null, window.PipelinePage && window.CRM ? /*#__PURE__*/React.createElement(window.PipelinePage, null) : /*#__PURE__*/React.createElement("div", {
     className: "rounded-lg shadow p-6 text-center",
     style: { background: '#fff' }
-  }, "Carregando funil...")), state.activeTab === 'calendar' && /*#__PURE__*/React.createElement("div", {
+  }, "Carregando funil..."))), state.activeTab === 'calendar' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, window.CalendarPage ? /*#__PURE__*/React.createElement(window.CalendarPage, null) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"

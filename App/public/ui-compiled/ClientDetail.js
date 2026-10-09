@@ -191,7 +191,19 @@ function ClientDetailHost() {
     return () => window.removeEventListener('open-client-detail', abrir);
   }, []);
   if (!clientId || !window.CRM) return null;
-  return h(ClientDetail, { key: clientId, clientId, onClose: () => setClientId(null) });
+  const fechar = () => setClientId(null);
+  // CRM é exclusivo do plano PREMIUM
+  const temAcesso = !window.ConfigHelper || typeof window.ConfigHelper.hasFeatureAccess !== 'function' || window.ConfigHelper.hasFeatureAccess('crm');
+  if (!temAcesso && window.FeatureGate) {
+    window.CRM.injectCss();
+    return h('div', { className: 'crm-modal-bg', onClick: fechar },
+      h('div', { className: 'crm-modal crm-small', style: { padding: 16 }, onClick: e => e.stopPropagation() },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
+          h('b', null, 'Ficha do cliente'),
+          h('div', { role: 'button', 'aria-label': 'Fechar', onClick: fechar, style: { fontSize: 26, lineHeight: 1, padding: '4px 10px', cursor: 'pointer', color: '#6b7280' } }, '×')),
+        h(window.FeatureGate, { featureName: 'crm', requiredPlan: 'premium' }, null)));
+  }
+  return h(ClientDetail, { key: clientId, clientId, onClose: fechar });
 }
 
 window.ClientDetail = ClientDetail;

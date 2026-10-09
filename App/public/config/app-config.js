@@ -352,7 +352,8 @@ const ConfigHelper = {
                 'advancedIngredients', // Ingredientes personalizados - EXCLUSIVO PREMIUM
                 'proposalComparison', // Comparação de propostas - EXCLUSIVO PREMIUM
                 'prioritySupport', // Suporte prioritário - EXCLUSIVO PREMIUM
-                'whatsapp' // Integração WhatsApp - EXCLUSIVO PREMIUM
+                'whatsapp', // Integração WhatsApp - EXCLUSIVO PREMIUM
+                'crm' // CRM: funil de vendas e ficha do cliente - EXCLUSIVO PREMIUM
             ]
         };
 
@@ -375,7 +376,8 @@ const ConfigHelper = {
             'advancedIngredients',
             'proposalComparison',
             'prioritySupport',
-            'whatsapp'
+            'whatsapp',
+            'crm'
         ];
 
         return allPremiumFeatures.filter(feature => !this.hasFeatureAccess(feature));
@@ -442,6 +444,12 @@ const ConfigHelper = {
                 name: 'Analytics',
                 description: 'Dashboard com métricas e análises avançadas',
                 icon: '📈',
+                requiredPlan: 'premium'
+            },
+            crm: {
+                name: 'CRM - Funil de Vendas',
+                description: 'Funil de vendas, ficha do cliente e histórico de contatos',
+                icon: '🎯',
                 requiredPlan: 'premium'
             },
             pdfExport: {
