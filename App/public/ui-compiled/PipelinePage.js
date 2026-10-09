@@ -123,7 +123,7 @@ function PipelinePage() {
   visiveis.forEach(it => { (porEtapa[it.stage] || porEtapa.quoting).push(it); });
   Object.values(porEtapa).forEach(l => l.sort((a, b) => new Date(a.since) - new Date(b.since)));
 
-  const abertos = items.filter(it => ['quoting', 'sent', 'negotiation'].includes(it.stage));
+  const abertos = items.filter(it => ['quoting', 'sent'].includes(it.stage));
   const valorAberto = abertos.reduce((s, it) => s + it.value, 0);
   const mesAtual = new Date().toISOString().slice(0, 7);
   const fechadosMes = items.filter(it => it.stage === 'won' && String(it.since || '').slice(0, 7) === mesAtual);
@@ -132,7 +132,7 @@ function PipelinePage() {
   const card = it => {
     const st = C.STAGE[it.stage];
     const dias = C.daysSince(it.since);
-    const parado = ['sent', 'negotiation'].includes(it.stage) && dias !== null && dias >= 3;
+    const parado = it.stage === 'sent' && dias !== null && dias >= 3;
     const opcoes = (it.kind === 'client' ? C.CLIENT_STAGES : C.PROPOSAL_STAGES);
     return h('div', {
       key: it.key, className: 'crm-card',

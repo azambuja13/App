@@ -7,14 +7,15 @@ const STAGES = [
   { id: 'new', label: 'Novo contato', short: 'Novo', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
   { id: 'quoting', label: 'Orçamento', short: 'Orçamento', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
   { id: 'sent', label: 'Proposta enviada', short: 'Enviada', color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
-  { id: 'negotiation', label: 'Negociação', short: 'Negociação', color: '#c2410c', bg: '#fff7ed', border: '#fed7aa' },
   { id: 'won', label: 'Fechado', short: 'Fechado', color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
   { id: 'lost', label: 'Perdido', short: 'Perdido', color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' }
 ];
 const STAGE = Object.fromEntries(STAGES.map(s => [s.id, s]));
+// 'negotiation' existiu na primeira versão: agora conta como "Proposta enviada"
+STAGE.negotiation = STAGE.sent;
 const STATUS_TO_STAGE = { draft: 'quoting', sent: 'sent', accepted: 'won', rejected: 'lost' };
 const STAGE_TO_STATUS = { quoting: 'draft', sent: 'sent', negotiation: 'sent', won: 'accepted', lost: 'rejected' };
-const PROPOSAL_STAGES = ['quoting', 'sent', 'negotiation', 'won', 'lost'];
+const PROPOSAL_STAGES = ['quoting', 'sent', 'won', 'lost'];
 const CLIENT_STAGES = ['new', 'lost'];
 const LOST_REASONS = ['Preço', 'Data ocupada', 'Fechou com outro fornecedor', 'Desistiu do evento', 'Sem resposta', 'Outro'];
 const ACTIVITY_TYPES = [
@@ -27,7 +28,7 @@ const ACTIVITY_TYPES = [
 ];
 const ACTIVITY = Object.fromEntries(ACTIVITY_TYPES.map(a => [a.id, a]));
 
-const stageOfProposal = p => p.stage || STATUS_TO_STAGE[p.status] || 'quoting';
+const stageOfProposal = p => { const s = p.stage || STATUS_TO_STAGE[p.status] || 'quoting'; return s === 'negotiation' ? 'sent' : s; };
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateKey = v => {
   if (!v) return null;
