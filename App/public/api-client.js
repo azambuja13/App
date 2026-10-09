@@ -319,6 +319,42 @@ class PrecificacaoAPI {
         });
     }
 
+    // CRM (etapa 1): funil e linha do tempo
+    async getClient(clientId) {
+        return this.request(`/api/clients/${clientId}`);
+    }
+
+    async updateClientStage(clientId, stage, lostReason) {
+        return this.request(`/api/clients/${clientId}/stage`, {
+            method: 'PATCH',
+            body: JSON.stringify({ stage, lostReason })
+        });
+    }
+
+    async updateProposalStage(proposalId, stage, lostReason) {
+        return this.request(`/api/proposals/${proposalId}/stage`, {
+            method: 'PATCH',
+            body: JSON.stringify({ stage, lostReason })
+        });
+    }
+
+    async getClientActivities(clientId) {
+        return this.request(`/api/clients/${clientId}/activities`);
+    }
+
+    async addClientActivity(clientId, activity) {
+        return this.request(`/api/clients/${clientId}/activities`, {
+            method: 'POST',
+            body: JSON.stringify(activity)
+        });
+    }
+
+    async deleteClientActivity(clientId, activityId) {
+        return this.request(`/api/clients/${clientId}/activities/${activityId}`, {
+            method: 'DELETE'
+        });
+    }
+
     async deleteClient(clientId) {
         return this.request(`/api/clients/${clientId}`, {
             method: 'DELETE'

@@ -509,8 +509,8 @@ function ProposalBuilderSimple({
       const proposalData = {
         id: formData.id || null,
         // ✅ USAR formData.id (salvo no useEffect)
-        status: 'draft',
-        // ✅ Sempre resetar para "draft" ao salvar/editar
+        // CRM: editar uma proposta enviada/aprovada/rejeitada mantém o status (não volta para rascunho)
+        status: proposal && proposal.id && ['sent', 'accepted', 'rejected'].includes(proposal.status) ? proposal.status : 'draft',
         proposalName: formData.proposalName,
         proposalType: formData.proposalType,
         selectedMenuId: formData.selectedMenuId,

@@ -2612,7 +2612,7 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,
@@ -2642,7 +2642,7 @@ window.AppFull = function AppFull() {
     className: "flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer"
   }, /*#__PURE__*/React.createElement("div", {
     className: "p-8"
-  }, state.activeTab !== 'calendar' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
+  }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between flex-wrap gap-4"
@@ -2682,7 +2682,7 @@ window.AppFull = function AppFull() {
     className: "text-sm text-blue-100"
   }, "Custo por Pessoa"), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-bold"
-  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
@@ -2704,7 +2704,7 @@ window.AppFull = function AppFull() {
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
-  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-lg"
@@ -2771,6 +2771,9 @@ window.AppFull = function AppFull() {
     onClick: () => state.setActiveTab('calendar'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'calendar' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCC6 Agenda"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('pipeline'),
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'pipeline' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
+  }, "\uD83C\uDFAF Funil"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'clients' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -2835,7 +2838,10 @@ window.AppFull = function AppFull() {
     onCancelEditing: handleCancelEditingIngredient,
     onDeleteIngredient: handleDeleteIngredient,
     onAddToEvent: handleAddToEvent
-  })), state.activeTab === 'calendar' && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab === 'pipeline' && /*#__PURE__*/React.createElement("div", null, window.PipelinePage && window.CRM ? /*#__PURE__*/React.createElement(window.PipelinePage, null) : /*#__PURE__*/React.createElement("div", {
+    className: "rounded-lg shadow p-6 text-center",
+    style: { background: '#fff' }
+  }, "Carregando funil...")), state.activeTab === 'calendar' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, window.CalendarPage ? /*#__PURE__*/React.createElement(window.CalendarPage, null) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"
@@ -3050,7 +3056,7 @@ window.AppFull = function AppFull() {
     onDeleteEvent: handleDeleteEvent,
     onExportEvents: handleExportEvents,
     onClose: () => state.setShowEventsList(false)
-  }), /*#__PURE__*/React.createElement("div", {
+  }), window.ClientDetailHost && /*#__PURE__*/React.createElement(window.ClientDetailHost, null), /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 pb-[env(safe-area-inset-bottom)] mobile-bottom-nav"
   }, /*#__PURE__*/React.createElement("div", {
     className: "safe-bottom"
@@ -3072,6 +3078,21 @@ window.AppFull = function AppFull() {
   })), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
   }, "Agenda")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('pipeline'),
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'pipeline' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("svg", {
+    className: "w-4 h-4",
+    fill: "none",
+    stroke: "currentColor",
+    viewBox: "0 0 24 24"
+  }, /*#__PURE__*/React.createElement("path", {
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    strokeWidth: 2,
+    d: "M3 4h18l-7 8v6l-4 2v-8L3 4z"
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Funil")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
