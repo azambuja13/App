@@ -18,6 +18,11 @@ function PipelinePage() {
   const [novoContato, setNovoContato] = React.useState(false);
   const [previewId, setPreviewId] = React.useState(null);
   const [arrastando, setArrastando] = React.useState(null);
+  // Ordenação dos cards: 'dias' (mais tempo parado primeiro) ou 'evento' (data do evento mais próxima primeiro)
+  const [ordem, setOrdemState] = React.useState(() => {
+    try { return localStorage.getItem('crm_pipeline_sort') || 'dias'; } catch (e) { return 'dias'; }
+  });
+  const setOrdem = v => { setOrdemState(v); try { localStorage.setItem('crm_pipeline_sort', v); } catch (e) {} };
 
   const carregar = React.useCallback(async () => {
     const api = C.api();
@@ -121,7 +126,17 @@ function PipelinePage() {
   const porEtapa = {};
   C.STAGES.forEach(s => { porEtapa[s.id] = []; });
   visiveis.forEach(it => { (porEtapa[it.stage] || porEtapa.quoting).push(it); });
-  Object.values(porEtapa).forEach(l => l.sort((a, b) => new Date(a.since) - new Date(b.since)));
+  const tempo = v => { const t = new Date(v).getTime(); return isNaN(t) ? null : t; };
+  const dataEvento = it => { const k = C.dateKey(it.date); return k ? tempo(k + 'T12:00:00') : null; };
+  const porDias = (a, b) => (tempo(a.since) ?? Infinity) - (tempo(b.since) ?? Infinity);
+  const porEvento = (a, b) => {
+    const da = dataEvento(a), db = dataEvento(b);
+    if (da === null && db === null) return porDias(a, b);
+    if (da === null) return 1;   // sem data vai pro fim
+    if (db === null) return -1;
+    return da - db || porDias(a, b);
+  };
+  Object.values(porEtapa).forEach(l => l.sort(ordem === 'evento' ? porEvento : porDias));
 
   const abertos = items.filter(it => ['quoting', 'sent'].includes(it.stage));
   const valorAberto = abertos.reduce((s, it) => s + it.value, 0);
@@ -198,6 +213,11 @@ function PipelinePage() {
           type: 'text', value: busca, onChange: e => setBusca(e.target.value),
           placeholder: '🔍 Buscar cliente ou proposta', className: 'crm-input', style: { flex: '1 1 220px' }
         }),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, flex: '0 1 auto' } },
+          h('span', { style: { fontSize: 13, color: '#4b5563', whiteSpace: 'nowrap' } }, 'Ordenar:'),
+          h('select', { value: ordem, onChange: e => setOrdem(e.target.value), className: 'crm-select', style: { width: 'auto', fontSize: 14 } },
+            h('option', { value: 'dias' }, 'Dias nesta etapa'),
+            h('option', { value: 'evento' }, 'Data do evento'))),
         h('label', { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#4b5563', margin: 0, fontWeight: 500 } },
           h('input', { type: 'checkbox', checked: todosPerdidos, onChange: e => setTodosPerdidos(e.target.checked) }),
           'Mostrar perdidos antigos'))),
