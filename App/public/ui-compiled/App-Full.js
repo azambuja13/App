@@ -2185,7 +2185,7 @@ window.AppFull = function AppFull() {
     className: "text-sm text-gray-600 mb-3"
   }, "Guia completo com instru\xE7\xF5es detalhadas sobre todas as funcionalidades do sistema."), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2"
-  }, /*#__PURE__*/React.createElement("button", {
+  }, !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("button", {
     onClick: async () => {
       try {
         // Converter e baixar como PDF
@@ -2216,8 +2216,8 @@ window.AppFull = function AppFull() {
     d: "M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
   })), "PDF"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
-      // Abrir manual em nova aba
-      window.open('/MANUAL-DO-USUARIO.md', '_blank');
+      // Abre o manual num leitor dentro do app (no iPhone, abrir o .md em nova aba não funciona)
+      if (window.openManualViewer) window.openManualViewer();else window.open('/MANUAL-DO-USUARIO.md', '_blank');
     },
     className: "flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg font-semibold hover:from-gray-700 hover:to-gray-800 transition-all shadow-md hover:shadow-lg"
   }, /*#__PURE__*/React.createElement("svg", {
@@ -2639,8 +2639,10 @@ window.AppFull = function AppFull() {
     lockoutTime: state.lockoutTime ? new Date(state.lockoutTime) : null,
     passwordAttempts: state.passwordAttempts
   }))), /*#__PURE__*/React.createElement("div", {
-    className: "flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer"
-  }, /*#__PURE__*/React.createElement("div", {
+    // No celular, a aba 'config' (botão Empresa) mostra só o painel da empresa:
+    // esconde o conteúdo desta coluna, menos a barra de abas inferior (que mora aqui dentro)
+    className: `flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer ${state.activeTab === 'config' ? 'cfg-mobile' : ''}`
+  }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } }"), /*#__PURE__*/React.createElement("div", {
     className: "p-8"
   }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
@@ -3200,7 +3202,15 @@ window.AppFull = function AppFull() {
     d: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
   })), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
-  }, "Propostas"))))))));
+  }, "Propostas")), /*#__PURE__*/React.createElement("button", {
+    // Empresa: no celular o painel lateral (dados da empresa, suporte, manual) não aparecia
+    onClick: () => { state.setActiveTab('config'); try { window.scrollTo(0, 0); } catch (e) {} },
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'config' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm"
+  }, "\uD83C\uDFE2"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Empresa"))))))));
 };
 
 // Removido export default - já está em window.AppFull

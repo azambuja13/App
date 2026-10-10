@@ -72,12 +72,17 @@ Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 - **Apoio:** itens de apoio e logística, transporte e mão de obra.
 - **Propostas:** criação, envio e acompanhamento das propostas.
 - **WhatsApp:** configuração do envio de propostas pelo WhatsApp (Premium, no computador).
+- **Empresa (no celular):** abre o painel da empresa, com dados da empresa, suporte e este manual.
 
 No celular, as abas ficam na barra inferior. No computador, ficam no topo da tela.
 
 ### 3.2 Painel da empresa
 
-No computador, o painel à esquerda mostra o logo, o plano, a licença, o botão **"Falar com o suporte"**, este manual (botões **PDF** e **Ver**) e os **Dados da Empresa**.
+O painel da empresa mostra o logo, o plano, a licença, o botão **"Falar com o suporte"**, este manual (botões **PDF** e **Ver**) e os **Dados da Empresa**.
+
+- No computador, ele fica sempre à esquerda da tela.
+- No celular, toque em **"Empresa"** na barra inferior. Para voltar, toque em qualquer outra aba.
+- No app para iPhone, o manual abre pelo botão **"Ver"**.
 
 ### 3.3 Passo a passo de um orçamento
 
@@ -462,7 +467,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ### 20.3 Dicas
 
-- As abas ficam na barra inferior.
+- As abas ficam na barra inferior. O botão "Empresa" abre os dados da empresa, o suporte e este manual.
 - No Funil, use o menu "Mover para…" no lugar de arrastar.
 - Use o celular na horizontal para tabelas grandes.
 
@@ -507,7 +512,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ## 22. Suporte
 
-- Use o botão **"Falar com o suporte"** no painel da empresa ou na tela de acesso.
+- Use o botão **"Falar com o suporte"** no painel da empresa (no celular, botão "Empresa" na barra inferior) ou na tela de acesso.
 - Ou envie um e-mail para: rafael.oliveira.azambuja@gmail.com
 
 Ao escrever, conte o que aconteceu, em qual aba e, se possível, envie um print da tela.

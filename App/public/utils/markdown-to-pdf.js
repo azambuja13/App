@@ -208,3 +208,78 @@ class MarkdownToPDF {
 }
 
 window.MarkdownToPDF = MarkdownToPDF;
+
+/**
+ * Leitor do manual dentro do app (overlay). Usado no botão "Ver":
+ * no app do iPhone, window.open() de um .md e o download de PDF não funcionam.
+ */
+(function () {
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const inline = t => esc(t)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
+
+    function mdToHtml(md) {
+        const out = [];
+        let list = null; // 'ul' | 'ol'
+        const close = () => { if (list) { out.push('</' + list + '>'); list = null; } };
+        for (const raw of md.split('\n')) {
+            const line = raw.trimEnd();
+            let m;
+            if (!line.trim()) { close(); continue; }
+            if (/^[-*_]{3,}$/.test(line.trim())) { close(); out.push('<hr>'); continue; }
+            if ((m = line.match(/^(#{1,4})\s+(.*)$/))) { close(); const n = m[1].length; out.push('<h' + n + '>' + inline(m[2]) + '</h' + n + '>'); continue; }
+            if ((m = line.match(/^\s*[-*]\s+(.*)$/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push('<li>' + inline(m[1]) + '</li>'); continue; }
+            if ((m = line.match(/^\s*(\d+)\.\s+(.*)$/))) { if (list !== 'ol') { close(); out.push('<ol start="' + m[1] + '">'); list = 'ol'; } out.push('<li>' + inline(m[2]) + '</li>'); continue; }
+            close();
+            out.push('<p>' + inline(line) + '</p>');
+        }
+        close();
+        return out.join('\n');
+    }
+
+    const CSS = `
+#manual-viewer{position:fixed;inset:0;z-index:10000;background:#fff;display:flex;flex-direction:column;font-family:system-ui,-apple-system,sans-serif;color:#1f2937}
+#manual-viewer .mv-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));background:linear-gradient(90deg,#ea580c,#dc2626);color:#fff}
+#manual-viewer .mv-top b{font-size:17px}
+#manual-viewer .mv-close{cursor:pointer;font-weight:700;font-size:15px;background:rgba(255,255,255,.2);border-radius:8px;padding:8px 14px;user-select:none}
+#manual-viewer .mv-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px calc(32px + env(safe-area-inset-bottom))}
+#manual-viewer .mv-doc{max-width:760px;margin:0 auto;font-size:15px;line-height:1.55}
+#manual-viewer h1,#manual-viewer h2,#manual-viewer h3,#manual-viewer h4{font-weight:700;line-height:1.3}
+#manual-viewer h1{font-size:24px;color:#ea580c;margin:8px 0 4px}
+#manual-viewer h2{font-size:19px;margin:22px 0 8px;color:#111827}
+#manual-viewer h3{font-size:16px;margin:16px 0 6px;color:#374151}
+#manual-viewer p{margin:6px 0}
+#manual-viewer ul,#manual-viewer ol{margin:6px 0;padding-left:22px}
+#manual-viewer ul{list-style:disc}
+#manual-viewer ol{list-style:decimal}
+#manual-viewer li{display:list-item}
+#manual-viewer li{margin:4px 0}
+#manual-viewer hr{border:0;border-top:1px solid #e5e7eb;margin:18px 0}
+#manual-viewer code{background:#f3f4f6;border-radius:4px;padding:0 4px}`;
+
+    window.openManualViewer = async function () {
+        if (document.getElementById('manual-viewer')) return;
+        if (!document.getElementById('manual-viewer-css')) {
+            const st = document.createElement('style');
+            st.id = 'manual-viewer-css';
+            st.textContent = CSS;
+            document.head.appendChild(st);
+        }
+        const box = document.createElement('div');
+        box.id = 'manual-viewer';
+        box.innerHTML = '<div class="mv-top"><b>Manual do Usuário</b><div class="mv-close" role="button" tabindex="0">Fechar ✕</div></div><div class="mv-body"><div class="mv-doc">Carregando...</div></div>';
+        const fechar = () => { box.remove(); document.removeEventListener('keydown', onKey); };
+        const onKey = e => { if (e.key === 'Escape') fechar(); };
+        box.querySelector('.mv-close').addEventListener('click', fechar);
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(box);
+        try {
+            const r = await fetch('MANUAL-DO-USUARIO.md', { cache: 'no-cache' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            box.querySelector('.mv-doc').innerHTML = mdToHtml(await r.text());
+        } catch (e) {
+            box.querySelector('.mv-doc').textContent = 'Não foi possível abrir o manual. Tente novamente.';
+        }
+    };
+})();
