@@ -76,9 +76,11 @@ function CalendarPage() {
   const [diaSel, setDiaSel] = React.useState(hojeKey);
   const [previewId, setPreviewId] = React.useState(null);
 
+  const carregandoRef = React.useRef(false);
   const carregar = React.useCallback(async () => {
     const pm = window.PrecificacaoAPI?.proposalManager;
-    if (!pm) return;
+    if (!pm || carregandoRef.current) return;   // evita requisições duplicadas
+    carregandoRef.current = true;
     try {
       // Buscar direto do servidor (pega mudanças feitas em outro aparelho);
       // se falhar, usa o que já está carregado no app
@@ -92,18 +94,22 @@ function CalendarPage() {
     } catch (e) {
       console.warn('⚠️ [Agenda] Erro ao carregar propostas:', e && e.message);
     } finally {
+      carregandoRef.current = false;
       setCarregando(false);
     }
   }, []);
 
   React.useEffect(() => {
-    carregar();
-    const onTab = e => { if (e.detail === 'calendar') carregar(); };
+    const pronto = () => !!(window.PrecificacaoAPI && window.PrecificacaoAPI.proposalManager);
+    if (pronto()) carregar();
+    const montadoEm = Date.now();
+    // ao abrir a aba ela já carrega na montagem; o evento de troca de aba só recarrega depois
+    const onTab = e => { if (e.detail === 'calendar' && Date.now() - montadoEm > 2000) carregar(); };
     window.addEventListener('backend-phase2-complete', carregar);
     window.addEventListener('proposalSaved', carregar);
     window.addEventListener('tab-changed', onTab);
     // Backend ainda inicializando: tentar de novo por alguns segundos
-    const t = setInterval(() => { if (window.PrecificacaoAPI?.proposalManager) { carregar(); clearInterval(t); } }, 1500);
+    const t = pronto() ? null : setInterval(() => { if (pronto()) { clearInterval(t); carregar(); } }, 1500);
     const t2 = setTimeout(() => { clearInterval(t); setCarregando(false); }, 20000);
     return () => {
       window.removeEventListener('backend-phase2-complete', carregar);

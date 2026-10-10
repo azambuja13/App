@@ -24,9 +24,11 @@ function PipelinePage() {
   });
   const setOrdem = v => { setOrdemState(v); try { localStorage.setItem('crm_pipeline_sort', v); } catch (e) {} };
 
+  const carregandoRef = React.useRef(false);
   const carregar = React.useCallback(async () => {
     const api = C.api();
-    if (!api) return;
+    if (!api || carregandoRef.current) return;   // evita requisições duplicadas
+    carregandoRef.current = true;
     try {
       const [rp, rc] = await Promise.all([
         api.getProposals().catch(() => null),
@@ -60,17 +62,22 @@ function PipelinePage() {
     } catch (e) {
       console.warn('⚠️ [Funil] Erro ao carregar:', e && e.message);
     } finally {
+      carregandoRef.current = false;
       setCarregando(false);
     }
   }, []);
 
   React.useEffect(() => {
-    carregar();
-    const onTab = e => { if (e.detail === 'pipeline') carregar(); };
+    const pronto = () => !!(C.api() && window.PrecificacaoAPI && window.PrecificacaoAPI.proposalManager);
+    if (pronto()) carregar();
+    const montadoEm = Date.now();
+    // ao abrir a aba ela já carrega na montagem; o evento de troca de aba só recarrega depois
+    const onTab = e => { if (e.detail === 'pipeline' && Date.now() - montadoEm > 2000) carregar(); };
     window.addEventListener('crm-updated', carregar);
     window.addEventListener('backend-phase2-complete', carregar);
     window.addEventListener('tab-changed', onTab);
-    const t = setInterval(() => { if (C.api() && window.PrecificacaoAPI.proposalManager) { carregar(); clearInterval(t); } }, 1500);
+    // Backend ainda inicializando: espera ficar pronto e carrega uma vez só
+    const t = pronto() ? null : setInterval(() => { if (pronto()) { clearInterval(t); carregar(); } }, 1500);
     const t2 = setTimeout(() => { clearInterval(t); setCarregando(false); }, 20000);
     return () => {
       window.removeEventListener('crm-updated', carregar);
