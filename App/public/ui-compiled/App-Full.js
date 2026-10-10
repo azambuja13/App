@@ -2773,7 +2773,7 @@ window.AppFull = function AppFull() {
   }, "\uD83D\uDCC6 Agenda"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('pipeline'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'pipeline' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
-  }, "\uD83C\uDFAF Funil"), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83C\uDFAF Funil", window.CrmTaskBadge && /*#__PURE__*/React.createElement(window.CrmTaskBadge, null)), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'clients' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -3095,7 +3095,7 @@ window.AppFull = function AppFull() {
     d: "M3 4h18l-7 8v6l-4 2v-8L3 4z"
   })), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
-  }, "Funil")), /*#__PURE__*/React.createElement("button", {
+  }, "Funil", window.CrmTaskBadge && /*#__PURE__*/React.createElement(window.CrmTaskBadge, null))), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {

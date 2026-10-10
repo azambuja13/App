@@ -27,6 +27,45 @@ const ACTIVITY_TYPES = [
   { id: 'email', label: 'E-mail', icon: '✉️' }
 ];
 const ACTIVITY = Object.fromEntries(ACTIVITY_TYPES.map(a => [a.id, a]));
+const SOURCES = [
+  { id: 'instagram', label: 'Instagram', icon: '📸' },
+  { id: 'whatsapp_business', label: 'WhatsApp Business', icon: '💼' },
+  { id: 'whatsapp', label: 'WhatsApp', icon: '💬' }
+];
+const SOURCE = Object.fromEntries(SOURCES.map(s => [s.id, s]));
+const TAGS = ['Casamento', 'Corporativo', 'Aniversário', 'Recorrente', 'VIP'];
+
+// CRM é do plano PREMIUM
+const hasCrm = () => {
+  try { return !window.ConfigHelper || typeof window.ConfigHelper.hasFeatureAccess !== 'function' || window.ConfigHelper.hasFeatureAccess('crm'); }
+  catch (e) { return false; }
+};
+
+// Datas das tarefas
+const pad2 = n => String(n).padStart(2, '0');
+const localKey = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayKey = () => localKey(new Date());
+const taskDueKey = t => { if (!t || !t.dueAt) return null; const d = new Date(t.dueAt); return isNaN(d) ? null : localKey(d); };
+const taskGroup = t => { const k = taskDueKey(t); if (!k) return 'nodate'; const h = todayKey(); return k < h ? 'overdue' : (k === h ? 'today' : 'next'); };
+
+// Tarefas abertas compartilhadas (painel, contador da aba e Agenda) - uma requisição só
+const tasksStore = {
+  list: [], loaded: false, _p: null, _t: 0, _subs: new Set(),
+  subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
+  _emit() { this._subs.forEach(fn => { try { fn(this.list); } catch (e) {} }); },
+  async refresh(force) {
+    if (!hasCrm()) return this.list;
+    const a = api && api();
+    if (!a || typeof a.getTasks !== 'function') return this.list;
+    if (this._p) return this._p;
+    if (!force && this.loaded && Date.now() - this._t < 15000) return this.list;
+    this._p = a.getTasks({ status: 'open' }).then(r => {
+      this.list = (r && r.data) || []; this.loaded = true; this._t = Date.now(); this._emit(); return this.list;
+    }).catch(() => this.list).finally(() => { this._p = null; });
+    return this._p;
+  },
+  counts() { let overdue = 0, today = 0; this.list.forEach(t => { const g = taskGroup(t); if (g === 'overdue') overdue++; else if (g === 'today') today++; }); return { overdue, today }; }
+};
 
 const stageOfProposal = p => { const s = p.stage || STATUS_TO_STAGE[p.status] || 'quoting'; return s === 'negotiation' ? 'sent' : s; };
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -59,6 +98,7 @@ function patchProposalCache(proposalId, fields) {
   if (p) Object.assign(p, fields);
 }
 function notifyChanged() {
+  tasksStore.refresh(true);
   window.dispatchEvent(new CustomEvent('crm-updated'));
   window.dispatchEvent(new CustomEvent('proposalSaved'));
 }
@@ -91,7 +131,8 @@ function injectCss() {
 
 window.CRM = {
   STAGES, STAGE, STATUS_TO_STAGE, STAGE_TO_STATUS, PROPOSAL_STAGES, CLIENT_STAGES, LOST_REASONS,
-  ACTIVITY_TYPES, ACTIVITY, stageOfProposal, brl, dateKey, fmtDate, fmtDateTime, daysSince, waLink, api,
+  ACTIVITY_TYPES, ACTIVITY, SOURCES, SOURCE, TAGS, hasCrm, todayKey, taskDueKey, taskGroup, tasksStore,
+  stageOfProposal, brl, dateKey, fmtDate, fmtDateTime, daysSince, waLink, api,
   patchProposalCache, notifyChanged, injectCss
 };
 window.openClientDetail = function (clientId) {

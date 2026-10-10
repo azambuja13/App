@@ -355,6 +355,27 @@ class PrecificacaoAPI {
         });
     }
 
+    // CRM (etapa 2): tarefas e lembretes
+    async getTasks(params = {}) {
+        const q = new URLSearchParams();
+        if (params.status) q.set('status', params.status);
+        if (params.clientId) q.set('clientId', params.clientId);
+        const qs = q.toString();
+        return this.request('/api/tasks' + (qs ? '?' + qs : ''));
+    }
+
+    async createTask(task) {
+        return this.request('/api/tasks', { method: 'POST', body: JSON.stringify(task) });
+    }
+
+    async updateTask(taskId, fields) {
+        return this.request(`/api/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(fields) });
+    }
+
+    async deleteTask(taskId) {
+        return this.request(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    }
+
     async deleteClient(clientId) {
         return this.request(`/api/clients/${clientId}`, {
             method: 'DELETE'

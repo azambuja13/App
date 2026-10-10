@@ -75,6 +75,20 @@ function CalendarPage() {
   const [carregando, setCarregando] = React.useState(true);
   const [diaSel, setDiaSel] = React.useState(hojeKey);
   const [previewId, setPreviewId] = React.useState(null);
+  // Tarefas do CRM (plano Premium) aparecem no dia em que vencem
+  const crm = window.CRM && window.CRM.hasCrm() ? window.CRM : null;
+  const [tarefas, setTarefas] = React.useState(crm ? crm.tasksStore.list : []);
+  React.useEffect(() => {
+    if (!crm) return;
+    const unsub = crm.tasksStore.subscribe(l => setTarefas(l));
+    crm.tasksStore.refresh(false).then(l => setTarefas(l));
+    return unsub;
+  }, []);
+  const tarefasPorDia = React.useMemo(() => {
+    const m = {};
+    if (crm) tarefas.forEach(t => { const k = crm.taskDueKey(t); if (k) (m[k] = m[k] || []).push(t); });
+    return m;
+  }, [tarefas]);
 
   const carregandoRef = React.useRef(false);
   const carregar = React.useCallback(async () => {
@@ -227,27 +241,33 @@ function CalendarPage() {
                 h('span', { className: `text-xs md:text-sm font-bold ${k === hojeKey ? 'bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center' : 'text-gray-800'}` }, d),
                 conflito && h('span', { title: 'Proposta enviada para uma data já fechada', className: 'hidden lg:inline text-[11px]' }, '⚠️')),
               // Celular: bolinhas | Computador: nomes
-              lista.length > 0 && h('div', { className: 'flex gap-0.5 mt-auto lg:hidden flex-wrap', style: { width: '100%', paddingTop: 4 } },
+              (lista.length > 0 || (tarefasPorDia[k] || []).length > 0) && h('div', { className: 'flex gap-0.5 mt-auto lg:hidden flex-wrap', style: { width: '100%', paddingTop: 4 } },
                 fech.slice(0, 3).map((p, j) => h('span', { key: 'f' + j, style: { display: 'inline-block', width: 7, height: 7, borderRadius: 9999, flexShrink: 0 }, className: 'w-2 h-2 rounded-full bg-green-600' })),
                 neg.slice(0, 3).map((p, j) => h('span', { key: 'n' + j, style: { display: 'inline-block', width: 7, height: 7, borderRadius: 9999, flexShrink: 0 }, className: 'w-2 h-2 rounded-full bg-amber-500' })),
-                conflito && h('span', { key: 'c', style: { display: 'inline-block', width: 7, height: 7, borderRadius: 9999, flexShrink: 0 }, className: 'w-2 h-2 rounded-full bg-red-600' })),
+                conflito && h('span', { key: 'c', style: { display: 'inline-block', width: 7, height: 7, borderRadius: 9999, flexShrink: 0 }, className: 'w-2 h-2 rounded-full bg-red-600' }),
+                (tarefasPorDia[k] || []).length > 0 && h('span', { key: 't', style: { display: 'inline-block', width: 7, height: 7, borderRadius: 2, flexShrink: 0, background: '#2563eb' } })),
               h('div', { className: 'hidden lg:flex flex-col gap-0.5 mt-1 min-w-0', style: { width: '100%' } },
                 lista.slice(0, 2).map((p, j) => h('span', {
                   key: j, className: `truncate text-[10px] px-1 rounded ${p._tipo === 'fechada' ? 'bg-green-600 text-white' : 'bg-amber-200 text-amber-900'}`
                 }, p.clientName || nomeProposta(p))),
-                lista.length > 2 && h('span', { className: 'text-[10px] text-gray-500' }, `+${lista.length - 2}`)));
+                lista.length > 2 && h('span', { className: 'text-[10px] text-gray-500' }, `+${lista.length - 2}`),
+                (tarefasPorDia[k] || []).length > 0 && h('span', { style: { fontSize: 10, color: '#1d4ed8', fontWeight: 700 } }, `✅ ${tarefasPorDia[k].length} tarefa${tarefasPorDia[k].length > 1 ? 's' : ''}`)));
           })),
         h('div', { className: 'flex flex-wrap gap-4 mt-3 px-1 text-xs text-gray-600' },
           h('span', { className: 'flex items-center gap-1.5' }, h('span', { className: 'w-3 h-3 rounded bg-green-500' }), 'Fechada'),
           h('span', { className: 'flex items-center gap-1.5' }, h('span', { className: 'w-3 h-3 rounded bg-amber-400' }), 'Em negociação'),
-          h('span', { className: 'flex items-center gap-1.5' }, h('span', { className: 'w-3 h-3 rounded bg-red-600 lg:hidden' }), h('span', { className: 'hidden lg:inline' }, '⚠️'), 'Enviada para data já fechada'))),
+          h('span', { className: 'flex items-center gap-1.5' }, h('span', { className: 'w-3 h-3 rounded bg-red-600 lg:hidden' }), h('span', { className: 'hidden lg:inline' }, '⚠️'), 'Enviada para data já fechada'),
+          crm && h('span', { className: 'flex items-center gap-1.5' }, h('span', { style: { display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: '#2563eb' } }), 'Tarefa'))),
 
       h('div', { className: 'bg-white rounded-xl shadow-lg p-4' },
         h('h3', { className: 'font-bold text-gray-900 mb-1' }, fmtDia(diaSel)),
         h('p', { className: 'text-xs text-gray-600 mb-3' },
           listaDia.length === 0 ? 'Data livre - nenhum evento fechado ou em negociação.'
             : fechadasDia ? `Data fechada (${fechadasDia} evento${fechadasDia > 1 ? 's' : ''})` : 'Em negociação'),
-        h('div', { className: 'space-y-2' }, listaDia.map(p => itemProposta(p, false))))),
+        h('div', { className: 'space-y-2' }, listaDia.map(p => itemProposta(p, false))),
+        crm && window.CrmTaskItem && (tarefasPorDia[diaSel] || []).length > 0 && h('div', { style: { marginTop: 12 } },
+          h('div', { style: { fontSize: 12, fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase', marginBottom: 6 } }, `✅ Tarefas do dia (${tarefasPorDia[diaSel].length})`),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, tarefasPorDia[diaSel].map(t => h(window.CrmTaskItem, { key: t.id, t, mostrarCliente: true })))))),
 
     // Próximos eventos fechados
     h('div', { className: 'bg-white rounded-xl shadow-lg p-4 md:p-6' },

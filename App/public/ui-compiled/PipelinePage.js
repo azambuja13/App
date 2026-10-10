@@ -14,6 +14,7 @@ function PipelinePage() {
   const [carregando, setCarregando] = React.useState(true);
   const [busca, setBusca] = React.useState('');
   const [todosPerdidos, setTodosPerdidos] = React.useState(false);
+  const [origem, setOrigem] = React.useState('');
   const [perda, setPerda] = React.useState(null);        // { item } aguardando motivo
   const [novoContato, setNovoContato] = React.useState(false);
   const [previewId, setPreviewId] = React.useState(null);
@@ -36,8 +37,8 @@ function PipelinePage() {
       ]);
       const propostas = ((rp && (rp.data || rp.proposals)) || []).filter(p => p && p.id && p.status !== 'deleted');
       const clientes = ((rc && (rc.data || rc.clients)) || []).filter(c => c && c.id);
-      const nomeCliente = {};
-      clientes.forEach(c => { nomeCliente[c.id] = c.name; });
+      const nomeCliente = {}, clientePorId = {};
+      clientes.forEach(c => { nomeCliente[c.id] = c.name; clientePorId[c.id] = c; });
 
       const negocios = propostas.map(p => ({
         kind: 'proposal', key: 'p-' + p.id, id: p.id,
@@ -47,7 +48,9 @@ function PipelinePage() {
         clientId: p.clientId || null,
         date: p.eventDate, guests: p.guests, value: Number(p.finalTotal) || 0,
         since: p.stageChangedAt || p.updatedAt || p.createdAt,
-        lostReason: p.lostReason, status: p.status
+        lostReason: p.lostReason, status: p.status,
+        source: (clientePorId[p.clientId] && clientePorId[p.clientId].source) || (p.client && p.client.source) || null,
+        tags: (clientePorId[p.clientId] && clientePorId[p.clientId].tags) || (p.client && p.client.tags) || []
       }));
       const contatos = clientes
         .filter(c => !(Array.isArray(c.proposals) && c.proposals.some(p => p.status !== 'deleted')))
@@ -56,7 +59,8 @@ function PipelinePage() {
           stage: c.stage === 'lost' ? 'lost' : 'new',
           title: c.name, subtitle: c.phone || c.email || '',
           clientId: c.id, value: 0,
-          since: c.updatedAt || c.createdAt, lostReason: c.lostReason
+          since: c.updatedAt || c.createdAt, lostReason: c.lostReason,
+          source: c.source || null, tags: c.tags || []
         }));
       setItems([...negocios, ...contatos]);
     } catch (e) {
@@ -123,7 +127,8 @@ function PipelinePage() {
   const termo = busca.trim().toLowerCase();
   const limitePerdidos = Date.now() - 60 * 86400000;
   const visiveis = items.filter(it => {
-    if (termo && !(`${it.title} ${it.subtitle}`.toLowerCase().includes(termo))) return false;
+    if (termo && !(`${it.title} ${it.subtitle} ${(it.tags || []).join(' ')}`.toLowerCase().includes(termo))) return false;
+    if (origem && it.source !== origem) return false;
     if (it.stage === 'lost' && !todosPerdidos) {
       const t = new Date(it.since).getTime();
       if (!isNaN(t) && t < limitePerdidos) return false;
@@ -169,6 +174,9 @@ function PipelinePage() {
       (it.date || it.guests) && h('div', { className: 'crm-muted', style: { marginTop: 4 } },
         [it.date && '📅 ' + C.fmtDate(it.date), it.guests ? '👥 ' + it.guests : null].filter(Boolean).join('  ·  ')),
       it.stage === 'lost' && it.lostReason && h('div', { style: { marginTop: 4, fontSize: 12, color: '#b91c1c' } }, '✖ ' + it.lostReason),
+      (it.source || (it.tags && it.tags.length > 0)) && h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 } },
+        it.source && C.SOURCE[it.source] && h('span', { className: 'crm-chip', style: { background: '#f3f4f6', color: '#374151' } }, C.SOURCE[it.source].icon + ' ' + C.SOURCE[it.source].label),
+        (it.tags || []).map(tg => h('span', { key: tg, className: 'crm-chip', style: { background: '#fff7ed', color: '#c2410c' } }, tg))),
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 6 } },
         h('span', { style: { fontSize: 11, color: parado ? '#c2410c' : '#9ca3af', fontWeight: parado ? 700 : 400 } },
           dias === null ? '' : (dias === 0 ? 'hoje nesta etapa' : `${dias} dia${dias > 1 ? 's' : ''} nesta etapa`) + (parado ? ' ⏰' : '')),
@@ -220,6 +228,9 @@ function PipelinePage() {
           type: 'text', value: busca, onChange: e => setBusca(e.target.value),
           placeholder: '🔍 Buscar cliente ou proposta', className: 'crm-input', style: { flex: '1 1 220px' }
         }),
+        h('select', { value: origem, onChange: e => setOrigem(e.target.value), className: 'crm-select', style: { width: 'auto', fontSize: 14 } },
+          h('option', { value: '' }, 'Todas as origens'),
+          C.SOURCES.map(o => h('option', { key: o.id, value: o.id }, o.icon + ' ' + o.label))),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, flex: '0 1 auto' } },
           h('span', { style: { fontSize: 13, color: '#4b5563', whiteSpace: 'nowrap' } }, 'Ordenar:'),
           h('select', { value: ordem, onChange: e => setOrdem(e.target.value), className: 'crm-select', style: { width: 'auto', fontSize: 14 } },
@@ -228,6 +239,8 @@ function PipelinePage() {
         h('label', { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#4b5563', margin: 0, fontWeight: 500 } },
           h('input', { type: 'checkbox', checked: todosPerdidos, onChange: e => setTodosPerdidos(e.target.checked) }),
           'Mostrar perdidos antigos'))),
+
+    window.CrmTasksPanel && h(window.CrmTasksPanel, { collapsible: true }),
 
     carregando && items.length === 0
       ? h('div', { className: 'crm-muted', style: { textAlign: 'center', padding: 24 } }, 'Carregando funil...')
@@ -280,7 +293,7 @@ function CrmLostDialog({ item, onCancel, onConfirm }) {
 /** Cadastro rápido de contato (entra em "Novo contato") */
 function CrmNewContactDialog({ onClose, onCreated }) {
   const C = window.CRM;
-  const [f, setF] = React.useState({ name: '', phone: '', email: '', note: '' });
+  const [f, setF] = React.useState({ name: '', phone: '', email: '', note: '', source: '', tags: [] });
   const [salvando, setSalvando] = React.useState(false);
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   const salvar = async () => {
@@ -288,7 +301,7 @@ function CrmNewContactDialog({ onClose, onCreated }) {
     setSalvando(true);
     try {
       const api = C.api();
-      const r = await api.createClient({ name: f.name.trim(), phone: f.phone.trim() || null, email: f.email.trim() || null });
+      const r = await api.createClient({ name: f.name.trim(), phone: f.phone.trim() || null, email: f.email.trim() || null, source: f.source || null, tags: f.tags });
       const novo = r && r.data;
       if (novo && novo.id && f.note.trim()) {
         await api.addClientActivity(novo.id, { type: 'note', content: f.note.trim() }).catch(() => {});
@@ -313,6 +326,7 @@ function CrmNewContactDialog({ onClose, onCreated }) {
       campo('name', 'Nome *', 'text', 'Ex.: Mariana Souza'),
       campo('phone', 'Telefone / WhatsApp', 'tel', '(34) 99999-0000'),
       campo('email', 'E-mail', 'email', 'nome@email.com'),
+      h(window.CrmSourceTags, { source: f.source, tags: f.tags, onChange: (src, tg) => setF(x => ({ ...x, source: src, tags: tg })) }),
       h('div', { style: { marginBottom: 10 } },
         h('div', { style: { fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 } }, 'Primeira anotação'),
         h('textarea', { value: f.note, onChange: e => set('note', e.target.value), rows: 3, placeholder: 'Ex.: casamento em março, ~150 convidados, viu no Instagram', className: 'crm-input' })),
@@ -324,4 +338,25 @@ function CrmNewContactDialog({ onClose, onCreated }) {
 window.PipelinePage = PipelinePage;
 window.CrmLostDialog = CrmLostDialog;
 window.CrmNewContactDialog = CrmNewContactDialog;
+})();
+
+/** Seletor de origem do contato + etiquetas (usado no cadastro rápido e na ficha) */
+(function () {
+  const h = React.createElement;
+  function CrmSourceTags({ source, tags, onChange }) {
+    const C = window.CRM;
+    const tg = Array.isArray(tags) ? tags : [];
+    const chip = (ativo, label, onClick, key) => h('div', {
+      key: key || label, role: 'button', onClick,
+      style: { fontSize: 13, padding: '6px 10px', borderRadius: 9999, cursor: 'pointer', border: `1px solid ${ativo ? '#ea580c' : '#d1d5db'}`, background: ativo ? '#fff7ed' : '#fff', color: ativo ? '#c2410c' : '#374151', fontWeight: ativo ? 700 : 500 }
+    }, label);
+    return h('div', { style: { marginBottom: 10 } },
+      h('div', { style: { fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 } }, 'Origem do contato'),
+      h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 } },
+        C.SOURCES.map(o => chip(source === o.id, o.icon + ' ' + o.label, () => onChange(source === o.id ? '' : o.id, tg), o.id))),
+      h('div', { style: { fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 } }, 'Etiquetas'),
+      h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        C.TAGS.map(t => chip(tg.includes(t), t, () => onChange(source, tg.includes(t) ? tg.filter(x => x !== t) : tg.concat([t]))))));
+  }
+  window.CrmSourceTags = CrmSourceTags;
 })();

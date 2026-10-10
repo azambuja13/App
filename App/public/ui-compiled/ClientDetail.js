@@ -16,6 +16,7 @@ function descreverAtividade(a) {
     return { icon: '🔀', titulo: `${meta.title ? meta.title + ': ' : ''}${de} → ${para}`, texto: a.content ? 'Motivo: ' + a.content : null };
   }
   if (a.type === 'proposal_created') return { icon: '📄', titulo: 'Proposta criada' + (meta.title ? ': ' + meta.title : ''), texto: null };
+  if (a.type === 'task_done') return { icon: '✅', titulo: 'Tarefa concluída', texto: a.content };
   const t = C.ACTIVITY[a.type] || { icon: '•', label: a.type };
   return { icon: t.icon, titulo: t.label, texto: a.content };
 }
@@ -73,6 +74,21 @@ function ClientDetail({ clientId, onClose }) {
     catch (e) { alert('Não foi possível apagar: ' + (e && e.message ? e.message : 'erro')); }
   };
 
+  // Origem e etiquetas: salvam na hora
+  const salvarOrigemEtiquetas = async (source, tags) => {
+    setCliente(c => ({ ...c, source: source || null, tags }));
+    try {
+      await C.api().updateClient(clientId, { source: source || null, tags });
+      const cm = window.PrecificacaoAPI && window.PrecificacaoAPI.clientManager;
+      const local = cm && Array.isArray(cm.clients) ? cm.clients.find(x => x.id === clientId) : null;
+      if (local) Object.assign(local, { source: source || null, tags });
+      window.dispatchEvent(new CustomEvent('crm-updated'));
+    } catch (e) {
+      alert('Não foi possível salvar: ' + (e && e.message ? e.message : 'erro'));
+      carregar();
+    }
+  };
+
   const mudarEtapaContato = async (stage, motivo) => {
     try { await C.api().updateClientStage(clientId, stage, motivo); await carregar(); C.notifyChanged(); }
     catch (e) { alert('Não foi possível mudar a etapa: ' + (e && e.message ? e.message : 'erro')); }
@@ -107,6 +123,12 @@ function ClientDetail({ clientId, onClose }) {
             atalho(wa, '💬 WhatsApp', '#16a34a', true),
             atalho(cliente.phone ? 'tel:' + String(cliente.phone).replace(/[^\d+]/g, '') : null, '📞 Ligar', '#2563eb', false),
             atalho(cliente.email ? 'mailto:' + cliente.email : null, '✉️ E-mail', '#6b7280', false))),
+
+        // Origem e etiquetas
+        window.CrmSourceTags && h(window.CrmSourceTags, { source: cliente.source || '', tags: cliente.tags || [], onChange: salvarOrigemEtiquetas }),
+
+        // Tarefas do cliente
+        window.CrmTasksPanel && h('div', { style: { padding: 12, borderRadius: 10, border: '1px solid #e5e7eb' } }, h(window.CrmTasksPanel, { clientId })),
 
         // Negócios
         h('div', null,
