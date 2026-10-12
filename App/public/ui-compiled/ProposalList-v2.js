@@ -648,7 +648,11 @@ function ProposalCard({
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onPreview,
     className: "px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 text-sm font-medium"
-  }, "\uD83D\uDC41\uFE0F Visualizar"), onSelect && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDC41\uFE0F Visualizar"), window.CRM && window.CRM.openMessage && /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.CRM.openMessage({ proposal }),
+    title: "Mensagem pronta no WhatsApp",
+    className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+  }, "\uD83D\uDCAC WhatsApp"), onSelect && /*#__PURE__*/React.createElement("button", {
     onClick: () => onSelect(proposal),
     className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
   }, "Ver Detalhes"), /*#__PURE__*/React.createElement("button", {

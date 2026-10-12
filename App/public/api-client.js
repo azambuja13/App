@@ -319,6 +319,88 @@ class PrecificacaoAPI {
         });
     }
 
+    // CRM (etapa 1): funil e linha do tempo
+    async getClient(clientId) {
+        return this.request(`/api/clients/${clientId}`);
+    }
+
+    async updateClientStage(clientId, stage, lostReason) {
+        return this.request(`/api/clients/${clientId}/stage`, {
+            method: 'PATCH',
+            body: JSON.stringify({ stage, lostReason })
+        });
+    }
+
+    async updateProposalStage(proposalId, stage, lostReason) {
+        return this.request(`/api/proposals/${proposalId}/stage`, {
+            method: 'PATCH',
+            body: JSON.stringify({ stage, lostReason })
+        });
+    }
+
+    async getClientActivities(clientId) {
+        return this.request(`/api/clients/${clientId}/activities`);
+    }
+
+    async addClientActivity(clientId, activity) {
+        return this.request(`/api/clients/${clientId}/activities`, {
+            method: 'POST',
+            body: JSON.stringify(activity)
+        });
+    }
+
+    async deleteClientActivity(clientId, activityId) {
+        return this.request(`/api/clients/${clientId}/activities/${activityId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    // CRM (etapa 2): tarefas e lembretes
+    async getTasks(params = {}) {
+        const q = new URLSearchParams();
+        if (params.status) q.set('status', params.status);
+        if (params.clientId) q.set('clientId', params.clientId);
+        const qs = q.toString();
+        return this.request('/api/tasks' + (qs ? '?' + qs : ''));
+    }
+
+    async createTask(task) {
+        return this.request('/api/tasks', { method: 'POST', body: JSON.stringify(task) });
+    }
+
+    async updateTask(taskId, fields) {
+        return this.request(`/api/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(fields) });
+    }
+
+    async deleteTask(taskId) {
+        return this.request(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    }
+
+    // CRM etapa 3 - modelos de mensagem (WhatsApp) e relatórios
+    async getMessageTemplates() {
+        return this.request('/api/message-templates');
+    }
+
+    async saveMessageTemplate(key, data) {
+        return this.request(`/api/message-templates/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify(data) });
+    }
+
+    async deleteMessageTemplate(key) {
+        return this.request(`/api/message-templates/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    }
+
+    async saveReviewLink(reviewLink) {
+        return this.request('/api/message-templates/review-link', { method: 'PUT', body: JSON.stringify({ reviewLink }) });
+    }
+
+    async getCrmReports(params = {}) {
+        const q = new URLSearchParams();
+        if (params.from) q.set('from', params.from);
+        if (params.to) q.set('to', params.to);
+        const qs = q.toString();
+        return this.request('/api/crm/reports' + (qs ? '?' + qs : ''));
+    }
+
     async deleteClient(clientId) {
         return this.request(`/api/clients/${clientId}`, {
             method: 'DELETE'

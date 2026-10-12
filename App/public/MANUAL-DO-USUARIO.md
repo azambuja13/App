@@ -1,881 +1,778 @@
-# 📖 Manual do Usuário
+# Manual do Usuário
 ## Calculadora de Precificação para Eventos e Churrascos
 
-**Versão:** 1.0
-**Última Atualização:** Outubro 2025
+**Versão do manual:** outubro de 2026. Inclui Agenda, Funil de Vendas, Tarefas, Mensagens prontas e Relatórios.
+
+As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ---
 
-## 🎯 Sobre o Sistema
+## Novidades desta versão
 
-A **Calculadora de Precificação** é um sistema profissional desenvolvido para facilitar o gerenciamento completo de eventos, churrascos e buffets. Com ele, você pode:
-
-- ✅ Calcular custos automaticamente
-- ✅ Gerenciar ingredientes e receitas
-- ✅ Criar propostas profissionais em PDF
-- ✅ Controlar estoque e fornecedores
-- ✅ Acompanhar múltiplos eventos simultaneamente
-
----
-
-## 🔐 1. Primeiros Passos
-
-### 1.1 Ativação da Licença
-
-1. Ao abrir o aplicativo pela primeira vez, você verá a tela de ativação
-2. Insira sua **chave de licença** no campo apropriado
-3. Crie uma **senha** (mínimo 4 caracteres) para proteger seus dados
-4. Clique em **"Ativar e Configurar"**
-
-> 💡 **Dica:** Guarde sua senha em local seguro! Se esquecer, você precisará resetá-la.
-
-### 1.2 Não Tem Licença?
-
-Se você ainda não possui uma licença:
-- Clique no botão **"Comprar Licença"** na tela de login
-- Escolha o plano ideal para seu negócio:
-  - **OFFLINE**: Uso em 1 dispositivo (R$ 19,90/mês)
-  - **STANDARD**: Dispositivos ilimitados (R$ 49,90/mês)
-  - **PREMIUM**: Todos os recursos + exclusivos (R$ 69,90/mês)
+- **Mensagens prontas para WhatsApp:** escolha um modelo (primeiro contato, retorno da proposta, confirmação, pagamento, agradecimento, avaliação e recontato) e o texto já vem com o nome do cliente, o evento, a data e o valor.
+- **Modelos editáveis:** escreva os textos do seu jeito, crie modelos novos e cadastre o link de avaliação do Google.
+- **Relatórios (Premium):** taxa de fechamento, ticket médio, faturamento por mês, vendas por origem e motivos de perda.
+- **Pós-venda automático:** no dia seguinte ao evento o sistema cria a tarefa "Agradecer e pedir avaliação". Perto de completar um ano, cria a tarefa "Recontatar para o próximo evento".
+- **Origem "Site":** para os contatos que chegam pelo site.
+- **Agenda, Funil de Vendas, ficha do cliente e tarefas**, com retorno automático de propostas paradas.
 
 ---
 
-## 🏠 2. Tela Principal
+## 1. Sobre o sistema
 
-A aplicação possui **9 abas principais** organizadas para facilitar seu trabalho:
+A Calculadora de Precificação organiza todo o trabalho de quem vende eventos, churrascos e buffets:
 
-### 📋 Abas Disponíveis:
-
-1. **Config** - Configurações gerais
-2. **Eventos** - Gerenciamento de eventos
-3. **Ingredientes** - Banco de ingredientes
-4. **Itens** - Itens de consumo
-5. **Suporte** - Apoio e logística
-6. **Pratos** - Receitas e pratos
-7. **Cardápio** - Montagem de cardápios
-8. **Clientes** - Cadastro de clientes
-9. **Propostas** - Geração de propostas comerciais
+- Calcula o custo real de cada prato, com perda e rendimento dos ingredientes.
+- Monta cardápios e gera a lista de compras para o número de convidados.
+- Soma apoio, transporte e mão de obra ao custo do evento.
+- Gera propostas comerciais com a identidade da sua empresa.
+- Mostra na Agenda as datas fechadas e em negociação.
+- Acompanha clientes, conversas, tarefas e resultados no Funil de Vendas (CRM).
+- Prepara as mensagens de WhatsApp para cada etapa da venda.
 
 ---
 
-## ⚙️ 3. Configurações (Aba Config)
+## 2. Acesso ao sistema
 
-### 3.1 Informações da Empresa
+![Tela de acesso](manual/01-acesso.jpg)
 
-Preencha os dados da sua empresa para personalizar propostas e documentos:
+### 2.1 Primeiro acesso
 
-- **Nome da Empresa**
-- **Telefone de Contato**
-- **Email**
-- **Endereço**
-- **CNPJ** (opcional)
+1. Digite o **e-mail** da sua conta.
+2. Crie uma **senha** com no mínimo 4 caracteres e repita no campo "Confirmar Senha".
+3. Toque em **"Criar Senha e Entrar"**.
 
-### 3.2 Configurações de Margens
+### 2.2 Próximos acessos
 
-Defina as margens de lucro padrão para cálculos automáticos:
+1. Digite o e-mail e a senha.
+2. Toque em **"Entrar"**.
 
-- **Margem de Ingredientes**: Percentual sobre custo dos ingredientes
-- **Margem de Mão de Obra**: Percentual sobre custo da mão de obra
-- **Margem de Apoio**: Percentual sobre itens de apoio/logística
+### 2.3 Esqueci minha senha
 
-> 📌 **Exemplo:** Se um prato custa R$ 100 em ingredientes e você configurou 50% de margem, o preço sugerido será R$ 150.
+1. Na tela de acesso, toque em **"Esqueci minha senha"**.
+2. Confirme. Em seguida, você cria uma senha nova.
 
----
+### 2.4 Não encontra sua conta?
 
-## 📅 4. Gerenciamento de Eventos
-
-### 4.1 Criar Novo Evento
-
-1. Acesse a aba **"Eventos"**
-2. Clique em **"+ Novo Evento"**
-3. Preencha os campos:
-   - **Nome do Evento**
-   - **Data**
-   - **Número de Convidados**
-   - **Tipo** (Churrasco, Buffet, Festa, etc.)
-   - **Cliente** (opcional)
-
-4. Clique em **"Criar Evento"**
-
-### 4.2 Adicionar Itens ao Evento
-
-Após criar o evento, você pode adicionar:
-
-- **Ingredientes**: Clique no ícone "+" ao lado de cada ingrediente
-- **Pratos**: Adicione pratos completos com receitas
-- **Apoio**: Equipamentos, mão de obra, transporte
-- **Mão de Obra**: Garçons, churrasqueiros, auxiliares
-
-### 4.3 Calcular Custos
-
-O sistema calcula automaticamente:
-
-- ✅ **Custo Total de Ingredientes**
-- ✅ **Custo de Mão de Obra**
-- ✅ **Custos de Apoio/Logística**
-- ✅ **Custo de Transporte**
-- ✅ **Preço Sugerido** (com margens configuradas)
-- ✅ **Lucro Estimado**
-
-### 4.4 Gerar Proposta em PDF
-
-1. Revise todos os itens do evento
-2. Ajuste quantidades e valores se necessário
-3. Clique em **"Gerar Proposta PDF"**
-4. O PDF será gerado automaticamente para download
+Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 
 ---
 
-## 🥘 5. Banco de Ingredientes
+## 3. Visão geral
 
-### 5.1 Cadastrar Novo Ingrediente
+### 3.1 Abas
 
-1. Acesse **"Ingredientes"**
-2. Clique em **"+ Novo Ingrediente"**
-3. Preencha:
-   - **Nome do Ingrediente**
-   - **Categoria** (Carnes, Vegetais, Bebidas, etc.)
-   - **Unidade** (kg, litros, unidades, etc.)
-   - **Custo por Unidade**
-   - **Fornecedor** (opcional)
+![Barra de abas no celular (embaixo) e Agenda](manual/04-agenda.jpg)
 
-4. Clique em **"Adicionar"**
+- **Agenda:** calendário das datas fechadas, em negociação e das tarefas do dia. É a aba que abre primeiro.
+- **Funil:** funil de vendas, tarefas, relatórios e ficha de cada cliente (Premium).
+- **Clientes:** cadastro de clientes.
+- **Eventos:** dados do evento (cliente, data, convidados, local) e eventos salvos.
+- **Ingredientes:** banco de ingredientes com custo, perda e rendimento.
+- **Pratos:** receitas com custo, margem e preço sugerido.
+- **Cardápio:** pratos do evento atual e consumo por pessoa.
+- **Salvos:** cardápios salvos para reutilizar.
+- **Itens:** lista de compras do evento.
+- **Apoio:** itens de apoio e logística, transporte e mão de obra.
+- **Propostas:** criação, envio e acompanhamento das propostas.
+- **WhatsApp:** configuração do envio de propostas em PDF pelo WhatsApp (Premium, no computador).
+- **Empresa (no celular):** abre o painel da empresa, com os dados da empresa, o suporte e este manual.
 
-### 5.2 Editar Ingrediente
+No celular, as abas ficam na barra inferior. No computador, ficam no topo da tela.
 
-- Clique no ícone **✏️ (editar)** ao lado do ingrediente
-- Faça as alterações necessárias
-- Clique em **"Salvar"**
+### 3.2 Painel da empresa
 
-### 5.3 Excluir Ingrediente
+![Painel da empresa](manual/02-empresa.jpg)
 
-- Clique no ícone **🗑️ (lixeira)**
-- Confirme a exclusão
+O painel da empresa reúne:
 
-> ⚠️ **Atenção:** Ingredientes usados em pratos não podem ser excluídos até remover as referências.
+- o logo, o plano e a licença;
+- o botão **"Falar com o suporte"**;
+- este manual (botão **"Ver"**);
+- os **Dados da Empresa** e o **Resumo Financeiro** do evento atual.
 
----
+Onde encontrar o painel:
 
-## 🍽️ 6. Gerenciamento de Pratos (Premium)
+- **No computador:** ele fica sempre à esquerda da tela.
+- **No celular:** toque em **"Empresa"** na barra inferior. Para voltar, toque em qualquer outra aba.
 
-> 🔒 **Recurso disponível apenas nos planos STANDARD e PREMIUM**
+### 3.3 Passo a passo de um orçamento
 
-### 6.1 Criar Novo Prato
+1. **Ingredientes:** cadastre os ingredientes com o preço que você paga.
+2. **Pratos:** crie os pratos com os ingredientes e defina a margem de lucro.
+3. **Cardápio:** adicione os pratos do evento e ajuste o consumo por pessoa.
+4. **Salvar cardápio:** a proposta é montada a partir de um cardápio salvo.
+5. **Clientes:** cadastre o cliente na aba Clientes ou crie o contato direto no Funil.
+6. **Propostas:** crie a proposta escolhendo o cardápio salvo e o cliente.
+7. **Funil e Agenda:** envie a proposta e acompanhe. Quando ela for aprovada, a data aparece como fechada na Agenda.
 
-1. Acesse **"Pratos"**
-2. Clique em **"+ Novo Prato"**
-3. Preencha:
-   - **Nome do Prato**
-   - **Categoria**
-   - **Descrição**
-   - **Foto** (opcional)
-   - **Rendimento** (quantas porções)
-
-4. Adicione **ingredientes**:
-   - Selecione ingrediente do banco
-   - Defina quantidade necessária
-   - Clique em **"Adicionar ao Prato"**
-
-5. O sistema calcula automaticamente:
-   - **Custo total do prato**
-   - **Custo por porção**
-   - **Preço sugerido de venda**
-
-### 6.2 Usar Pratos em Eventos
-
-- Na tela de eventos, use a opção **"Adicionar Prato"**
-- Selecione o prato desejado
-- Defina quantas unidades serão servidas
-- O sistema adiciona todos os ingredientes automaticamente
+> **Exemplo completo:** a Mariana pediu um orçamento de casamento para 120 convidados.
+> 1. Você cria o contato "Mariana Costa" no Funil, com origem Instagram e etiqueta Casamento.
+> 2. Monta o cardápio "Churrasco Completo" e salva.
+> 3. Cria a proposta "Casamento Mariana & Lucas" com esse cardápio e manda pelo WhatsApp.
+> 4. Marca a proposta como **Enviada**.
+> 5. Três dias depois, sem resposta, o sistema cria a tarefa de retorno. Você abre a **Mensagem pronta** "Retorno da proposta" e envia.
+> 6. Ela aprova: você marca como **Aprovada** e a data fica verde na Agenda.
 
 ---
 
-## 📋 7. Cardápios Personalizados (Premium)
+## 4. Dados da empresa
 
-> 🔒 **Recurso disponível apenas no plano PREMIUM**
+![Dados da empresa](manual/03-dados-empresa.jpg)
 
-### 7.1 Criar Cardápio
+Os dados da empresa aparecem nas propostas e o nome da empresa entra nas mensagens prontas. Eles ficam guardados na sua conta, então são os mesmos em todos os aparelhos.
 
-1. Acesse **"Cardápio"**
-2. Clique em **"+ Novo Cardápio"**
-3. Digite um nome para o cardápio
-4. Adicione pratos ao cardápio
-5. Personalize a apresentação
-6. Salve o cardápio
+1. No painel da empresa, toque em **"Dados da Empresa"** para abrir o formulário.
+2. Preencha nome, telefone, e-mail e endereço.
+3. Para a apresentação da proposta, preencha também história, missão, visão, valores e motivação/diferenciais.
+4. Adicione até 3 fotos: principal, ambiente/equipe e produtos/serviços.
+5. Toque em **"Salvar Dados da Empresa"**.
 
-### 7.2 Usar Cardápio em Eventos
+Para colocar o **logo**, toque no círculo no topo do painel e escolha a imagem.
 
-- Selecione um cardápio salvo
-- Aplique ao evento atual
-- Todos os pratos serão adicionados automaticamente
+> **Dica:** escreva a história em 2 ou 3 frases curtas. Por exemplo: "Há mais de 10 anos levando churrasco de qualidade para casamentos, aniversários e eventos corporativos."
 
 ---
 
-## 👥 8. Cadastro de Clientes
+## 5. Agenda
 
-### 8.1 Adicionar Cliente
+A Agenda é a primeira tela do sistema e mostra o mês em forma de calendário.
 
-1. Acesse **"Clientes"**
-2. Clique em **"+ Novo Cliente"**
-3. Preencha:
-   - **Nome/Razão Social**
-   - **CPF/CNPJ**
-   - **Telefone**
-   - **Email**
-   - **Endereço**
+### 5.1 O que aparece no calendário
 
-4. Clique em **"Salvar"**
+- **Fechada (verde):** proposta marcada como "Aprovada".
+- **Em negociação (amarelo):** proposta marcada como "Enviada".
+- **Tarefas (azul, Premium):** tarefas com data naquele dia.
+- **Alerta de conflito (vermelho):** proposta enviada para uma data que já está fechada. O alerta evita vender a mesma data duas vezes.
 
-### 8.2 Vincular Cliente a Evento
+No topo ficam o total de datas fechadas e em negociação do mês e o faturamento fechado no mês.
 
-- Ao criar evento, selecione o cliente na lista
-- As informações do cliente aparecerão na proposta PDF
+### 5.2 Como usar
 
----
+![Dia selecionado na Agenda](manual/05-agenda-dia.jpg)
 
-## 📄 9. Propostas Comerciais (Premium)
+- Use as setas para trocar de mês e **"Hoje"** para voltar ao mês atual.
+- Toque em um dia para ver os eventos e as **"Tarefas do dia"**. As tarefas podem ser concluídas ali mesmo.
+- A lista **"Próximos eventos fechados"** mostra o que vem pela frente.
+- Se uma proposta aprovada estiver sem data do evento, a Agenda avisa. Edite a proposta e informe a data.
 
-> 🔒 **Recurso disponível apenas no plano PREMIUM**
-
-### 9.1 Criar Proposta
-
-1. Acesse **"Propostas"**
-2. Clique em **"+ Nova Proposta"**
-3. Selecione:
-   - **Cliente**
-   - **Evento** (ou crie novo)
-   - **Template de proposta**
-
-4. Personalize:
-   - Texto de apresentação
-   - Condições comerciais
-   - Forma de pagamento
-   - Validade da proposta
-
-5. Clique em **"Gerar PDF"**
-
-### 9.2 Enviar Proposta
-
-- Após gerar, use o botão **"Compartilhar"**
-- Opções:
-  - 📧 Enviar por email
-  - 💬 Compartilhar via WhatsApp
-  - 💾 Baixar PDF
+> **Exemplo:** um cliente pergunta se você tem o dia 17 livre. Abra a Agenda e veja a cor do dia 17. Verde: já está fechado. Amarelo: tem uma proposta em negociação para esse dia. Sem cor: o dia está livre.
 
 ---
 
-## 🚛 10. Logística e Apoio
+## 6. Funil de Vendas (CRM)
 
-### 10.1 Itens de Apoio
+Recurso do plano **Premium**. Mostra cada negócio como um cartão, organizado por etapa.
 
-Na aba **"Suporte"**, gerencie:
+![Topo do Funil: resumo, Relatórios, Novo contato, busca e filtros](manual/06-funil.jpg)
 
-- **Equipamentos**: Churrasqueiras, mesas, cadeiras
-- **Utensílios**: Pratos, copos, talheres descartáveis
-- **Transporte**: Frete, combustível
-- **Outros**: Gelo, carvão, lenha
+### 6.1 Etapas
 
-### 10.2 Mão de Obra
+![Cartões nas colunas do Funil](manual/07-funil-cartoes.jpg)
 
-Configure custos de:
+- **Novo contato:** clientes que ainda não têm proposta.
+- **Orçamento:** proposta em rascunho.
+- **Proposta enviada:** proposta marcada como "Enviada".
+- **Fechado:** proposta "Aprovada".
+- **Perdido:** proposta "Rejeitada" ou contato que não fechou.
 
-- **Churrasqueiros**
-- **Garçons**
-- **Auxiliares de Cozinha**
-- **Equipe de Limpeza**
+Cada cartão é uma proposta. Ele mostra o cliente, a data do evento, os convidados, o valor e há quantos dias está na etapa. Um mesmo cliente pode ter vários negócios ao mesmo tempo (por exemplo, um casamento fechado e um aniversário em orçamento).
 
-Defina:
-- **Valor por hora ou por evento**
-- **Quantidade de profissionais**
-- **Horário** (para cálculo automático)
+### 6.2 Mover um negócio de etapa
 
----
+- No computador, arraste o cartão para outra coluna.
+- No celular (ou no computador), use o menu **"Mover para…"** do cartão.
 
-## 💾 11. Backup e Sincronização
+A etapa e o status da proposta andam juntos:
 
-### 11.1 Plano OFFLINE
+| Etapa no Funil | Status da proposta |
+|---|---|
+| Proposta enviada | Enviada |
+| Fechado | Aprovada |
+| Perdido | Rejeitada |
 
-- Dados salvos **apenas no dispositivo**
-- Faça backup manual periodicamente
-- Não há sincronização entre dispositivos
+Mudar o status na aba Propostas também move o cartão.
 
-### 11.2 Planos STANDARD e PREMIUM
+### 6.3 Marcar como perdido
 
-- Sincronização automática na nuvem
-- Acesse de **qualquer dispositivo**
-- Backup automático diário
-- Recuperação de dados em caso de perda
+Ao mover para "Perdido", o sistema pergunta o motivo: Preço, Data ocupada, Fechou com outro fornecedor, Desistiu do evento, Sem resposta ou Outro. Você pode escrever um detalhe opcional. O motivo aparece no cartão, na ficha do cliente e nos Relatórios.
 
----
+Perdidos com mais de 60 dias ficam escondidos. Marque **"Mostrar perdidos antigos"** para vê-los.
 
-## 📱 12. Uso Mobile
+### 6.4 Novo contato
 
-### 12.1 Interface Mobile
+![Novo contato preenchido](manual/08-novo-contato.jpg)
 
-- Design otimizado para smartphones
-- Navegação por abas na parte inferior
-- Todas as funcionalidades disponíveis
-- Gestos intuitivos (deslizar, tocar, etc.)
+1. Toque em **"+ Novo contato"**.
+2. Preencha nome, telefone/WhatsApp e e-mail.
+3. Escolha a **origem do contato**: Instagram, WhatsApp Business, WhatsApp ou Site.
+4. Escolha as **etiquetas**: Casamento, Corporativo, Aniversário, Recorrente ou VIP.
+5. Se quiser, escreva uma **primeira anotação**.
+6. Toque em **"Salvar"**.
 
-### 12.2 Dicas Mobile
+O contato entra na coluna "Novo contato". Quando você criar uma proposta para ele, o negócio passa a aparecer como proposta.
 
-- Use **modo paisagem** para tabelas grandes
-- **Toque duplo** para editar rapidamente
-- **Deslize** para deletar itens
-- Use o botão **☰ Menu** para ações rápidas
+> **Exemplo:** uma pessoa chamou no Instagram perguntando preço para um aniversário. Crie o contato "Fernanda Lima", origem **Instagram**, etiqueta **Aniversário**, e anote: "Aniversário de 40 anos em março, uns 80 convidados, quer fogo de chão." Depois os Relatórios mostram quantas vendas vieram do Instagram.
 
-### 12.3 Instalar como Aplicativo (PWA)
+### 6.5 Buscar, filtrar e ordenar
 
-Você pode adicionar a Calculadora à tela inicial do seu celular para usar como se fosse um aplicativo nativo!
+- **Buscar:** procura por cliente, proposta ou etiqueta.
+- **Origem:** mostra só os contatos de uma origem.
+- **Ordenar:** por "Dias nesta etapa" (os parados há mais tempo primeiro) ou por "Data do evento" (o evento mais próximo primeiro). A escolha fica gravada.
+- **Resumo:** o topo mostra quantos negócios estão em aberto, o valor em aberto e o valor fechado no mês.
 
-#### 📱 No iPhone (iOS - Safari)
+### 6.6 Proposta parada
 
-1. Abra o site no **Safari** (navegador padrão do iPhone)
-2. Toque no ícone de **Compartilhar** (🔗 quadrado com seta para cima) na barra inferior
-3. Role para baixo e toque em **"Adicionar à Tela de Início"**
-4. Personalize o nome (ex: "Precificação") e toque em **"Adicionar"**
-5. Pronto! O ícone aparecerá na sua tela inicial
-
-**Vantagens no iOS:**
-- ✅ Abre em tela cheia (sem barra do navegador)
-- ✅ Fica na tela inicial como app nativo
-- ✅ Funciona offline (plano OFFLINE)
-- ✅ Mais rápido de acessar
-- ✅ Não consome memória do navegador
-
-#### 🤖 No Android (Chrome)
-
-1. Abra o site no **Chrome** (navegador recomendado)
-2. Toque no menu **⋮** (três pontos) no canto superior direito
-3. Selecione **"Adicionar à tela inicial"** ou **"Instalar app"**
-4. Confirme tocando em **"Adicionar"** ou **"Instalar"**
-5. O ícone aparecerá na tela inicial
-
-**Vantagens no Android:**
-- ✅ Abre como app independente
-- ✅ Aparece na lista de aplicativos
-- ✅ Funciona offline (plano OFFLINE)
-- ✅ Notificações (se habilitadas)
-- ✅ Modo escuro automático
-
-#### 💻 No iPad/Tablet
-
-Siga os mesmos passos do iPhone/Android dependendo do sistema operacional.
-
-#### ⚠️ Importante
-
-- **Use sempre o mesmo navegador** para acessar após instalar
-- **Não desinstale o app** ou perderá dados locais (plano OFFLINE)
-- **Faça backup** dos dados antes de reinstalar
-- **Planos STANDARD/PREMIUM**: Dados sincronizados automaticamente na nuvem
+Uma proposta enviada há 3 dias ou mais fica com a contagem de dias destacada em laranja. O sistema também cria uma tarefa de retorno sozinho (veja o capítulo 8).
 
 ---
 
-## 🔧 13. Solução de Problemas
+## 7. Ficha do cliente
 
-### 13.1 Licença Inválida
+A ficha reúne tudo sobre um cliente. Para abrir:
 
-**Sintomas:**
-- Mensagem de erro ao ativar
-- "Licença expirada" ou "Licença inválida"
+- toque em um cartão no **Funil**; ou
+- use o botão **"Ficha"** na aba **Clientes**.
 
-**Solução:**
-1. Verifique se digitou a chave corretamente
-2. Confirme se a licença não expirou
-3. Entre em contato com o suporte
-4. Use o botão **"Comprar Licença"** para renovar
+![Ficha do cliente](manual/09-ficha.jpg)
 
-### 13.2 Dados Não Salvam
+### 7.1 O que tem na ficha
 
-**Sintomas:**
-- Alterações são perdidas ao recarregar
-- Dados desaparecem
+- **Atalhos:** **💬 Mensagem pronta** (capítulo 9), WhatsApp, Ligar e E-mail.
+- **Origem e etiquetas:** podem ser alteradas na própria ficha.
+- **Negócios:** as propostas do cliente, com etapa e valor. Use "Ver" para abrir a proposta.
+- **Tarefas do cliente:** as tarefas ligadas a ele, com o botão "+ Nova tarefa".
+- **Linha do tempo:** o histórico do relacionamento.
 
-**Solução:**
-1. Verifique sua conexão com a internet (planos STANDARD/PREMIUM)
-2. Limpe o cache do navegador
-3. Atualize a página (F5)
-4. Contate o suporte se o problema persistir
+Para um contato sem proposta, a ficha permite **"Marcar como perdido"** ou **"Voltar para Novo contato"**. Para mudar a etapa de uma proposta, use o menu "Mover para…" no Funil.
 
-### 13.3 PDF Não Gera
+### 7.2 Linha do tempo
 
-**Sintomas:**
-- Botão não funciona
-- PDF em branco
+![Linha do tempo](manual/10-linha-do-tempo.jpg)
 
-**Solução:**
-1. Verifique se o evento tem itens adicionados
-2. Preencha todos os campos obrigatórios
-3. Aguarde o carregamento completo da página
-4. Tente novamente
+1. Escolha o tipo: Anotação, Ligação, WhatsApp, Reunião, Visita ou E-mail.
+2. Escreva o que foi conversado.
+3. Toque em **"Salvar anotação"**.
 
-### 13.4 Erro ao Calcular Preços
+O sistema registra sozinho as mudanças de etapa (com o motivo da perda, quando houver), as propostas criadas, as tarefas concluídas e as mensagens prontas enviadas. Anotações podem ser apagadas.
 
-**Sintomas:**
-- Valores aparecem como "NaN" ou "0"
-- Cálculos incorretos
-
-**Solução:**
-1. Verifique se todos os ingredientes têm preços configurados
-2. Confirme se as margens estão definidas em Config
-3. Recarregue a página e tente novamente
+> **Exemplo:** depois de ligar para a cliente, escolha **Ligação** e escreva "Confirmou 120 convidados. Vai decidir até sexta." Na próxima conversa, você sabe exatamente onde parou.
 
 ---
 
-## 💼 14. Planos e Recursos
+## 8. Tarefas e lembretes
 
-### 14.1 Comparativo de Planos
+As tarefas aparecem no **Funil**, na **ficha do cliente** e na **Agenda**.
 
-| Recurso | OFFLINE | STANDARD | PREMIUM |
-|---------|---------|----------|---------|
-| **Preço** | R$ 19,90/mês | R$ 49,90/mês | R$ 69,90/mês |
-| **Dispositivos** | 1 | Ilimitados | Ilimitados |
-| **Sincronização Nuvem** | ❌ | ✅ | ✅ |
-| **Backup Automático** | ❌ | ✅ | ✅ |
-| **Gerenciar Eventos** | ✅ | ✅ | ✅ |
-| **Banco de Ingredientes** | ✅ | ✅ | ✅ |
-| **Cálculo de Custos** | ✅ | ✅ | ✅ |
-| **PDF Básico** | ✅ | ✅ | ✅ |
-| **Pratos e Receitas** | ❌ | ✅ | ✅ |
-| **Cardápios** | ❌ | ❌ | ✅ |
-| **Múltiplas Propostas** | ❌ | ❌ | ✅ |
-| **Templates Exclusivos** | ❌ | ❌ | ✅ |
-| **Suporte** | Email | Prioritário | VIP |
+![Nova tarefa sendo criada](manual/11-tarefas.jpg)
 
-### 14.2 Upgrade de Plano
+### 8.1 Criar uma tarefa
 
-Para fazer upgrade:
-1. Acesse **Config → Gerenciar Plano**
-2. Clique em **"Fazer Upgrade"**
-3. Escolha o novo plano
-4. Pague apenas a diferença proporcional
+1. Toque em **"+ Nova tarefa"**.
+2. Escreva o que precisa ser feito.
+3. Escolha a data e o cliente. Os dois são opcionais.
+4. Toque em **"Criar tarefa"**.
 
----
+> **Exemplo:** "Enviar contrato para assinatura", data 10/12, cliente Mariana Costa. No dia 10 ela aparece em **Hoje** e na Agenda.
 
-## 📞 15. Suporte e Contato
+### 8.2 Acompanhar
 
-### 15.1 Central de Ajuda
+- As tarefas ficam separadas em **Atrasadas**, **Hoje**, **Próximas** e **Sem data**.
+- A aba **Funil** mostra um número com as tarefas atrasadas e de hoje.
+- Marque a caixinha para concluir. A tarefa concluída entra na linha do tempo do cliente.
+- O **💬** ao lado da tarefa abre a mensagem pronta certa para ela (capítulo 9).
+- O **×** apaga a tarefa.
 
-- **Email**: suporte@precificacao.com.br
-- **Horário**: Segunda a Sexta, 9h às 18h
+### 8.3 Tarefas automáticas
 
-### 15.2 Tempo de Resposta
+O sistema cria sozinho estas tarefas, sem repetir para a mesma proposta:
 
-- **OFFLINE**: Até 48h
-- **STANDARD**: Até 24h
-- **PREMIUM**: Até 4h (horário comercial)
+| Quando | Tarefa criada | Mensagem pronta sugerida |
+|---|---|---|
+| Proposta "Enviada" há 3 dias sem mudança | Retornar sobre a proposta | Retorno da proposta |
+| Dia seguinte a um evento de proposta aprovada | Agradecer e pedir avaliação | Agradecimento e avaliação (ou Agradecimento, se não houver link de avaliação) |
+| Quase um ano depois do evento | Recontatar para o próximo evento | Recontato |
 
-### 15.3 Treinamento
+A tarefa de retorno fecha sozinha quando a proposta muda de status ou é excluída. A tarefa de agradecimento só é criada para eventos dos últimos 7 dias, para não aparecerem tarefas de eventos antigos.
 
-Clientes PREMIUM têm direito a:
-- ✅ Sessão de treinamento de 1h (online)
-- ✅ Material em vídeo exclusivo
-- ✅ Consultoria mensal de 30min
+### 8.4 Lembretes
+
+Os lembretes aparecem só dentro do aplicativo: no contador, nas listas e na Agenda. O sistema não envia notificações para o celular nem e-mails.
 
 ---
 
-## 🔄 16. Atualizações
+## 9. Mensagens prontas para WhatsApp
 
-### 16.1 Como Atualizar
+A mensagem pronta abre o WhatsApp com o texto já escrito, preenchido com os dados do cliente e da proposta.
 
-O sistema atualiza automaticamente! Basta:
-1. Recarregar a página (F5 ou Cmd+R)
-2. Aguardar o carregamento
-3. Novos recursos estarão disponíveis
+![Mensagem pronta escolhendo o modelo "Retorno da proposta"](manual/12-mensagem-pronta.jpg)
 
-### 16.2 Histórico de Versões
+### 9.1 Onde fica
 
-Acesse **Config → Sobre** para ver:
-- Versão atual instalada
-- Data da última atualização
-- Novidades da versão
+- **Ficha do cliente:** botão **"💬 Mensagem pronta"**. Aparece quando o cliente tem telefone.
+- **Tarefas:** o **💬** ao lado da tarefa já abre o modelo certo para ela.
+- **Propostas:** botão **"💬 WhatsApp"** no cartão da proposta. Funciona também sem o Funil (plano Standard).
 
----
+### 9.2 Como enviar
 
-## 🎓 17. Dicas Profissionais
+1. Abra a mensagem pronta por um dos botões acima.
+2. Escolha o **modelo**. O texto aparece preenchido.
+3. Se quiser, ajuste o texto ali mesmo.
+4. Toque em **"💬 Abrir no WhatsApp"** e envie a mensagem pelo WhatsApp. Também dá para usar **"Copiar texto"**.
 
-### 17.1 Otimize seu Tempo
+Com o Funil (Premium), o envio fica registrado na linha do tempo do cliente como "WhatsApp".
 
-- ⭐ **Crie templates** de eventos recorrentes
-- ⭐ **Use pratos prontos** em vez de adicionar ingredientes individuais
-- ⭐ **Salve cardápios** para reutilizar
-- ⭐ **Configure margens realistas** baseadas no mercado
+### 9.3 Modelos que já vêm prontos
 
-### 17.2 Precificação Inteligente
+- **Primeiro contato:** para responder um pedido de orçamento.
+- **Retorno da proposta:** para quem não respondeu.
+- **Confirmação da data.**
+- **Lembrete de pagamento.**
+- **Agradecimento pós-evento.**
+- **Agradecimento e avaliação:** inclui o link de avaliação do Google.
+- **Recontato para o próximo evento.**
 
-- 📊 Monitore seus custos semanalmente
-- 📊 Ajuste margens por tipo de evento
-- 📊 Considere sazonalidade de ingredientes
-- 📊 Adicione 10-15% de contingência
+> **Exemplo de texto preenchido:** "Olá, Mariana! Tudo bem? Passando para saber se você conseguiu ver a proposta para Casamento Mariana & Lucas. Fico à disposição para ajustar o que precisar."
 
-### 17.3 Profissionalismo
+### 9.4 Editar os modelos
 
-- ✨ Preencha **todos** os dados da empresa
-- ✨ Use **fotos de qualidade** nos pratos
-- ✨ Personalize **propostas** para cada cliente
-- ✨ Acompanhe **todos os eventos** no sistema
+![Editar modelos](manual/13-editar-modelos.jpg)
 
----
+1. Na janela da mensagem, toque em **"✏️ Editar modelos"**.
+2. Mude o nome ou o texto de qualquer modelo e toque em **"Salvar"**.
+3. **"Restaurar"** volta um modelo ao texto original.
+4. **"+ Novo modelo"** cria um modelo seu. Modelos criados por você podem ser apagados.
+5. Toque em **"← Voltar para a mensagem"** para usar o modelo.
 
-## 🤖 18. Funcionalidades de Inteligência Artificial
+Os modelos ficam salvos na sua conta e valem em todos os aparelhos.
 
-O sistema agora conta com poderosas ferramentas de **Inteligência Artificial** que automatizam tarefas e aceleram seu trabalho!
+**Variáveis que o app preenche sozinho:**
 
-### 18.1 Importação Inteligente de Ingredientes
+| Variável | Vira | Exemplo |
+|---|---|---|
+| {cliente} | nome completo do cliente | Mariana Costa |
+| {primeiro_nome} | primeiro nome | Mariana |
+| {evento} | nome da proposta | Casamento Mariana & Lucas |
+| {data} | data do evento | 25/10/2026 |
+| {convidados} | número de convidados | 120 |
+| {valor} | valor da proposta | R$ 18.960,00 |
+| {empresa} | nome da sua empresa | Buffet Sabor & Brasa |
+| {link_avaliacao} | seu link de avaliação do Google | (o link que você cadastrar) |
 
-**📍 Localização:** Aba "Ingredientes" → Botão "🤖 Importar com IA"
+Quando uma informação não existe (por exemplo, um contato sem proposta não tem {valor}), ela é tirada do texto. Antes de enviar, confira se a frase continua fazendo sentido.
 
-Importe ingredientes de **qualquer tipo de arquivo** usando IA:
+### 9.5 Link de avaliação do Google
 
-#### Tipos de Arquivo Suportados:
-- 📄 **PDF** (listas de preços, catálogos)
-- 📷 **Imagens** (JPG, PNG, GIF, WebP) - fotos de tabelas, cardápios
-- 📊 **Excel/CSV** (XLS, XLSX, CSV) - planilhas
-- 📝 **Texto** (TXT) - listas simples
+No campo **"⭐ Link de avaliação do Google (opcional)"** cole o link que o Google dá para os clientes avaliarem a sua empresa. Ele entra no lugar de {link_avaliacao}.
 
-#### Como Usar:
-
-1. Clique no botão **"🤖 Importar com IA"**
-2. Selecione o arquivo desejado
-3. Confirme o processamento
-4. Aguarde enquanto a IA extrai:
-   - Nome dos ingredientes
-   - Preços
-   - Unidades de medida
-   - Categorias
-   - Tamanhos de embalagem
-
-5. Revise os resultados:
-   - **Criados:** Ingredientes novos adicionados
-   - **Atualizados:** Preços diferentes foram atualizados
-   - **Pulados:** Ingredientes com mesmo preço
-
-#### Vantagens:
-
-✅ **Economia de tempo**: Importe centenas de ingredientes em segundos
-✅ **Precisão**: IA extrai dados automaticamente
-✅ **Flexibilidade**: Funciona com qualquer formato de arquivo
-✅ **Inteligente**: Detecta e atualiza apenas preços diferentes
-
-> 💡 **Dica:** Tire foto da lista de preços do fornecedor com seu celular e importe diretamente!
+> **Como pegar o link:** no Google, procure o nome da sua empresa e, no seu Perfil da Empresa, toque em **"Pedir avaliações"** (ou "Compartilhar formulário de avaliação"). Copie o link e cole aqui.
 
 ---
 
-### 18.2 Atualização de Preços com IA
+## 10. Relatórios (Premium)
 
-**📍 Localização:** Aba "Ingredientes" → Botão "Atualizar Preços com IA"
+No topo do Funil, toque em **"📊 Relatórios"**. Para voltar, toque em **"← Voltar para o funil"**.
 
-Atualize automaticamente os preços de **todos os ingredientes sem preço** usando IA de mercado.
+![Relatórios: cartões de resumo](manual/14-relatorios.jpg)
 
-#### Como Funciona:
+Escolha o período: últimos 30 dias, 3, 6 ou 12 meses, ou este ano. A escolha fica gravada.
 
-1. A IA analisa cada ingrediente sem preço
-2. Pesquisa preços médios de mercado
-3. Sugere valores realistas baseados em:
-   - Categoria do produto
-   - Região do Brasil
-   - Preços atuais de mercado
-   - Tipo de embalagem
+**Cartões:**
 
-#### Como Usar:
+- **Taxa de fechamento:** fechados ÷ (fechados + perdidos).
+- **Ticket médio:** valor médio dos negócios fechados.
+- **Valor fechado** e **Em aberto.**
+- **Tempo até fechar:** média de dias da proposta até o "Fechado".
+- **Novos contatos** cadastrados no período.
 
-1. Clique em **"Atualizar Preços com IA"**
-2. Revise o resumo:
-   - Quantos ingredientes serão atualizados
-   - Custo estimado do processamento
-3. Confirme a operação
-4. Aguarde o processamento (pode levar alguns minutos)
-5. Revise os resultados:
-   - **Atualizados:** Preços adicionados
-   - **Pulados:** Ingredientes que já tinham preço
-   - **Falhas:** Erros durante o processo
+![Relatórios: faturamento por mês e vendas por origem](manual/15-relatorios-graficos.jpg)
 
-#### Quando Usar:
+**Gráficos:**
 
-- ✅ Após importar ingredientes sem preço
-- ✅ Para obter estimativas rápidas
-- ✅ Ao cadastrar muitos ingredientes novos
-- ✅ Para ter valores iniciais antes de atualizar com fornecedor
+- **Faturamento por mês:** pela data do evento, só negócios fechados.
+- **Vendas por origem:** quantos negócios, quantos fechados e quanto vendeu cada origem (Instagram, WhatsApp, Site…).
+- **Motivos de perda:** por que os negócios não fecharam.
 
-> ⚠️ **Importante:** Os preços são **estimativas** baseadas em mercado. Sempre confirme com seus fornecedores!
+Os negócios contados são os criados no período escolhido.
+
+> **Exemplo de leitura:** se o Instagram trouxe 7 negócios e fechou 3, e o WhatsApp Business trouxe 4 e fechou 2, os dois canais fecham parecido. Se "Preço" é o motivo de perda que mais aparece, vale revisar a margem ou oferecer um cardápio mais enxuto.
+
+Para os relatórios ficarem certos, preencha a **origem** dos contatos e o **motivo** quando perder um negócio.
 
 ---
 
-### 18.3 Geração Automática de Cardápios
+## 11. Clientes
 
-**📍 Localização:** Aba "Cardápio" → Botão "🤖 Montar Cardápio com IA"
+![Clientes](manual/16-clientes.jpg)
 
-Crie cardápios completos automaticamente baseados no evento!
+### 11.1 Cadastrar
 
-#### Como Funciona:
+1. Toque em **"Novo Cliente"**.
+2. Preencha nome (obrigatório), telefone, e-mail, endereço e observações.
+3. Toque em **"Salvar"**.
 
-A IA analisa:
-- Tipo de evento (churrasco, festa, buffet)
-- Número de pessoas
-- Pratos que você já tem cadastrados
-- Suas preferências (opcional)
+### 11.2 Outras ações
 
-E então sugere:
-- ✅ Cardápio completo balanceado
-- ✅ Pratos adequados para o tipo de evento
-- ✅ Quantidades corretas por pessoa
-- ✅ Categorias bem distribuídas (proteínas, acompanhamentos, sobremesas)
+- **Buscar:** por nome, telefone ou e-mail.
+- **Ficha:** abre a ficha do cliente (Premium).
+- **Editar** e **Excluir**.
 
-#### Como Usar:
+O topo da tela mostra o total de clientes e quantos têm telefone, e-mail e endereço.
 
-1. Abra um evento na aba "Cardápio"
-2. Clique em **"🤖 Montar Cardápio com IA"**
-3. (Opcional) Adicione preferências:
-   - Ex: "Comida japonesa"
-   - Ex: "Sem lactose"
-   - Ex: "Orçamento baixo"
-   - Ex: "Vegetariano"
-4. Clique em **"🤖 Gerar Cardápio"**
-5. Revise as sugestões:
-   - **Verde:** Prato já existe no seu banco
-   - **Laranja:** Prato novo (será criado automaticamente)
-6. Clique em **"✅ Adicionar ao Cardápio"**
-
-#### Criação Automática de Pratos:
-
-Quando a IA sugere um prato que você **não tem cadastrado**:
-
-- 🤖 O sistema cria o prato automaticamente
-- 🤖 Gera receita completa com IA
-- 🤖 Adiciona todos os ingredientes
-- 🤖 Calcula custos automaticamente
-- 🤖 Adiciona ao cardápio
-
-> 🎯 **Resultado:** Cardápio completo em segundos, mesmo com pratos que você nunca fez!
+> **Dica:** cadastre o telefone com DDD, por exemplo (34) 99123-4567. Assim os botões de WhatsApp e a mensagem pronta funcionam.
 
 ---
 
-### 18.4 Importação Inteligente de Receitas
+## 12. Ingredientes
 
-**📍 Localização:** Aba "Pratos" → Botão "🤖 Importar Receita"
+![Ingredientes: botões e busca](manual/18-ingredientes.jpg)
 
-Transforme qualquer receita em um prato completo com custos calculados!
+### 12.1 Cadastrar um ingrediente
 
-#### Tipos de Entrada Suportados:
+1. Toque em **"Novo Item"**.
+2. Preencha:
+   - **Nome** e **Categoria** (Proteínas, Carboidratos, Vegetais, Laticínios, Gorduras, Temperos, Bebidas, Sobremesas, Outros).
+   - **Tipo de venda:** por peso (kg, g, L, ml) ou por unidade (pão, ovo, lata).
+   - **Perda (%):** o que se perde no preparo (limpeza, osso, gordura).
+   - **Rendimento (x):** quanto o ingrediente cresce no preparo (arroz 3,0x, massa 2,5x, padrão 1,0x).
+   - **Custo da embalagem** e **quantidade na embalagem** (ou tamanho da unidade, em g ou ml).
+3. O sistema mostra o custo por grama ou por unidade.
+4. Toque em **"Salvar"**.
 
-- 📝 **Texto:** Cole a receita completa
-- 📄 **PDF:** Upload de arquivo PDF
-- 📷 **Imagem:** Foto de receita de livro/revista
-- 🔗 **URL:** Link de site de receitas
+![Ingredientes cadastrados](manual/19-ingredientes-lista.jpg)
 
-#### Como Usar:
+> **Exemplo:** picanha comprada a R$ 89,90 o kg, com 15% de perda na limpeza. Cadastre: tipo **peso**, embalagem **1000 g**, custo **89,90**, perda **15**. O sistema calcula R$ 0,0899 por grama e, nos pratos, já compra 15% a mais para compensar a perda.
 
-1. Clique em **"🤖 Importar Receita"**
-2. Escolha o tipo de entrada
-3. Forneça a receita (texto, arquivo, foto ou link)
-4. Aguarde o processamento
-5. Revise os resultados:
-   - Nome do prato extraído
-   - Lista de ingredientes identificados
-   - Quantidades normalizadas
-   - **Verde:** Ingrediente já existe
-   - **Laranja:** Ingrediente será criado
-6. Ajuste se necessário
-7. Clique em **"Criar Prato"**
+### 12.2 Outras ações
 
-#### O que a IA Faz:
+- **Buscar:** por nome, categoria ou unidade.
+- **Editar** e **Excluir.** A coluna "Em Uso" mostra se o ingrediente está no evento atual.
+- **Excel:** exporta todos os ingredientes para planilha.
 
-✅ Extrai nome do prato
-✅ Identifica todos os ingredientes
-✅ Normaliza quantidades (xícaras → gramas, etc)
-✅ Faz matching com ingredientes existentes
-✅ Cria ingredientes novos automaticamente
-✅ Calcula custo total do prato
-✅ Calcula custo por porção
+### 12.3 Recursos com IA (Premium)
 
-> 💡 **Dica:** Encontrou uma receita interessante na internet? Copie o link e importe direto!
+- **Importar com IA:** envie uma lista de preços em PDF, foto (JPG, PNG, GIF, WebP), planilha (XLS, XLSX, CSV) ou texto. A IA lê nome, preço, unidade e categoria. Ela cria os ingredientes novos e atualiza os preços que mudaram.
+- **Templates:** adiciona listas prontas de ingredientes. Os que você já tem não são duplicados.
+- **Atualizar Preços com IA:** estima o preço dos ingredientes que estão sem preço.
+
+Os preços estimados pela IA são uma referência. Confirme sempre com seus fornecedores.
 
 ---
 
-### 18.5 Criação Automática de Pratos por Nome
+## 13. Pratos
 
-**📍 Localização:** Usado automaticamente pelo gerador de cardápios
+![Pratos](manual/20-pratos.jpg)
 
-Quando a IA sugere um prato no cardápio que você não tem:
+### 13.1 Criar um prato
 
-1. 🤖 IA gera receita completa do prato
-2. 🤖 Identifica ingredientes necessários
-3. 🤖 Define quantidades apropriadas
-4. 🤖 Cria ingredientes que não existem
-5. 🤖 Atualiza preços de ingredientes sem valor
-6. 🤖 Calcula custo total automaticamente
-7. 🤖 Adiciona ao seu banco de pratos
-8. 🤖 Adiciona ao cardápio do evento
+1. Toque em **"Novo Prato"**.
+2. Preencha nome, descrição, categoria (Entrada, Prato Principal, Acompanhamento, Sobremesa, Bebida, Outro) e o **número de porções** que o prato rende.
+3. Escolha o cálculo: **por porção** (marcado) ou **por peso, em R$ por 100 g** (desmarcado).
+4. Toque em **"Adicionar Ingrediente"**, escolha o ingrediente e informe a quantidade.
+5. Marque **"Descartável após uso"** para itens como sal, açúcar ou vinho de marinada. Eles contam no custo, mas não no peso final.
+6. Defina a **margem de lucro (%)**. O preço sugerido aparece por porção ou por 100 g.
+7. Se quiser, adicione até 3 fotos, observações e a ficha técnica (tempo, temperatura, equipamentos).
+8. Toque em **"Criar Prato"**.
 
-#### Exemplo Prático:
+O resumo mostra o custo total e o peso final depois da perda dos ingredientes.
 
-**Cenário:** IA sugeriu "Salmão Gravlax" mas você nunca fez
+> **Exemplo de margem:** um prato que custa R$ 10,00 por porção:
+> - com margem de **100%**, é vendido por R$ 20,00;
+> - com **300%**, por R$ 40,00 (4 vezes o custo).
 
-**O que acontece:**
-1. Sistema gera receita profissional de Salmão Gravlax
-2. Identifica: salmão fresco, sal, açúcar, endro, limão, etc.
-3. Cria ingredientes novos (endro, se não existe)
-4. Calcula: R$ 45,00 custo total, R$ 15,00 por porção
-5. Prato pronto para usar!
+### 13.2 Outras ações
 
----
-
-### 18.6 Dicas de Uso das Funcionalidades de IA
-
-#### Importação de Ingredientes:
-
-- 📸 Tire fotos claras e bem iluminadas
-- 📄 Use PDFs com texto selecionável (não escaneados)
-- 📊 Organize suas planilhas com colunas claras
-- ✅ Sempre revise os valores extraídos
-
-#### Atualização de Preços:
-
-- 🎯 Use para estimativas iniciais
-- 💰 Confirme depois com fornecedores reais
-- 📅 Atualize periodicamente (mensal)
-- ⚠️ Ajuste margens considerando variação de mercado
-
-#### Geração de Cardápios:
-
-- 📝 Seja específico nas preferências
-- ✅ Revise sugestões antes de adicionar
-- 🔄 Gere múltiplas vezes com preferências diferentes
-- 💡 Use como ponto de partida, ajuste depois
-
-#### Importação de Receitas:
-
-- 🔗 URLs funcionam melhor que fotos
-- 📝 Receitas estruturadas dão melhores resultados
-- ✅ Sempre confira quantidades extraídas
-- 🎨 Adicione fotos depois para profissionalizar
+- **Adicionar ao Cardápio:** coloca o prato no cardápio do evento atual.
+- **Atualizar Ingredientes:** atualiza os preços de todos os pratos e cardápios salvos com os valores atuais da aba Ingredientes. Use depois de mudar preços.
+- **Importar Receita com IA (Premium):** cole uma receita de qualquer fonte. A IA identifica os ingredientes e as quantidades e mostra quais já estão cadastrados. Ela também estima os preços que faltam, para você revisar, e cria o prato.
 
 ---
 
-### 18.7 Limitações e Considerações
+## 14. Cardápio do evento
 
-#### O que a IA Faz Muito Bem:
+![Cardápio do evento](manual/21-cardapio.jpg)
 
-✅ Extrair dados de textos e imagens
-✅ Identificar ingredientes e quantidades
-✅ Gerar receitas profissionais
-✅ Sugerir cardápios balanceados
-✅ Estimar preços de mercado
+1. Na aba **Pratos**, toque em **"Adicionar ao Cardápio"** nos pratos desejados.
+2. Na aba **Cardápio**, ajuste o **consumo por pessoa** (em gramas) de cada prato.
+3. Confira o custo por pessoa, o valor por pessoa e o total geral.
+4. Toque em **"Gerar Lista de Compras"** para enviar os ingredientes para a aba Itens.
+5. Toque em **"Salvar Cardápio"**, dê um nome, escolha o tipo de evento e, se quiser, escreva uma descrição. Se já existir um cardápio com o mesmo nome, o sistema pergunta se deve sobrescrever.
 
-#### O que Requer Atenção:
+**Montar com IA (Premium):** informe preferências (por exemplo: churrasco argentino, sem lactose, vegetariano) e toque em "Gerar Cardápio". Os pratos que você ainda não tem são criados sozinhos, com receita e custo, antes de entrar no cardápio.
 
-⚠️ **Preços de IA são estimativas** - sempre confirme com fornecedores
-⚠️ **Quantidades podem variar** - ajuste conforme sua experiência
-⚠️ **Categorização pode diferir** - reorganize se preferir
-⚠️ **Reconhecimento de imagens** - funciona melhor com fotos claras
+Use **"Limpar"** para esvaziar o cardápio.
 
-#### Custo de Uso:
-
-- 💎 Funcionalidades de IA consomem créditos
-- 💎 Importação de arquivo: ~R$ 0,10 por arquivo
-- 💎 Atualização de preços: ~R$ 0,01 por ingrediente
-- 💎 Geração de cardápio: ~R$ 0,50 por cardápio
-- 💎 Criação de prato: ~R$ 0,20 por prato
-
-> 📊 **Transparência:** Você sempre verá o custo estimado antes de confirmar operações de IA.
+> **Exemplo:** para 100 convidados, com picanha a 250 g por pessoa, o sistema calcula 25 kg servidos. Na aba Itens, a quantidade a comprar já inclui a perda da limpeza.
 
 ---
 
-### 18.8 Casos de Uso Reais
+## 15. Cardápios salvos
 
-#### Caso 1: Novo Cliente com Lista de Fornecedor
+![Cardápios salvos](manual/22-salvos.jpg)
 
-**Problema:** Cliente enviou lista de preços em PDF do fornecedor dele
+A aba **Salvos** guarda seus cardápios para reutilizar.
 
-**Solução:**
-1. Importar PDF com IA → 150 ingredientes em 30 segundos
-2. Sistema identifica quais já existem
-3. Atualiza preços diferentes automaticamente
-4. Cliente satisfeito com orçamento baseado nos preços dele
+- Busque pelo nome e filtre por tipo de evento (Casamento, Corporativo, Aniversário, Formatura, Churrasco, Festa, Outro).
+- Alterne entre visualização em **Grade** e em **Lista**.
+- Ações de cada cardápio:
+  - **Visualizar**;
+  - **gerar lista de compras**;
+  - **carregar no evento atual**;
+  - **duplicar**;
+  - **excluir**.
 
----
-
-#### Caso 2: Evento Temático Urgente
-
-**Problema:** Cliente quer churrasco argentino para amanhã, você nunca fez
-
-**Solução:**
-1. Criar evento com 50 pessoas
-2. Gerar cardápio com IA: "Churrasco argentino"
-3. IA sugere: Asado, Chorizo, Morcilla, Chimichurri, Provoleta
-4. Sistema cria todos os pratos automaticamente
-5. Cardápio pronto em 2 minutos!
+> **Dica:** monte cardápios-base ("Churrasco Completo", "Coquetel Corporativo") e use **duplicar** para criar variações para cada cliente.
 
 ---
 
-#### Caso 3: Expansão de Cardápio
+## 16. Itens (lista de compras)
 
-**Problema:** Quer adicionar 20 pratos novos mas não tem tempo
+![Itens do evento](manual/23-itens.jpg)
 
-**Solução:**
-1. Pesquisar receitas na internet
-2. Importar cada URL com IA
-3. Sistema cria pratos completos com custos
-4. Cardápio expandido em 1 hora de trabalho
+A aba **Itens** mostra os ingredientes do evento calculados para o número de convidados:
 
----
+- **A Servir:** quantidade pronta, depois do preparo.
+- **A Comprar:** quantidade crua, já considerando perda e rendimento.
+- **Custo Total** de cada item.
 
-#### Caso 4: Atualização Trimestral
-
-**Problema:** 300 ingredientes cadastrados, preços desatualizados
-
-**Solução:**
-1. Baixar planilha atualizada do fornecedor
-2. Importar com IA
-3. Sistema atualiza apenas preços diferentes
-4. Banco completo atualizado em minutos
+Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 
 ---
 
-## 📚 19. Glossário
+## 17. Apoio, transporte e mão de obra
 
-- **Margem**: Percentual de lucro sobre o custo
-- **Rendimento**: Número de porções que uma receita produz
-- **Custo Unitário**: Preço de uma única unidade de ingrediente
-- **Proposta Comercial**: Documento formal com orçamento detalhado
-- **Cardápio**: Conjunto de pratos organizados por categoria
-- **Evento**: Ocasião específica que requer cálculo de custos
-- **IA (Inteligência Artificial)**: Tecnologia que automatiza tarefas complexas
-- **Matching**: Processo de encontrar correspondências entre dados
-- **Extração de Dados**: Identificar e capturar informações de documentos
-- **Vision API**: Tecnologia de IA que processa imagens e PDFs
+![Apoio e logística](manual/24-apoio.jpg)
 
----
+Tudo fica na aba **Apoio** e entra no custo do evento.
 
-## ✅ 20. Checklist do Primeiro Uso
+- **Apoio e logística:** toque em "Novo Item" e informe nome, custo e quantidade (por exemplo: carvão, gelo, louças, guardanapos). Desmarque a caixinha para tirar um item do evento sem apagá-lo.
+- **Transporte e pedágio:** marque "Ativo" e informe distância (km), consumo (km/l), preço do combustível, pedágio e número de viagens.
+- **Mão de obra:** informe as horas trabalhadas e o valor por hora.
 
-- [ ] Ativar licença e criar senha
-- [ ] Preencher dados da empresa em Config
-- [ ] Configurar margens de lucro
-- [ ] Cadastrar principais ingredientes
-- [ ] Criar primeiro evento teste
-- [ ] Adicionar ingredientes ao evento
-- [ ] Gerar PDF de proposta
-- [ ] Explorar outras abas
-- [ ] Fazer backup dos dados (OFFLINE)
-- [ ] Testar acesso de outro dispositivo (STANDARD/PREMIUM)
+> **Exemplo:** carvão em saco de 5 kg a R$ 32,00, 12 sacos: o sistema soma R$ 384,00 no custo do evento.
 
 ---
 
-## 🎉 Conclusão
+## 18. Eventos
 
-Parabéns por escolher a **Calculadora de Precificação**!
+![Dados do evento](manual/17-eventos.jpg)
 
-Este sistema foi desenvolvido para profissionalizar seu negócio de eventos e churrascos. Com ele, você terá:
+### 18.1 Dados do evento
 
-- ✅ **Controle total** sobre custos e margens
-- ✅ **Agilidade** na criação de propostas
-- ✅ **Profissionalismo** nas apresentações
-- ✅ **Organização** de todo o processo
+1. Na aba **Eventos**, preencha o nome do evento.
+2. Escolha o **cliente** (cadastre antes na aba Clientes).
+3. Informe a data, o número de convidados e o local.
+4. Em **"Meses até o Evento"**, informe quantos meses faltam. O sistema aplica correção de 1% ao mês nos materiais.
+5. Confira os totais: ingredientes, apoio, transporte, mão de obra, total, total dos pratos e total com margem.
+6. Toque em **"Salvar Evento"**.
 
-**Bons negócios!** 🚀
+### 18.2 Eventos salvos
+
+- Busque pelo nome e ordene por mais recente, mais antigo, data do evento ou nome.
+- **Carregar:** abre o evento salvo (os dados atuais são substituídos).
+- **Excluir:** remove o evento.
+- **Novo Evento:** começa um evento em branco.
 
 ---
 
-*Manual do Usuário - Calculadora de Precificação v1.0*
-*© 2024 - Todos os direitos reservados*
+## 19. Propostas
+
+![Minhas propostas](manual/25-propostas.jpg)
+
+### 19.1 Criar uma proposta
+
+1. Na aba **Propostas**, toque em **"Nova Proposta"**.
+2. Dê um nome à proposta. Por exemplo: "Casamento Mariana & Lucas". O nome aparece nas mensagens prontas como {evento}.
+3. Escolha o **cardápio salvo**.
+4. Escolha qual total usar: total dos itens do evento, total dos pratos sem margem ou total dos pratos com margem.
+5. Confira o cliente, a data, os convidados e o local.
+6. Preencha:
+   - observações;
+   - validade (dias);
+   - forma de pagamento;
+   - confirmação mínima (dias);
+   - formas aceitas (dinheiro, cartão, PIX).
+7. Escolha quais dados da empresa aparecem: nome, contatos, história, missão, visão, valores, motivação e fotos.
+8. Ajuste a **margem de lucro (%)** da proposta, se quiser. Use 0% para mostrar só o custo.
+9. Escolha se as fotos dos pratos aparecem no cardápio.
+10. Toque em **"Salvar Proposta"**.
+
+### 19.2 Acompanhar
+
+![Cartão da proposta com os botões](manual/26-proposta-cartao.jpg)
+
+- O topo mostra o total de propostas, a receita total e o ticket médio.
+- Filtre por status (Rascunho, Enviada, Aprovada, Rejeitada). Também dá para buscar e ordenar por data, valor ou nome.
+- Botões de cada proposta:
+  - **Enviar** (marca como Enviada);
+  - **Aprovar** e **Rejeitar**;
+  - **Visualizar**;
+  - **💬 WhatsApp**: mensagem pronta, capítulo 9;
+  - **Editar**, **Duplicar** e **Excluir**.
+- Você pode selecionar várias propostas e excluir de uma vez.
+- Editar uma proposta enviada ou aprovada mantém o status dela.
+
+A mudança de status também move o negócio no Funil e atualiza a Agenda: Enviada aparece em negociação e Aprovada aparece como data fechada.
+
+### 19.3 Visualizar, imprimir e compartilhar
+
+![Visualizar a proposta: modelos e botões](manual/27-proposta-visualizar.jpg)
+
+1. Toque em **"Visualizar"**.
+2. Escolha o modelo: **Chef**, **Modern**, **Classic** ou **Minimal**.
+3. Toque em **"Imprimir"**:
+   - **No computador:** você pode imprimir ou salvar em PDF.
+   - **No app para iPhone:** o PDF é gerado e você pode compartilhar ou salvar.
+4. **"Enviar WhatsApp"** (Premium) manda o PDF da proposta pelo WhatsApp configurado no capítulo 20. O cliente precisa ter telefone cadastrado.
+
+> **Exemplo de fluxo:**
+> 1. **Visualizar** → modelo **Chef** → **Imprimir**, para gerar o PDF.
+> 2. Mande o PDF para a cliente.
+> 3. Na aba Propostas, toque em **Enviar** para marcar como Enviada.
+> 4. Use o **💬 WhatsApp** com o modelo "Retorno da proposta" se ela não responder.
+
+---
+
+## 20. WhatsApp (Premium)
+
+Permite enviar a proposta em PDF direto para o WhatsApp do cliente, usando a sua conta do WhatsApp Business (Meta Cloud API). As **mensagens prontas** do capítulo 9 não precisam desta configuração: elas abrem o seu próprio WhatsApp.
+
+1. No computador, abra a aba **WhatsApp**.
+2. Marque **"Habilitar envio via WhatsApp"**.
+3. Informe o **Access Token** e o **Phone Number ID**. O WhatsApp Business Account ID e o número são opcionais.
+4. Toque em **"Salvar Configurações"** e depois em **"Testar Conexão"**.
+
+Para obter as credenciais:
+
+1. Acesse o Meta Business Suite e vá em **Sistema → Contas do WhatsApp**.
+2. Selecione o seu aplicativo do WhatsApp Business.
+3. Copie o Access Token e o Phone Number ID.
+
+---
+
+## 21. Planos e recursos
+
+### OFFLINE
+
+- Dados guardados apenas no aparelho, sem sincronização.
+- Ingredientes, pratos, cardápios, eventos, cálculo de custos e propostas.
+- Agenda.
+
+### STANDARD
+
+- Tudo do OFFLINE.
+- Dados na nuvem e acesso de vários aparelhos, com sincronização automática.
+
+### PREMIUM
+
+- Tudo do STANDARD.
+- CRM: Funil de Vendas, ficha do cliente, tarefas e lembretes, tarefas automáticas e Relatórios.
+- Recursos com IA: importar ingredientes, templates, atualizar preços, importar receitas e montar cardápios.
+- Envio de propostas em PDF pelo WhatsApp.
+
+Recursos que não fazem parte do seu plano aparecem com um cadeado.
+
+---
+
+## 22. Uso no celular
+
+### 22.1 App para iPhone
+
+O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e senha e seus dados aparecem iguais.
+
+### 22.2 Instalar a versão web na tela inicial
+
+**iPhone e iPad (Safari):**
+
+1. Abra o sistema no Safari.
+2. Toque em Compartilhar (quadrado com seta para cima).
+3. Toque em **"Adicionar à Tela de Início"** e confirme.
+
+**Android (Chrome):**
+
+1. Abra o sistema no Chrome.
+2. Toque no menu de três pontos.
+3. Toque em **"Adicionar à tela inicial"** ou **"Instalar app"** e confirme.
+
+### 22.3 Dicas
+
+- As abas ficam na barra inferior. O botão "Empresa" abre os dados da empresa, o suporte e este manual.
+- No Funil, use o menu "Mover para…" no lugar de arrastar.
+- Use o celular na horizontal para tabelas grandes.
+
+---
+
+## 23. Solução de problemas
+
+### Não consigo entrar
+
+- Confira se o e-mail está correto.
+- Use "Esqueci minha senha" para criar uma nova senha.
+- Se a conta não for encontrada, fale com o suporte.
+
+### Os dados não aparecem ou não atualizam
+
+- Confira sua conexão com a internet (planos STANDARD e PREMIUM).
+- Recarregue a página. No computador: Ctrl+Shift+R (Windows) ou Cmd+Shift+R (Mac).
+- Saia e entre novamente.
+
+### A aba Funil aparece bloqueada
+
+- O Funil de Vendas faz parte do plano PREMIUM.
+
+### O botão "Mensagem pronta" não aparece
+
+- Na ficha, ele só aparece quando o cliente tem telefone cadastrado.
+- Recarregue a página para receber a versão mais nova.
+
+### A mensagem pronta saiu com uma frase estranha
+
+- Faltou alguma informação (por exemplo, a data ou os convidados na proposta). Complete a proposta ou ajuste o texto antes de enviar.
+
+### A data não aparece na Agenda
+
+- A data só aparece quando a proposta está como "Enviada" (em negociação) ou "Aprovada" (fechada).
+- Confira se a data do evento foi informada na proposta.
+
+### Os Relatórios mostram "Sem origem"
+
+- São contatos sem origem preenchida, ou propostas antigas de antes do CRM. Abra a ficha do cliente e escolha a origem.
+
+### Valores zerados ou estranhos
+
+- Confira se todos os ingredientes têm preço.
+- Confira o número de convidados e o consumo por pessoa no Cardápio.
+- Depois de mudar preços, use "Atualizar Ingredientes" na aba Pratos.
+
+### A proposta não gera PDF
+
+- Salve a proposta antes de visualizar.
+- Confira se ela tem cardápio e convidados.
+- Aguarde a página carregar por completo e tente de novo.
+
+---
+
+## 24. Suporte
+
+- No painel da empresa, use o botão **"Falar com o suporte"**. No celular, o painel abre pelo botão "Empresa" na barra inferior. O botão também aparece na tela de acesso.
+- Ou envie um e-mail para: rafael.oliveira.azambuja@gmail.com
+
+Ao escrever, conte o que aconteceu, em qual aba e, se possível, envie um print da tela.
+
+---
+
+## Primeiro uso: lista rápida
+
+- Entrar com e-mail e criar a senha.
+- Preencher os Dados da Empresa e colocar o logo.
+- Cadastrar os principais ingredientes com preço.
+- Criar os primeiros pratos com margem de lucro.
+- Montar e salvar um cardápio.
+- Cadastrar um cliente (ou criar o contato no Funil, com a origem).
+- Criar e visualizar a primeira proposta.
+- Marcar a proposta como Enviada e acompanhar no Funil e na Agenda.
+- Ajustar os textos em "Editar modelos" e cadastrar o link de avaliação do Google.
+
+---
+
+Manual do Usuário - Calculadora de Precificação
