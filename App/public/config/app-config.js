@@ -11,6 +11,30 @@
  */
 
 // ============================================================================
+// ENDEREÇO DA API DE PRODUÇÃO (out/2026)
+// Domínio próprio api.chefazambuja.com (aponta para o Railway). Assim, se um dia
+// a API mudar de nuvem, basta trocar o DNS: o app do iPhone continua funcionando.
+// Segurança: só usa o domínio novo depois de confirmar que ele responde (/health).
+// Enquanto não responder, continua no endereço do Railway, que segue valendo.
+// ============================================================================
+const API_PROD_RAILWAY = 'https://precificacao-api-production.up.railway.app';
+const API_PROD_CUSTOM = 'https://api.chefazambuja.com';
+const API_HOST_KEY = 'precificacao_api_host';
+function prodApiURL() {
+    try { return localStorage.getItem(API_HOST_KEY) === 'custom' ? API_PROD_CUSTOM : API_PROD_RAILWAY; } catch (e) { return API_PROD_RAILWAY; }
+}
+function probeCustomApi() {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    const save = v => { try { localStorage.setItem(API_HOST_KEY, v); } catch (e) {} };
+    let ctrl = null;
+    try { ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000); } catch (e) {}
+    fetch(API_PROD_CUSTOM + '/health', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => save(j && j.success ? 'custom' : 'railway'))
+        .catch(() => save('railway'));
+}
+
+// ============================================================================
 // CONFIGURAÇÃO PRINCIPAL
 // ============================================================================
 
@@ -55,14 +79,14 @@ const APP_CONFIG = {
         // Auto-detectar ambiente baseado na URL do frontend
         get baseURL() {
             if (typeof window === 'undefined') {
-                return 'https://precificacao-api-production.up.railway.app';
+                return API_PROD_RAILWAY;
             }
 
             // App nativo (Capacitor - iOS/Android): window.location.hostname
             // é sempre "localhost" dentro do WebView nativo, então a detecção
             // por hostname não serve aqui - forçaria sempre staging.
             if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
-                return 'https://precificacao-api-production.up.railway.app';
+                return prodApiURL();
             }
 
             const hostname = window.location.hostname;
@@ -73,7 +97,7 @@ const APP_CONFIG = {
             }
 
             // PRODUCTION: Padrão
-            return 'https://precificacao-api-production.up.railway.app';
+            return prodApiURL();
         },
         timeout: 30000,
         retryAttempts: 3
@@ -487,6 +511,12 @@ const ConfigHelper = {
 // Exportar para uso global
 if (typeof window !== 'undefined') {
     window.APP_CONFIG = APP_CONFIG;
+    // Testa o domínio próprio da API (só em produção: app nativo ou web fora do staging)
+    try {
+        const h = window.location.hostname || '';
+        const nativo = window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform();
+        if (nativo || !(h.includes('staging') || h.includes('localhost'))) probeCustomApi();
+    } catch (e) {}
     window.ConfigHelper = ConfigHelper;
     // Flag global de debug
     window.__DEBUG__ = APP_CONFIG.ui && APP_CONFIG.ui.showDebugLogs === true;
