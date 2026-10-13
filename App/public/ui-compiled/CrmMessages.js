@@ -48,8 +48,17 @@ function MessageDialog({ ctx, onClose }) {
   const [texto, setTexto] = React.useState('');
   const [editando, setEditando] = React.useState(false);
   const [copiado, setCopiado] = React.useState(false);
+  // Envio direto pelo número da empresa (Cloud API), se o WhatsApp estiver configurado
+  const waOk = s => !!(s && s.whatsappEnabled && s.whatsappAccessToken && s.whatsappPhoneNumberId);
+  const [apiPronta, setApiPronta] = React.useState(() => waOk(window.whatsappSettings));
+  const [enviando, setEnviando] = React.useState(false);
 
   React.useEffect(() => { C.templatesStore.load().then(setDados); }, []);
+  React.useEffect(() => {
+    const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+    if (!api || typeof api.request !== 'function') return;
+    api.request('/api/company/whatsapp').then(r => { if (r && r.data) { window.whatsappSettings = r.data; setApiPronta(waOk(r.data)); } }).catch(() => {});
+  }, []);
   React.useEffect(() => {
     const id = ctx.clientId || (ctx.proposal && ctx.proposal.clientId);
     if (!id || (cliente && Array.isArray(cliente.proposals))) return;
@@ -96,6 +105,20 @@ function MessageDialog({ ctx, onClose }) {
     api.addClientActivity(clienteId, { type: 'whatsapp', content: (modelo ? modelo.title + ': ' : '') + texto.slice(0, 1500) })
       .then(() => window.dispatchEvent(new CustomEvent('crm-updated'))).catch(() => {});
   };
+  const enviarDireto = async () => {
+    const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+    if (!api || !telefone || !texto.trim()) return;
+    setEnviando(true);
+    try {
+      await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
+      registrar();
+      alert('✅ Mensagem enviada pelo WhatsApp.\n\nLembrete: a Meta só entrega mensagem livre para quem falou com você nas últimas 24 h. Se o cliente não receber, use "Abrir no WhatsApp".');
+      onClose();
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      if (window.confirm('❌ ' + m + '\n\nAbrir no aplicativo do WhatsApp para enviar?') && href) { registrar(); window.open(href, '_blank'); }
+    } finally { setEnviando(false); }
+  };
   const copiar = async () => {
     try { await navigator.clipboard.writeText(texto); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }
     catch (e) { alert('Não foi possível copiar. Selecione o texto e copie manualmente.'); }
@@ -124,10 +147,11 @@ function MessageDialog({ ctx, onClose }) {
         h('textarea', { value: texto, onChange: e => setTexto(e.target.value), rows: 6, className: 'crm-input', style: { fontSize: 15, lineHeight: 1.45 } }),
         !wa && h('div', { style: { fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px' } }, 'Este cliente não tem telefone cadastrado. Copie o texto ou cadastre o telefone na aba Clientes.'),
         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-          href && h('a', { href, target: '_blank', rel: 'noopener', onClick: registrar, className: 'crm-btn', style: { background: '#16a34a', color: '#fff', flex: '1 1 200px' } }, '💬 Abrir no WhatsApp'),
+          wa && apiPronta && h('button', { onClick: enviarDireto, disabled: enviando, className: 'crm-btn', style: { background: '#16a34a', color: '#fff', flex: '1 1 200px', opacity: enviando ? .6 : 1 } }, enviando ? 'Enviando...' : '📤 Enviar pelo WhatsApp'),
+          href && h('a', { href, target: '_blank', rel: 'noopener', onClick: registrar, className: 'crm-btn', style: apiPronta ? { background: '#fff', color: '#15803d', border: '1px solid #86efac', flex: '1 1 160px' } : { background: '#16a34a', color: '#fff', flex: '1 1 200px' } }, apiPronta ? '💬 Abrir no app' : '💬 Abrir no WhatsApp'),
           h('button', { onClick: copiar, className: 'crm-btn', style: { background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', flex: '0 0 auto' } }, copiado ? '✓ Copiado' : 'Copiar texto')),
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
-          h('div', { className: 'crm-muted' }, C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : ''),
+          h('div', { className: 'crm-muted' }, (apiPronta && wa ? 'Envio direto: só chega se o cliente falou com você nas últimas 24 h. ' : '') + (C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : '')),
           h('div', { role: 'button', onClick: () => setEditando(true), style: { fontSize: 13, color: '#c2410c', cursor: 'pointer', fontWeight: 600 } }, '✏️ Editar modelos')))));
 }
 
