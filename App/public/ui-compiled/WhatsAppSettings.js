@@ -256,7 +256,7 @@ function WhatsAppSettings() {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "WhatsApp Business Account ID", /*#__PURE__*/React.createElement("span", {
     className: "text-gray-500 font-normal ml-2"
-  }, "(opcional)")), /*#__PURE__*/React.createElement("input", {
+  }, "(necess\xE1rio para usar o modelo aprovado)")), /*#__PURE__*/React.createElement("input", {
     type: "text",
     value: settings.whatsappBusinessAccountId,
     onChange: e => handleInputChange('whatsappBusinessAccountId', e.target.value),
