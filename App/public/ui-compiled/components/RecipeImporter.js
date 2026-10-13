@@ -356,8 +356,8 @@ etc.`,
                         (() => {
                           // Converter quantidade para unidade base (g, ml, ou un)
                           let quantityInBaseUnit = ing.quantity || 0;
-                          if (ing.unit === 'kg') quantityInBaseUnit *= 1000;
-                          if (ing.unit === 'L') quantityInBaseUnit *= 1000;
+                          if (String(ing.unit || '').toLowerCase() === 'kg') quantityInBaseUnit *= 1000;
+                          if (String(ing.unit || '').toLowerCase() === 'l') quantityInBaseUnit *= 1000;
                           if (ing.unit === 'dz') quantityInBaseUnit *= 12;
 
                           // Calcular custo unitário (por g, ml, ou un)

@@ -35,18 +35,19 @@ function get() {
 
 async function save(partial) {
   const novo = { ...get(), ...partial };
+  const token = (() => { try { return localStorage.getItem('accessToken'); } catch (e) { return null; } })();
+  const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+  if (token && api && typeof api.request === 'function') {
+    // Pelo cliente da API: renova o login sozinho se o token tiver vencido
+    try {
+      await api.request('/api/user-settings', { method: 'PATCH', body: JSON.stringify({ partialSettings: { pricing: novo } }) });
+    } catch (e) {
+      throw new Error('Não foi possível salvar na nuvem. Confira a internet e tente de novo. (' + (e.message || 'erro') + ')');
+    }
+  }
+  // Só aplica depois de salvar na nuvem (sem login: só neste aparelho)
   try { localStorage.setItem(LS_KEY, JSON.stringify(novo)); } catch (e) {}
   try { window.userSettings = { ...(window.userSettings || {}), pricing: novo }; } catch (e) {}
-  const token = (() => { try { return localStorage.getItem('accessToken'); } catch (e) { return null; } })();
-  const base = window.APP_CONFIG && window.APP_CONFIG.backend && window.APP_CONFIG.backend.baseURL;
-  if (token && base) {
-    const r = await fetch(`${base}/api/user-settings`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ partialSettings: { pricing: novo } })
-    });
-    if (!r.ok) throw new Error('Não foi possível salvar na nuvem (HTTP ' + r.status + ')');
-  }
   try { window.dispatchEvent(new CustomEvent('pricing-settings-updated', { detail: novo })); } catch (e) {}
   return novo;
 }
@@ -112,7 +113,7 @@ function calcProposal(p) {
     support: r2(support), labor: r2(labor), transport: r2(transport),
     servicesPrice: r2(servicesPrice), inflationAmount: r2(inflationAmount),
     directCost: r2(directCost), subtotal: r2(subtotal), extraPct,
-    finalTotal: r2(finalTotal), finalTotalRounded: Math.ceil(finalTotal - 1e-9),
+    finalTotal: r2(finalTotal), finalTotalRounded: Math.ceil(r2(finalTotal) - 1e-9),
     salesDeductions: r2(salesDeductions), profit: r2(profit),
     profitPct: finalTotal > 0 ? r2(profit / finalTotal * 100) : 0,
     markupOnCostPct: directCost > 0 ? r2((finalTotal / directCost - 1) * 100) : 0,

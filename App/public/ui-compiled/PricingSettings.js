@@ -42,13 +42,14 @@ const FIELDS = [
 
 function PricingSettings({ onClose }) {
   const P = window.PricingRules;
-  const [v, setV] = useState(() => P.get());
+  const [v, setV] = useState(() => { const g = P.get(); const o = { ...g }; for (const [k] of FIELDS) o[k] = String(g[k]).replace('.', ','); return o; });
   const [fixosMes, setFixosMes] = useState('');
   const [fatMes, setFatMes] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const set = (k, val) => setV(prev => ({ ...prev, [k]: val }));
-  const n = x => { const r = parseFloat(String(x).replace(',', '.')); return isFinite(r) ? r : 0; };
+  // Aceita vírgula (6,5) e ponto de milhar em reais (10.000)
+  const n = x => { let t = String(x == null ? '' : x).trim(); if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, ''); const r = parseFloat(t.replace(',', '.')); return isFinite(r) ? r : 0; };
 
   const soma = n(v.taxesPct) + n(v.cardFeesPct) + n(v.fixedCostsPct) + n(v.targetProfitPct);
   const exemplo = soma < 95 ? 10000 / (1 - soma / 100) : null;
@@ -59,7 +60,8 @@ function PricingSettings({ onClose }) {
     setSaving(true); setMsg(null);
     try {
       const data = {};
-      for (const [k] of FIELDS) data[k] = Math.max(0, n(v[k]));
+      for (const [k] of FIELDS) data[k] = Math.min(100, Math.max(0, n(v[k])));
+      if (data.taxesPct + data.cardFeesPct + data.fixedCostsPct + data.targetProfitPct >= 95) { setMsg({ ok: false, t: 'Impostos + taxas + custos fixos + lucro passam de 95%. Revise os valores.' }); setSaving(false); return; }
       data.defaultPricingMode = v.defaultPricingMode === 'divisor' ? 'divisor' : 'markup';
       await P.save(data);
       setMsg({ ok: true, t: 'Salvo! As próximas propostas já usam esses valores.' });
@@ -85,7 +87,7 @@ function PricingSettings({ onClose }) {
       FIELDS.map(([k, label, help]) => h('label', { className: 'fld', key: k },
         h('b', null, label),
         h('div', { className: 'row' },
-          h('input', { type: 'number', inputMode: 'decimal', min: 0, max: 100, step: 0.5, value: v[k], onChange: e => set(k, e.target.value), onBlur: () => set(k, String(Math.min(100, Math.max(0, n(v[k]))))) }),
+          h('input', { type: 'text', inputMode: 'decimal', value: v[k], onChange: e => set(k, e.target.value.replace(/[^0-9.,]/g, '')), onBlur: () => set(k, String(Math.min(100, Math.max(0, n(v[k])))).replace('.', ',')) }),
           h('span', { className: 'muted' }, '%')),
         h('div', { className: 'muted', style: { marginTop: 3 } }, help),
         k === 'fixedCostsPct' ? h('div', { className: 'box', style: { background: '#f9fafb', borderColor: '#e5e7eb' } },
@@ -93,15 +95,15 @@ function PricingSettings({ onClose }) {
           h('div', { className: 'muted', style: { marginTop: 2 } }, 'Valores do mês inteiro, em reais. Ex.: R$ 10.000 de custos fixos ÷ R$ 80.000 de faturamento = 12,5%.'),
           h('div', { className: 'calc' },
             h('label', null, h('span', { className: 'muted' }, 'Custos fixos do mês (R$)'),
-              h('input', { type: 'number', inputMode: 'decimal', min: 0, placeholder: '10000', value: fixosMes, onChange: e => setFixosMes(e.target.value) })),
+              h('input', { type: 'text', inputMode: 'decimal', placeholder: '10.000', value: fixosMes, onChange: e => setFixosMes(e.target.value.replace(/[^0-9.,]/g, '')) })),
             h('label', null, h('span', { className: 'muted' }, 'Faturamento médio do mês (R$)'),
-              h('input', { type: 'number', inputMode: 'decimal', min: 0, placeholder: '80000', value: fatMes, onChange: e => setFatMes(e.target.value) }))),
+              h('input', { type: 'text', inputMode: 'decimal', placeholder: '80.000', value: fatMes, onChange: e => setFatMes(e.target.value.replace(/[^0-9.,]/g, '')) }))),
           calcFixos == null ? null
             : calcFixos > 60
               ? h('div', { style: { marginTop: 8, color: '#b91c1c', fontSize: 13 } }, '⚠️ Deu ' + calcFixos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% — os custos fixos estão maiores que o faturamento ou quase isso. Confira: o faturamento é o total vendido no mês em R$ (ex.: 80000), não a quantidade de eventos.')
               : h('div', { className: 'row', style: { marginTop: 8 } },
                   h('span', null, '= ', h('span', { style: { fontWeight: 800 } }, calcFixos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%'), ' do faturamento'),
-                  h('div', { className: 'btn', role: 'button', style: { background: '#ea580c', color: '#fff', padding: '6px 10px', fontSize: 13 }, onClick: () => set('fixedCostsPct', String(Math.round(calcFixos * 10) / 10)) }, 'Usar este valor'))) : null)),
+                  h('div', { className: 'btn', role: 'button', style: { background: '#ea580c', color: '#fff', padding: '6px 10px', fontSize: 13 }, onClick: () => set('fixedCostsPct', String(Math.round(calcFixos * 10) / 10).replace('.', ',')) }, 'Usar este valor'))) : null)),
       h('div', { className: 'fld' },
         h('b', null, 'Como calcular o preço das propostas novas'),
         h('div', { className: 'seg' },

@@ -30,7 +30,8 @@ const API_CONFIG = {
 
 class PrecificacaoAPI {
     constructor() {
-        this.baseURL = API_CONFIG.baseURL;
+        // Lê o endereço da API na hora de cada chamada (pode mudar para o domínio próprio depois do teste)
+        Object.defineProperty(this, 'baseURL', { get: () => API_CONFIG.baseURL, configurable: true });
         this.licenseKey = API_CONFIG.licenseKey;
     }
 

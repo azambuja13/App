@@ -20,8 +20,9 @@
 const API_PROD_RAILWAY = 'https://precificacao-api-production.up.railway.app';
 const API_PROD_CUSTOM = 'https://api.chefazambuja.com';
 const API_HOST_KEY = 'precificacao_api_host';
+let apiCustomOkThisSession = false; // só usa o domínio próprio depois de testar nesta abertura do app
 function prodApiURL() {
-    try { return localStorage.getItem(API_HOST_KEY) === 'custom' ? API_PROD_CUSTOM : API_PROD_RAILWAY; } catch (e) { return API_PROD_RAILWAY; }
+    return apiCustomOkThisSession ? API_PROD_CUSTOM : API_PROD_RAILWAY;
 }
 function probeCustomApi() {
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
@@ -30,8 +31,8 @@ function probeCustomApi() {
     try { ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 5000); } catch (e) {}
     fetch(API_PROD_CUSTOM + '/health', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
         .then(r => r.ok ? r.json() : null)
-        .then(j => save(j && j.success ? 'custom' : 'railway'))
-        .catch(() => save('railway'));
+        .then(j => { apiCustomOkThisSession = !!(j && j.success); save(apiCustomOkThisSession ? 'custom' : 'railway'); })
+        .catch(() => { apiCustomOkThisSession = false; save('railway'); });
 }
 
 // ============================================================================
@@ -591,6 +592,7 @@ window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey)
             'company_logo', 'company_mission', 'company_vision', 'company_values', 'company_motivation',
             'company_photo1', 'company_photo2', 'company_photo3',
             'saved_events', 'ingredients_database', 'precificacao_pratos', 'precificacao_saved_menus',
+            'precificacao_pricing_settings',
             'precificacao_clients', 'precificacao_propostas', 'custom_templates', 'backup_before_migration'
             // (as chaves da licença não são apagadas aqui: o salvamento da licença nova as sobrescreve,
             // e o armazenamento usado depende de 'licenseType' estar presente)

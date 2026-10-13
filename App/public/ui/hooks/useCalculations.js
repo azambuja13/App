@@ -208,7 +208,14 @@ function useCalculations(eventData, ingredients = []) {
         };
 
         window.addEventListener('menu-updated', handleMenuUpdate);
-        return () => window.removeEventListener('menu-updated', handleMenuUpdate);
+        // Correção mensal vem de "Custos da empresa": recalcular quando mudar ou chegar do servidor
+        window.addEventListener('pricing-settings-updated', handleMenuUpdate);
+        window.addEventListener('backend-phase2-complete', handleMenuUpdate);
+        return () => {
+            window.removeEventListener('menu-updated', handleMenuUpdate);
+            window.removeEventListener('pricing-settings-updated', handleMenuUpdate);
+            window.removeEventListener('backend-phase2-complete', handleMenuUpdate);
+        };
     }, []);
 
     // ✅ OTIMIZAÇÃO: Criar hashes estáveis das dependências complexas

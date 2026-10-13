@@ -94,11 +94,11 @@ const DishForm = React.memo(function DishForm({
         // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
         let lossValue = parseFloat(ing.lossPercentage) || lossFromDB || 0;
         // Se loss está entre 0-1, é decimal, converter para %
-        const lossPercentage = lossValue > 0 && lossValue <= 1 ? lossValue * 100 : lossValue;
+        const lossPercentage = lossValue > 0 && lossValue < 1 ? lossValue * 100 : lossValue;
 
         // ✅ FIX: Converter quantidade para gramas antes de calcular custo
         let quantityInGrams = quantity;
-        if (unit === 'kg' || unit === 'L') {
+        if (['kg', 'l', 'litro', 'litros'].includes(String(unit).toLowerCase())) {
           quantityInGrams = quantity * 1000;
         } else if (unit === 'g' || unit === 'ml') {
           quantityInGrams = quantity;
@@ -553,11 +553,11 @@ const DishForm = React.memo(function DishForm({
     // Custo total = quantidade comprada (bruta) × custo unitário (grama OU unidade); a perda só reduz o peso final
     const totalCost = quantityForCalculation * costPerGramMl;
     console.log('📝 [handleAddIngredient] isUnitType:', isUnitType, 'quantity:', initialQuantity, 'unit:', initialUnit);
-    console.log('📝 [handleAddIngredient] quantityToBuy:', quantityToBuy, 'totalCost:', totalCost);
+    console.log('📝 [handleAddIngredient] totalCost:', totalCost);
     // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
     let lossPercentage = parseFloat(ingredient.lossPercentage) || parseFloat(ingredient.loss) || 0;
     // Se loss está entre 0-1, é decimal, converter para %
-    if (lossPercentage > 0 && lossPercentage <= 1) {
+    if (lossPercentage > 0 && lossPercentage < 1) {
       lossPercentage = lossPercentage * 100;
     }
 
@@ -614,9 +614,9 @@ const DishForm = React.memo(function DishForm({
           let quantityForCalculation = quantity;
           if (ing.unitType !== 'unit') {
             // Converter quantidade para gramas/ml apenas para ingredientes por peso
-            if (ing.unit === 'kg') {
+            if (String(ing.unit || '').toLowerCase() === 'kg') {
               quantityForCalculation = quantity * 1000;
-            } else if (ing.unit === 'L') {
+            } else if (String(ing.unit || '').toLowerCase() === 'l') {
               quantityForCalculation = quantity * 1000;
             }
           }
@@ -649,17 +649,17 @@ const DishForm = React.memo(function DishForm({
 
           // Converter quantidade atual para gramas/ml
           let quantityInGrams = ing.quantity;
-          if (ing.unit === 'kg') {
+          if (String(ing.unit || '').toLowerCase() === 'kg') {
             quantityInGrams = ing.quantity * 1000;
-          } else if (ing.unit === 'L') {
+          } else if (String(ing.unit || '').toLowerCase() === 'l') {
             quantityInGrams = ing.quantity * 1000;
           }
 
           // Converter de gramas para a nova unidade
           let newQuantity = quantityInGrams;
-          if (newUnit === 'kg') {
+          if (String(newUnit || '').toLowerCase() === 'kg') {
             newQuantity = quantityInGrams / 1000;
-          } else if (newUnit === 'L') {
+          } else if (String(newUnit || '').toLowerCase() === 'l') {
             newQuantity = quantityInGrams / 1000;
           }
 

@@ -90,6 +90,11 @@ function ProposalBuilderSimple({
   const [backendReady, setBackendReady] = useState(false);
   const selectedMenuIdRef = useRef(null);
   const eventFieldsLoadedRef = useRef(false);
+  // Proposta antiga (sem regras gravadas): mantém o valor salvo até o usuário mudar algum dado de preço
+  const legacySigRef = useRef(null);
+  const pricingSig = fd => JSON.stringify([parseInt(fd.guests) || 0, fd.selectedMenuId || null, fd.totalType || '', fd.pricingMode || 'markup',
+    Number(fd.supportCost) || 0, Number(fd.laborCost) || 0, Number(fd.transportCost) || 0, Math.round((Number(fd.itemsCostPerPerson) || 0) * 100),
+    Number(fd.markupPercent) || 0, fd.inflationMonths == null || fd.inflationMonths === '' ? null : Number(fd.inflationMonths) || 0]);
 
   // Aguardar backend estar pronto
   useEffect(() => {
@@ -128,7 +133,7 @@ function ProposalBuilderSimple({
       console.log('🔄 [ProposalBuilderSimple] Cardápio alterado - recarregando lista...');
       loadSavedMenus();
       // Se o cardápio ativo está selecionado, recarregar os pratos atualizados
-      if (selectedMenuIdRef.current === 'active-menu') {
+      if (selectedMenuIdRef.current === 'active-menu' && !proposal) { // proposta em edição não muda sozinha
         const menuManager = window.menuManager;
         if (!menuManager) return;
         try {
@@ -235,7 +240,7 @@ function ProposalBuilderSimple({
         id: proposal.id,
         proposalName: proposal.proposalName
       });
-      setFormData({
+      const loadedFd = {
         id: proposal.id || null,
         // ✅ SALVAR ID NO FORMDATA
         clientId: proposal.clientId || proposal.client?.id || null,  // ✅ Preservar clientId ao editar
@@ -250,7 +255,7 @@ function ProposalBuilderSimple({
         laborCost: Number(proposal.laborCost) || 0,
         transportCost: Number(proposal.transportCost) || 0,
         itemsCostPerPerson: proposal.itemsCostPerPerson != null ? Number(proposal.itemsCostPerPerson) : ((Number(proposal.ingredientsCost) || 0) / (Number(proposal.guests) || 1)),
-        inflationMonths: proposal.inflationMonths != null ? Number(proposal.inflationMonths) : (Number(proposal.monthsUntilEvent) || 0), // propostas antigas: sem correção automática
+        inflationMonths: proposal.inflationMonths != null ? Number(proposal.inflationMonths) : 0, // propostas antigas: o valor gravado não tinha correção
         clientName: proposal.clientName || '',
         clientPhone: proposal.clientPhone || '',
         clientEmail: proposal.clientEmail || '',
@@ -295,7 +300,9 @@ function ProposalBuilderSimple({
         acceptPix: proposal.acceptPix !== undefined ? proposal.acceptPix : true,
         // Opções de exibição
         includeDishPhotos: proposal.includeDishPhotos !== undefined ? proposal.includeDishPhotos : true
-      });
+      };
+      legacySigRef.current = proposal.pricingSnapshot ? null : pricingSig(loadedFd);
+      setFormData(loadedFd);
     }
   }, [proposal]);
   const loadSavedMenus = async () => {
@@ -362,6 +369,7 @@ function ProposalBuilderSimple({
             proposalName: autoProposalName,
             guests: firstLoad ? (eventData.guests || prev.guests) : prev.guests,
             eventDate: firstLoad ? (eventData.eventDate || prev.eventDate) : prev.eventDate,
+            inflationMonths: firstLoad && eventData.monthsUntilEvent != null && eventData.monthsUntilEvent !== '' && !isNaN(Number(eventData.monthsUntilEvent)) ? Number(eventData.monthsUntilEvent) : prev.inflationMonths,
             eventLocation: firstLoad ? (eventData.eventLocation || prev.eventLocation) : prev.eventLocation,
             // Dados do Cliente
             clientName: firstLoad ? clientName : prev.clientName,
@@ -430,9 +438,10 @@ function ProposalBuilderSimple({
   // ✅ Cálculo pela PRÓPRIA proposta: cardápio escolhido × convidados da proposta
   //    + apoio/mão de obra/transporte guardados na proposta (regras em utils/pricing-rules.js)
   // Proposta em edição usa as regras gravadas nela (snapshot); nova usa as configurações atuais
+  const [, setRulesTick] = useState(0);
   const [pricingSettings, setPricingSettings] = useState(() => (proposal && proposal.pricingSnapshot) || (window.PricingRules ? window.PricingRules.get() : null));
   useEffect(() => {
-    const upd = () => { if (proposal && proposal.pricingSnapshot) return; setPricingSettings(window.PricingRules ? window.PricingRules.get() : null); };
+    const upd = () => { setRulesTick(t => t + 1); if (proposal && proposal.pricingSnapshot) return; setPricingSettings(window.PricingRules ? window.PricingRules.get() : null); };
     window.addEventListener('pricing-settings-updated', upd);
     window.addEventListener('backend-phase2-complete', upd);
     return () => { window.removeEventListener('pricing-settings-updated', upd); window.removeEventListener('backend-phase2-complete', upd); };
@@ -443,20 +452,20 @@ function ProposalBuilderSimple({
   const computeProposal = (fd = formData, rulesOverride = null) => {
     const stats = fd.selectedMenuData?.stats || {};
     // Proposta antiga sem os números do cardápio salvos: mantém o valor gravado (não recalcula às cegas)
-    if (proposal && !(Number(stats.totalCost) > 0)) {
+    if (proposal && (!(Number(stats.totalCost) > 0) || (legacySigRef.current && pricingSig(fd) === legacySigRef.current))) {
       const fin = Number(proposal.finalTotal) || 0;
       const dc = Number(proposal.totalCost) || 0;
       return { legacy: true, mode: 'markup', directCost: dc, finalTotal: fin, finalTotalRounded: Math.ceil(fin), foodCost: 0, foodPrice: 0,
         support: Number(fd.supportCost) || 0, labor: Number(fd.laborCost) || 0, transport: Number(fd.transportCost) || 0,
         servicesPrice: 0, inflationAmount: 0, months: 0, salesDeductions: 0, profit: fin - dc, profitPct: fin > 0 ? Math.round((fin - dc) / fin * 10000) / 100 : 0,
         markupOnCostPct: dc > 0 ? Math.round((fin / dc - 1) * 10000) / 100 : 0, cmvPct: 0,
-        pricePerPerson: (Number(fd.guests) || 0) > 0 ? fin / Number(fd.guests) : 0, noProfit: fin - dc <= 0.009, doubleMargin: false };
+        pricePerPerson: (parseInt(fd.guests) || 0) > 0 ? fin / parseInt(fd.guests) : 0, noProfit: false, doubleMargin: false };
     }
     const args = {
       perPersonCost: Number(stats.totalCost) || 0,
       perPersonPrice: Number(stats.totalPrice) || Number(stats.totalCost) || 0,
       itemsCostPerPerson: Number(fd.itemsCostPerPerson) || 0,
-      guests: Number(fd.guests) || 0,
+      guests: parseInt(fd.guests) || 0,
       totalType: fd.totalType,
       supportCost: Number(fd.supportCost) || 0,
       laborCost: Number(fd.laborCost) || 0,
@@ -486,11 +495,14 @@ function ProposalBuilderSimple({
     const cd = ed.clientData || {};
     const patch = {};
     if (eg > 0) patch.guests = eg;
-    if (ed.eventDate) { patch.eventDate = ed.eventDate; patch.inflationMonths = null; }
+    if (ed.eventDate) patch.eventDate = ed.eventDate;
+    const em = ed.monthsUntilEvent;
+    if (em != null && em !== '' && !isNaN(Number(em))) patch.inflationMonths = Number(em); // mesmos meses de correção do evento
+    else if (ed.eventDate && ed.eventDate !== formData.eventDate) patch.inflationMonths = null; // data nova: calcula pelos meses até o evento
     if (ed.eventLocation) patch.eventLocation = ed.eventLocation;
     if (cd.name) {
       patch.clientName = cd.name; patch.clientPhone = cd.phone || ''; patch.clientEmail = cd.email || ''; patch.clientAddress = cd.address || '';
-      if (cd.id) patch.clientId = cd.id;
+      patch.clientId = cd.id || null;
     }
     if (c) {
       patch.supportCost = Number(c.supportCost) || 0;
@@ -508,7 +520,8 @@ function ProposalBuilderSimple({
   };
   const applyPull = () => {
     if (!pullPreview) return;
-    setPullUndo({ formData, pricingSettings, costs });
+    const keys = Object.keys(pullPreview.patch);
+    setPullUndo({ prev: keys.reduce((o, k) => { o[k] = formData[k]; return o; }, {}), pricingSettings, costs });
     setFormData(prev => ({ ...prev, ...pullPreview.patch }));
     if (pullPreview.useCurrentRules) setPricingSettings(currentRules());
     if (eventData && eventData.costs) setCosts(eventData.costs);
@@ -516,7 +529,7 @@ function ProposalBuilderSimple({
   };
   const undoPull = () => {
     if (!pullUndo) return;
-    setFormData(pullUndo.formData);
+    setFormData(prev => ({ ...prev, ...pullUndo.prev }));
     setPricingSettings(pullUndo.pricingSettings);
     setCosts(pullUndo.costs);
     setPullUndo(null);
@@ -543,6 +556,7 @@ function ProposalBuilderSimple({
       const add = (label, a, b) => { if (String(a) !== String(b)) rows.push([label, a, b]); };
       add('Convidados', Number(formData.guests) || 0, Number(next.guests) || 0);
       add('Data', dt(formData.eventDate), dt(next.eventDate));
+      add('Meses de corre\xE7\xE3o', monthsFor(formData), monthsFor(next));
       add('Local', formData.eventLocation || '—', next.eventLocation || '—');
       add('Cliente', formData.clientName || '—', next.clientName || '—');
       add('Apoio e log\xEDstica', brl(formData.supportCost), brl(next.supportCost));
@@ -641,7 +655,7 @@ function ProposalBuilderSimple({
 
       // Arredondar valores para cima
       const roundedTotalCost = Math.ceil(Number(totalCost) || 0);
-      const roundedFinalTotal = Math.ceil(Number(finalTotal) || 0);
+      const roundedFinalTotal = calcSaved.finalTotalRounded != null ? calcSaved.finalTotalRounded : Math.ceil(Number(finalTotal) || 0);
       console.log('💾 ===== SALVANDO PROPOSTA =====');
       console.log('💰 totalCost calculado:', totalCost, '→ arredondado:', roundedTotalCost);
       console.log('💵 finalTotal calculado:', finalTotal, '→ arredondado:', roundedFinalTotal);
@@ -726,7 +740,7 @@ function ProposalBuilderSimple({
         pricingMode: formData.pricingMode,
         inflationMonths: effectiveMonths,
         monthsUntilEvent: effectiveMonths,
-        pricingSnapshot: pricingSettings || null,
+        pricingSnapshot: calcSaved.legacy ? null : (pricingSettings || null), // proposta antiga continua antiga
         foodCost: calcSaved.foodCost,
         directCost: calcSaved.directCost,
         profit: calcSaved.profit,
@@ -1265,7 +1279,7 @@ function ProposalBuilderSimple({
           h('span', { role: 'button', onClick: () => setPricingSettings(usingSaved ? cur : proposal.pricingSnapshot), style: { color: '#c2410c', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 } },
             usingSaved ? 'Usar os atuais' : 'Voltar aos da proposta'));
       })(),
-      R.legacy ? h('div', { className: 'bg-yellow-50 border border-yellow-300 rounded p-2 text-yellow-800 text-xs mb-3' }, '\u2139\uFE0F Proposta antiga: o valor gravado foi mantido. Para recalcular com as regras novas, remova o card\xE1pio (\uD83D\uDDD1\uFE0F) e selecione de novo.') : null,
+      R.legacy ? h('div', { className: 'bg-yellow-50 border border-yellow-300 rounded p-2 text-yellow-800 text-xs mb-3' }, '\u2139\uFE0F Proposta antiga: o valor gravado foi mantido. Ao mudar convidados, custos, ajuste ou modo, ela \xE9 recalculada com as regras novas.') : null,
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 } },
         modeBtn('markup', 'Markup', 'Pratos com o markup de cada um + serviços com o markup de serviços'),
         modeBtn('divisor', 'Custos da empresa', 'Custo ÷ (1 − impostos − taxas − custos fixos − lucro)')),
