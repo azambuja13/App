@@ -29,7 +29,14 @@ function ProposalBuilderSimple({
     // 'items' = Total Itens (ingredientes do evento)
     // 'menu_cost' = Total Pratos (cardápio sem margem)
     // 'menu_price' = Total Pratos + Margem (cardápio com margem)
-    totalType: 'menu_cost',
+    totalType: 'menu_price',
+    // Regras de preço (out/2026): valores da PRÓPRIA proposta
+    pricingMode: (window.PricingRules ? window.PricingRules.get().defaultPricingMode : 'markup'),
+    supportCost: 0,
+    laborCost: 0,
+    transportCost: 0,
+    itemsCostPerPerson: 0,
+    inflationMonths: null, // null = automático pela data do evento
     clientName: '',
     clientPhone: '',
     clientEmail: '',
@@ -82,6 +89,7 @@ function ProposalBuilderSimple({
   const [costs, setCosts] = useState(null);
   const [backendReady, setBackendReady] = useState(false);
   const selectedMenuIdRef = useRef(null);
+  const eventFieldsLoadedRef = useRef(false);
 
   // Aguardar backend estar pronto
   useEffect(() => {
@@ -155,7 +163,7 @@ function ProposalBuilderSimple({
   // Auto-selecionar cardápio vinculado ao evento (se existir)
   // Também atualiza selectedMenuData quando o cardápio é editado e savedMenus recarrega
   useEffect(() => {
-    if (eventData?.linkedMenuId && savedMenus.length > 0) {
+    if (!proposal && eventData?.linkedMenuId && savedMenus.length > 0) {
       const linkedMenu = savedMenus.find(m => m.id === eventData.linkedMenuId);
       if (linkedMenu) {
         // Seleciona se ainda não há menu escolhido, OU atualiza os dados se o vinculado já estava selecionado
@@ -177,7 +185,7 @@ function ProposalBuilderSimple({
   useEffect(() => {
     const loadActiveMenu = async () => {
       // Só executar se não há linkedMenuId e nenhum menu já selecionado
-      if (eventData?.linkedMenuId || formData.selectedMenuId) return;
+      if (proposal || eventData?.linkedMenuId || formData.selectedMenuId) return;
 
       const menuManager = window.menuManager;
       if (!menuManager) return;
@@ -237,6 +245,12 @@ function ProposalBuilderSimple({
         selectedMenuData: proposal.selectedMenuData || null,
         // ✅ Compatibilidade: converter useMenuWithMargin antigo para totalType
         totalType: proposal.totalType || (proposal.useMenuWithMargin ? 'menu_price' : 'menu_cost'),
+        pricingMode: proposal.pricingMode || 'markup',
+        supportCost: Number(proposal.supportCost) || 0,
+        laborCost: Number(proposal.laborCost) || 0,
+        transportCost: Number(proposal.transportCost) || 0,
+        itemsCostPerPerson: proposal.itemsCostPerPerson != null ? Number(proposal.itemsCostPerPerson) : ((Number(proposal.ingredientsCost) || 0) / (Number(proposal.guests) || 1)),
+        inflationMonths: proposal.inflationMonths != null ? Number(proposal.inflationMonths) : (Number(proposal.monthsUntilEvent) || 0), // propostas antigas: sem correção automática
         clientName: proposal.clientName || '',
         clientPhone: proposal.clientPhone || '',
         clientEmail: proposal.clientEmail || '',
@@ -333,8 +347,12 @@ function ProposalBuilderSimple({
   };
   const loadEventData = () => {
     try {
-      // Puxar dados do evento atual se disponível
-      if (eventData) {
+      // Puxar dados do evento atual se disponível (só para proposta NOVA;
+      // ao editar, a proposta mantém os próprios convidados, cliente e custos)
+      if (eventData && !proposal) {
+        // Dados do evento entram uma vez só (depois o usuário pode mudar convidados etc. na proposta)
+        const firstLoad = !eventFieldsLoadedRef.current;
+        eventFieldsLoadedRef.current = true;
         setFormData(prev => {
           // Gerar nome da proposta automaticamente se estiver vazio e não for edição
           const clientName = eventData.clientData?.name || '';
@@ -342,14 +360,14 @@ function ProposalBuilderSimple({
           return {
             ...prev,
             proposalName: autoProposalName,
-            guests: eventData.guests || prev.guests,
-            eventDate: eventData.eventDate || prev.eventDate,
-            eventLocation: eventData.eventLocation || prev.eventLocation,
+            guests: firstLoad ? (eventData.guests || prev.guests) : prev.guests,
+            eventDate: firstLoad ? (eventData.eventDate || prev.eventDate) : prev.eventDate,
+            eventLocation: firstLoad ? (eventData.eventLocation || prev.eventLocation) : prev.eventLocation,
             // Dados do Cliente
-            clientName: clientName,
-            clientPhone: eventData.clientData?.phone || '',
-            clientEmail: eventData.clientData?.email || '',
-            clientAddress: eventData.clientData?.address || '',
+            clientName: firstLoad ? clientName : prev.clientName,
+            clientPhone: firstLoad ? (eventData.clientData?.phone || '') : prev.clientPhone,
+            clientEmail: firstLoad ? (eventData.clientData?.email || '') : prev.clientEmail,
+            clientAddress: firstLoad ? (eventData.clientData?.address || '') : prev.clientAddress,
             // Dados da Empresa
             companyName: eventData.proposalData?.companyName || prev.companyName,
             companyPhone: eventData.proposalData?.companyPhone || prev.companyPhone,
@@ -369,6 +387,15 @@ function ProposalBuilderSimple({
         // Puxar custos já calculados se disponíveis no eventData
         if (eventData.costs) {
           setCosts(eventData.costs);
+          const c = eventData.costs;
+          const eg = Number(eventData.guests) || 0;
+          setFormData(prev => ({
+            ...prev,
+            supportCost: Number(c.supportCost) || 0,
+            laborCost: Number(c.laborCost) || 0,
+            transportCost: Number(c.transportCost) || 0,
+            itemsCostPerPerson: eg > 0 ? (Number(c.ingredientsCost) || 0) / eg : 0
+          }));
         }
       }
     } catch (error) {
@@ -400,53 +427,172 @@ function ProposalBuilderSimple({
       selectedMenuData: null
     }));
   };
-  const calculateTotalCost = () => {
-    console.log('💰 calculateTotalCost - Iniciando cálculo');
-    console.log('💰 costs:', costs);
-    console.log('💰 totalType:', formData.totalType);
-
-    // Custos de apoio (sempre incluídos)
-    const apoioCost = (costs?.supportCost || 0) + (costs?.laborCost || 0) + (costs?.transportCost || 0);
-
-    let baseCost = 0;
-    let totalLabel = '';
-
-    switch (formData.totalType) {
-      case 'items':
-        // ✅ Total dos Itens do Evento (ingredientes diretos)
-        baseCost = costs?.ingredientsCost || 0;
-        totalLabel = 'ITENS DO EVENTO';
-        break;
-      case 'menu_price':
-        // ✅ Total dos Pratos COM margem
-        baseCost = costs?.menuPriceTotal || 0;
-        totalLabel = 'PRATOS COM MARGEM';
-        break;
-      case 'menu_cost':
-      default:
-        // ✅ Total dos Pratos SEM margem (padrão)
-        baseCost = costs?.menuCostTotal || 0;
-        totalLabel = 'PRATOS SEM MARGEM';
-        break;
+  // ✅ Cálculo pela PRÓPRIA proposta: cardápio escolhido × convidados da proposta
+  //    + apoio/mão de obra/transporte guardados na proposta (regras em utils/pricing-rules.js)
+  // Proposta em edição usa as regras gravadas nela (snapshot); nova usa as configurações atuais
+  const [pricingSettings, setPricingSettings] = useState(() => (proposal && proposal.pricingSnapshot) || (window.PricingRules ? window.PricingRules.get() : null));
+  useEffect(() => {
+    const upd = () => { if (proposal && proposal.pricingSnapshot) return; setPricingSettings(window.PricingRules ? window.PricingRules.get() : null); };
+    window.addEventListener('pricing-settings-updated', upd);
+    window.addEventListener('backend-phase2-complete', upd);
+    return () => { window.removeEventListener('pricing-settings-updated', upd); window.removeEventListener('backend-phase2-complete', upd); };
+  }, []);
+  const autoMonths = window.PricingRules ? window.PricingRules.monthsUntil(formData.eventDate) : 0;
+  const effectiveMonths = formData.inflationMonths != null && formData.inflationMonths !== '' ? Number(formData.inflationMonths) || 0 : autoMonths;
+  const monthsFor = fd => fd.inflationMonths != null && fd.inflationMonths !== '' ? Number(fd.inflationMonths) || 0 : (window.PricingRules ? window.PricingRules.monthsUntil(fd.eventDate) : 0);
+  const computeProposal = (fd = formData, rulesOverride = null) => {
+    const stats = fd.selectedMenuData?.stats || {};
+    // Proposta antiga sem os números do cardápio salvos: mantém o valor gravado (não recalcula às cegas)
+    if (proposal && !(Number(stats.totalCost) > 0)) {
+      const fin = Number(proposal.finalTotal) || 0;
+      const dc = Number(proposal.totalCost) || 0;
+      return { legacy: true, mode: 'markup', directCost: dc, finalTotal: fin, finalTotalRounded: Math.ceil(fin), foodCost: 0, foodPrice: 0,
+        support: Number(fd.supportCost) || 0, labor: Number(fd.laborCost) || 0, transport: Number(fd.transportCost) || 0,
+        servicesPrice: 0, inflationAmount: 0, months: 0, salesDeductions: 0, profit: fin - dc, profitPct: fin > 0 ? Math.round((fin - dc) / fin * 10000) / 100 : 0,
+        markupOnCostPct: dc > 0 ? Math.round((fin / dc - 1) * 10000) / 100 : 0, cmvPct: 0,
+        pricePerPerson: (Number(fd.guests) || 0) > 0 ? fin / Number(fd.guests) : 0, noProfit: fin - dc <= 0.009, doubleMargin: false };
     }
-
-    const total = baseCost + apoioCost;
-
-    console.log(`💰 ✅ Usando ${totalLabel}:`);
-    console.log('   - Base (', totalLabel, '):', baseCost);
-    console.log('   - Apoio:', costs?.supportCost || 0);
-    console.log('   - Transporte:', costs?.transportCost || 0);
-    console.log('   - Mão de obra:', costs?.laborCost || 0);
-    console.log('   - TOTAL:', total);
-
-    return total;
+    const args = {
+      perPersonCost: Number(stats.totalCost) || 0,
+      perPersonPrice: Number(stats.totalPrice) || Number(stats.totalCost) || 0,
+      itemsCostPerPerson: Number(fd.itemsCostPerPerson) || 0,
+      guests: Number(fd.guests) || 0,
+      totalType: fd.totalType,
+      supportCost: Number(fd.supportCost) || 0,
+      laborCost: Number(fd.laborCost) || 0,
+      transportCost: Number(fd.transportCost) || 0,
+      months: monthsFor(fd),
+      pricingMode: fd.pricingMode,
+      extraPct: Number(fd.markupPercent) || 0,
+      settings: rulesOverride || pricingSettings || {}
+    };
+    if (window.PricingRules) return window.PricingRules.calcProposal(args);
+    const base = args.totalType === 'menu_price' ? args.perPersonPrice : args.perPersonCost;
+    const direct = args.perPersonCost * args.guests + args.supportCost + args.laborCost + args.transportCost;
+    const fin = (base * args.guests + args.supportCost + args.laborCost + args.transportCost) * (1 + args.extraPct / 100);
+    return { directCost: direct, finalTotal: fin, finalTotalRounded: Math.ceil(fin), profit: fin - direct, profitPct: fin > 0 ? (fin - direct) / fin * 100 : 0 };
   };
-  const calculateFinalTotal = () => {
-    const totalCost = calculateTotalCost();
-    const markup = formData.markupPercent || 0;
-    const finalTotal = totalCost * (1 + markup / 100);
-    return finalTotal;
+  // 🔄 Puxar dados do evento aberto para a proposta em edição (com prévia e desfazer)
+  const [pullPreview, setPullPreview] = useState(null);
+  const [pullUndo, setPullUndo] = useState(null);
+  const RULE_KEYS = ['taxesPct', 'cardFeesPct', 'fixedCostsPct', 'targetProfitPct', 'serviceMarkupPct', 'inflationMonthlyPct'];
+  const sameRules = (a, b) => !a || !b || RULE_KEYS.every(k => (Number(a[k]) || 0) === (Number(b[k]) || 0));
+  const currentRules = () => window.PricingRules ? window.PricingRules.get() : null;
+  const eventHasData = !!(eventData && ((Number(eventData.guests) || 0) > 0 || eventData.eventDate || eventData.costs));
+  const buildEventPatch = () => {
+    const ed = eventData || {};
+    const c = ed.costs || null;
+    const eg = Number(ed.guests) || 0;
+    const cd = ed.clientData || {};
+    const patch = {};
+    if (eg > 0) patch.guests = eg;
+    if (ed.eventDate) { patch.eventDate = ed.eventDate; patch.inflationMonths = null; }
+    if (ed.eventLocation) patch.eventLocation = ed.eventLocation;
+    if (cd.name) {
+      patch.clientName = cd.name; patch.clientPhone = cd.phone || ''; patch.clientEmail = cd.email || ''; patch.clientAddress = cd.address || '';
+      if (cd.id) patch.clientId = cd.id;
+    }
+    if (c) {
+      patch.supportCost = Number(c.supportCost) || 0;
+      patch.laborCost = Number(c.laborCost) || 0;
+      patch.transportCost = Number(c.transportCost) || 0;
+      if (eg > 0) patch.itemsCostPerPerson = (Number(c.ingredientsCost) || 0) / eg;
+    }
+    return patch;
   };
+  const openPull = () => {
+    if (!eventHasData) return;
+    const cur = currentRules();
+    const rulesDiffer = !!(cur && pricingSettings && !sameRules(pricingSettings, cur));
+    setPullPreview({ patch: buildEventPatch(), rulesDiffer, useCurrentRules: rulesDiffer });
+  };
+  const applyPull = () => {
+    if (!pullPreview) return;
+    setPullUndo({ formData, pricingSettings, costs });
+    setFormData(prev => ({ ...prev, ...pullPreview.patch }));
+    if (pullPreview.useCurrentRules) setPricingSettings(currentRules());
+    if (eventData && eventData.costs) setCosts(eventData.costs);
+    setPullPreview(null);
+  };
+  const undoPull = () => {
+    if (!pullUndo) return;
+    setFormData(pullUndo.formData);
+    setPricingSettings(pullUndo.pricingSettings);
+    setCosts(pullUndo.costs);
+    setPullUndo(null);
+  };
+  const shownClient = proposal
+    ? (formData.clientName ? { name: formData.clientName, phone: formData.clientPhone, email: formData.clientEmail, address: formData.clientAddress } : null)
+    : (eventData?.clientData || null);
+  const renderEventPull = () => {
+    if (!proposal) return null;
+    const h = React.createElement;
+    const brl = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const brl0 = v => 'R$ ' + Math.ceil((Number(v) || 0) - 1e-9).toLocaleString('pt-BR');
+    const dt = v => v ? String(v).slice(0, 10).split('-').reverse().join('/') : '—';
+    const pct = v => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+    const btnStyle = { display: 'inline-block', padding: '8px 14px', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', userSelect: 'none' };
+    let body = null;
+    if (pullPreview) {
+      const pt = pullPreview.patch;
+      const next = { ...formData, ...pt };
+      const nextRules = pullPreview.useCurrentRules ? currentRules() : pricingSettings;
+      const before = computeProposal(formData, pricingSettings);
+      const after = computeProposal(next, nextRules);
+      const rows = [];
+      const add = (label, a, b) => { if (String(a) !== String(b)) rows.push([label, a, b]); };
+      add('Convidados', Number(formData.guests) || 0, Number(next.guests) || 0);
+      add('Data', dt(formData.eventDate), dt(next.eventDate));
+      add('Local', formData.eventLocation || '—', next.eventLocation || '—');
+      add('Cliente', formData.clientName || '—', next.clientName || '—');
+      add('Apoio e log\xEDstica', brl(formData.supportCost), brl(next.supportCost));
+      add('M\xE3o de obra', brl(formData.laborCost), brl(next.laborCost));
+      add('Transporte', brl(formData.transportCost), brl(next.transportCost));
+      if (formData.totalType === 'items') add('Lista de compras por pessoa', brl(formData.itemsCostPerPerson), brl(next.itemsCostPerPerson));
+      if (pullPreview.useCurrentRules) {
+        const r = x => 'impostos ' + pct(x.taxesPct) + ', taxas ' + pct(x.cardFeesPct) + ', fixos ' + pct(x.fixedCostsPct) + ', lucro ' + pct(x.targetProfitPct);
+        add('Custos da empresa', r(pricingSettings || {}), r(nextRules || {}));
+      }
+            body = h('div', { 'data-testid': 'pull-preview', style: { marginTop: 10, background: '#fff', border: '2px solid #60a5fa', borderRadius: 12, padding: 12 } },
+        h('div', { style: { fontWeight: 700, marginBottom: 6 } }, 'O que muda na proposta' + (eventData && eventData.eventName ? ' (evento: ' + eventData.eventName + ')' : '')),
+        rows.length === 0 && before.finalTotalRounded === after.finalTotalRounded
+          ? h('p', { style: { fontSize: 13, color: '#4b5563' } }, 'Nada muda: a proposta j\xE1 est\xE1 igual ao evento aberto.')
+          : h('div', null,
+              rows.concat([
+                ['VALOR FINAL', brl0(before.finalTotalRounded || before.finalTotal), brl0(after.finalTotalRounded || after.finalTotal), true],
+                ['Lucro estimado', brl(before.profit) + ' (' + pct(before.profitPct) + ')', brl(after.profit) + ' (' + pct(after.profitPct) + ')', false, after.noProfit]
+              ]).map(([l, a, b, big, bad]) => h('div', { key: l, style: { padding: '6px 0', borderBottom: '1px solid #e5e7eb' } },
+                h('div', { style: { fontSize: 12, color: '#6b7280', fontWeight: 600 } }, l),
+                h('div', { style: { fontSize: big ? 15 : 13, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'baseline' } },
+                  h('span', { style: { color: '#6b7280', textDecoration: 'line-through' } }, String(a)),
+                  h('span', { style: { color: '#6b7280' } }, '→'),
+                  h('b', { style: { color: bad ? '#b91c1c' : (big ? '#15803d' : '#111827'), fontWeight: big ? 800 : 700 } }, String(b)))))),
+        after.legacy ? h('p', { style: { fontSize: 12, color: '#92400e', marginTop: 6 } }, '⚠️ Proposta antiga: para recalcular o valor, remova o card\xE1pio (\uD83D\uDDD1\uFE0F) e selecione de novo.') : null,
+        !pullPreview.patch.supportCost && !(eventData && eventData.costs) ? h('p', { style: { fontSize: 12, color: '#6b7280', marginTop: 6 } }, 'O evento aberto n\xE3o tem custos de apoio, m\xE3o de obra e transporte calculados: esses valores ficam como est\xE3o.') : null,
+        pullPreview.rulesDiffer ? h('label', { style: { display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 13, cursor: 'pointer' } },
+          h('input', { type: 'checkbox', checked: !!pullPreview.useCurrentRules, onChange: e => setPullPreview(pv => ({ ...pv, useCurrentRules: e.target.checked })), style: { marginTop: 2 } }),
+          h('span', null, 'Usar tamb\xE9m os ', h('b', null, 'custos da empresa atuais'), ' (impostos, taxas, custos fixos e lucro). A proposta foi feita com outros valores.')) : null,
+        h('div', { style: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' } },
+          h('div', { role: 'button', onClick: applyPull, style: { ...btnStyle, background: '#2563eb', color: '#fff' } }, 'Aplicar na proposta'),
+          h('div', { role: 'button', onClick: () => setPullPreview(null), style: { ...btnStyle, background: '#f3f4f6', color: '#111827' } }, 'Cancelar')),
+        h('p', { style: { fontSize: 12, color: '#6b7280', marginTop: 6 } }, 'S\xF3 \xE9 gravado quando voc\xEA clicar em salvar a proposta.'));
+    }
+    return h('div', { style: { marginBottom: 14, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 12 } },
+      h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' } },
+        h('div', { style: { fontSize: 13, color: '#1e3a8a', flex: '1 1 240px' } },
+          'Esta proposta guarda os pr\xF3prios dados. Mudou convidados, data ou custos no evento? Puxe daqui.',
+          eventHasData && eventData.eventName ? h('div', { style: { color: '#6b7280', marginTop: 2 } }, 'Evento aberto: ', h('b', null, eventData.eventName)) : null),
+        eventHasData
+          ? h('div', { role: 'button', onClick: openPull, style: { ...btnStyle, background: '#2563eb', color: '#fff' } }, '🔄 Puxar dados do evento')
+          : h('div', { style: { ...btnStyle, background: '#e5e7eb', color: '#6b7280', cursor: 'not-allowed' }, title: 'Abra o evento na aba Eventos' }, '🔄 Puxar dados do evento')),
+      !eventHasData ? h('p', { style: { fontSize: 12, color: '#6b7280', marginTop: 6 } }, 'Nenhum evento aberto. Abra o evento na aba Eventos e volte aqui.') : null,
+      pullUndo && !pullPreview ? h('div', { style: { marginTop: 8, fontSize: 13, color: '#15803d', fontWeight: 600 } },
+        '✅ Dados do evento aplicados. Confira o pre\xE7o e salve. ',
+        h('span', { role: 'button', onClick: undoPull, style: { color: '#c2410c', textDecoration: 'underline', cursor: 'pointer' } }, 'Desfazer')) : null,
+      body);
+  };
+  const calculateTotalCost = () => computeProposal().directCost;
+  const calculateFinalTotal = () => computeProposal().finalTotal;
   const handleSave = async () => {
     // Validação básica
     if (!formData.proposalName.trim()) {
@@ -459,6 +605,10 @@ function ProposalBuilderSimple({
     }
     if (!formData.guests || formData.guests <= 0) {
       alert('❌ Por favor, informe o número de convidados');
+      return;
+    }
+    const calcCheck = computeProposal();
+    if (calcCheck.noProfit && !confirm('⚠️ Esta proposta está SEM LUCRO (valor final igual ou menor que o custo).\n\nDeseja salvar mesmo assim?')) {
       return;
     }
     try {
@@ -485,8 +635,9 @@ function ProposalBuilderSimple({
         return;
       }
       console.log('📡 [handleSave] Manager final:', proposalManager?.constructor?.name);
-      const totalCost = calculateTotalCost();
-      const finalTotal = calculateFinalTotal();
+      const calcSaved = computeProposal();
+      const totalCost = calcSaved.directCost;
+      const finalTotal = calcSaved.finalTotal;
 
       // Arredondar valores para cima
       const roundedTotalCost = Math.ceil(Number(totalCost) || 0);
@@ -565,13 +716,22 @@ function ProposalBuilderSimple({
         acceptPix: formData.acceptPix,
         // Opções de exibição
         includeDishPhotos: formData.includeDishPhotos,
-        // Custos do resumo financeiro (garantir que sejam números)
-        transportCost: Number(costs?.transportCost) || 0,
-        laborCost: Number(costs?.laborCost) || 0,
-        supportCost: Number(costs?.supportCost) || 0,
-        ingredientsCost: Number(costs?.ingredientsCost) || 0,
-        // Cálculos e margem (valores arredondados para cima)
-        monthsUntilEvent: eventData?.monthsUntilEvent || 0,
+        // Custos guardados NA PROPOSTA (editar depois não depende do evento aberto)
+        transportCost: Number(formData.transportCost) || 0,
+        laborCost: Number(formData.laborCost) || 0,
+        supportCost: Number(formData.supportCost) || 0,
+        itemsCostPerPerson: Number(formData.itemsCostPerPerson) || 0,
+        ingredientsCost: Math.round((Number(formData.itemsCostPerPerson) || 0) * (parseInt(formData.guests) || 0) * 100) / 100,
+        // Regras de preço usadas
+        pricingMode: formData.pricingMode,
+        inflationMonths: effectiveMonths,
+        monthsUntilEvent: effectiveMonths,
+        pricingSnapshot: pricingSettings || null,
+        foodCost: calcSaved.foodCost,
+        directCost: calcSaved.directCost,
+        profit: calcSaved.profit,
+        profitPct: calcSaved.profitPct,
+        cmvPct: calcSaved.cmvPct,
         markup: Number(formData.markupPercent) || 0,
         totalCost: roundedTotalCost,
         markupPercent: Number(formData.markupPercent) || 0,
@@ -705,7 +865,8 @@ function ProposalBuilderSimple({
     const totalPrice = formData.selectedMenuData.stats?.totalPrice || 0;
     const totalCost = formData.selectedMenuData.stats?.totalCost || 0;
     const hasMargin = totalPrice > totalCost;
-    const hasItems = costs?.ingredientsCost > 0;
+    const hasItems = (Number(formData.itemsCostPerPerson) || 0) > 0;
+    const gq = Number(formData.guests) || 0;
 
     return /*#__PURE__*/React.createElement("div", {
       className: "mt-3 p-3 bg-blue-50 border-blue-200 border rounded-lg"
@@ -735,7 +896,7 @@ function ProposalBuilderSimple({
       }, "Total Itens do Evento"),
       /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "Custo real dos ingredientes (R$ ", (costs?.ingredientsCost || 0).toFixed(2), ")")
+      }, "Custo da lista de compras do evento (R$ ", ((Number(formData.itemsCostPerPerson) || 0) * gq).toFixed(2), " para ", gq, " convidados)")
     )),
     // Opção 2: Total dos Pratos (sem margem)
     /*#__PURE__*/React.createElement("label", {
@@ -755,7 +916,7 @@ function ProposalBuilderSimple({
       }, "Total Pratos (sem margem)"),
       /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "Custo do card\xE1pio (R$ ", (costs?.menuCostTotal || 0).toFixed(2), ")")
+      }, "S\xF3 o custo, sem lucro nos pratos (R$ ", (totalCost * gq).toFixed(2), ")")
     )),
     // Opção 3: Total dos Pratos (com margem)
     /*#__PURE__*/React.createElement("label", {
@@ -777,7 +938,7 @@ function ProposalBuilderSimple({
       hasMargin
         ? /*#__PURE__*/React.createElement("p", {
             className: "text-xs text-green-600"
-          }, "Com margem de lucro (R$ ", (costs?.menuPriceTotal || 0).toFixed(2), ")")
+          }, "Com o markup de cada prato (R$ ", (totalPrice * gq).toFixed(2), ") \u2014 recomendado")
         : /*#__PURE__*/React.createElement("p", {
             className: "text-xs text-gray-500"
           }, "\u26A0\uFE0F Configure margem nos pratos para ativar")
@@ -845,7 +1006,7 @@ function ProposalBuilderSimple({
     }, getEventTypeLabel(menu.menuData?.eventType || menu.eventType), " \u2022 ", dishes.length, " pratos"), /*#__PURE__*/React.createElement("p", {
       className: "text-sm text-orange-600 font-semibold mt-1"
     }, "R$ ", costPerPerson.toFixed(2), " por pessoa"));
-  }))), eventData?.clientData && /*#__PURE__*/React.createElement("div", {
+  }))), (shownClient && shownClient.name) && /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-6 border border-blue-200"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-bold text-gray-800 mb-4"
@@ -853,19 +1014,19 @@ function ProposalBuilderSimple({
     className: "space-y-2 text-sm"
   }, /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
     className: "font-medium"
-  }, "Nome:"), " ", eventData.clientData.name), eventData.clientData.phone && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
+  }, "Nome:"), " ", shownClient.name), shownClient.phone && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
     className: "font-medium"
-  }, "Telefone:"), " ", eventData.clientData.phone), eventData.clientData.email && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
+  }, "Telefone:"), " ", shownClient.phone), shownClient.email && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
     className: "font-medium"
-  }, "Email:"), " ", eventData.clientData.email), eventData.clientData.address && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
+  }, "Email:"), " ", shownClient.email), shownClient.address && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("span", {
     className: "font-medium"
-  }, "Endere\xE7o:"), " ", eventData.clientData.address)), /*#__PURE__*/React.createElement("p", {
+  }, "Endere\xE7o:"), " ", shownClient.address)), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-3"
-  }, "\u2139\uFE0F Cliente selecionado na aba \"Eventos\"")), /*#__PURE__*/React.createElement("div", {
+  }, proposal ? "\u2139\uFE0F Cliente desta proposta" : "\u2139\uFE0F Cliente selecionado na aba \"Eventos\"")), /*#__PURE__*/React.createElement("div", {
     className: "bg-green-50 rounded-lg p-6 border border-green-200"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-bold text-gray-800 mb-4"
-  }, "\uD83D\uDCC5 Dados do Evento"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCC5 Dados do Evento"), renderEventPull(), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-1 md:grid-cols-3 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-1"
@@ -1078,85 +1239,78 @@ function ProposalBuilderSimple({
     className: "w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
   }), /*#__PURE__*/React.createElement("span", {
     className: "text-sm text-gray-700"
-  }, "Foto Produtos/Servi\xE7os")))), costs && formData.selectedMenuData && formData.guests > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 border-2 border-orange-300"
-  }, /*#__PURE__*/React.createElement("h3", {
-    className: "text-lg font-bold text-gray-800 mb-4"
-  }, "\uD83D\uDCB0 Resumo de Custos"), /*#__PURE__*/React.createElement("div", {
-    className: "space-y-2 text-sm"
-  }, costs.ingredientsCost > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between"
-  }, /*#__PURE__*/React.createElement("span", null, "Ingredientes"), /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, "R$ ", costs.ingredientsCost.toFixed(2))), costs.supportCost > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between"
-  }, /*#__PURE__*/React.createElement("span", null, "Apoio"), /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, "R$ ", costs.supportCost.toFixed(2))), costs.transportCost > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between"
-  }, /*#__PURE__*/React.createElement("span", null, "Transporte"), /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, "R$ ", costs.transportCost.toFixed(2))), costs.laborCost > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "flex justify-between"
-  }, /*#__PURE__*/React.createElement("span", null, "M\xE3o de Obra"), /*#__PURE__*/React.createElement("span", {
-    className: "font-semibold"
-  }, "R$ ", costs.laborCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
-    className: "border-t-2 border-orange-400 pt-2 mt-2 flex justify-between"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-lg font-bold"
-  }, "CUSTO TOTAL"), /*#__PURE__*/React.createElement("span", {
-    className: "text-2xl font-bold text-orange-600"
-  }, "R$ ", Math.ceil(calculateTotalCost()).toLocaleString('pt-BR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 pt-4 border-t border-orange-300"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "\uD83D\uDCC8 Margem de Lucro (%)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: formData.markupPercent === 0 ? 0 : formData.markupPercent,
-    onChange: e => {
-      const value = parseFloat(e.target.value);
-      handleChange('markupPercent', isNaN(value) ? 0 : value);
-    },
-    placeholder: "30",
-    step: "5",
-    className: "w-full px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-  }), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-gray-500 mt-1"
-  }, "\uD83D\uDCA1 Voc\xEA pode usar 0% para mostrar apenas o custo sem margem")), formData.markupPercent > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mt-3 flex justify-between text-sm bg-blue-50 rounded-lg p-3 border border-blue-200"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "font-medium text-blue-800"
-  }, "+ Margem Adicional (", formData.markupPercent, "%)"), /*#__PURE__*/React.createElement("span", {
-    className: "font-bold text-blue-600"
-  }, "R$ ", (calculateFinalTotal() - calculateTotalCost()).toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }))), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 pt-4 border-t border-orange-300"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "flex items-center gap-2 cursor-pointer"
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: formData.includeDishPhotos,
-    onChange: e => handleChange('includeDishPhotos', e.target.checked),
-    className: "w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-medium text-gray-700"
-  }, "\uD83D\uDCF8 Incluir fotos dos pratos no card\xE1pio")), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-gray-500 mt-1 ml-7"
-  }, "Quando desmarcado, a proposta mostrar\xE1 apenas os nomes dos pratos")), /*#__PURE__*/React.createElement("div", {
-    className: "mt-4 pt-4 border-t-2 border-green-400 flex justify-between bg-green-50 rounded-lg p-3"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-lg font-bold text-green-800"
-  }, "VALOR FINAL"), /*#__PURE__*/React.createElement("span", {
-    className: "text-2xl font-bold text-green-600"
-  }, "R$ ", Math.ceil(calculateFinalTotal()).toLocaleString('pt-BR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  })))))), /*#__PURE__*/React.createElement("div", {
+  }, "Foto Produtos/Servi\xE7os")))), formData.selectedMenuData && formData.guests > 0 && (() => {
+    // ✅ Resumo de preço da proposta (out/2026): custo real, preço, lucro, CMV e avisos
+    const h = React.createElement;
+    const R = computeProposal();
+    const brl = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = v => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+    const st = pricingSettings || {};
+    const line = (label, value, opts = {}) => h('div', { className: 'flex justify-between gap-3' + (opts.muted ? ' text-gray-500' : ''), key: label },
+      h('span', null, label), h('span', { className: opts.bold ? 'font-bold' : 'font-semibold' }, value));
+    const modeBtn = (id, label, sub) => h('div', {
+      role: 'button', key: id, onClick: () => handleChange('pricingMode', id),
+      style: { flex: '1 1 200px', cursor: 'pointer', borderRadius: 10, padding: '8px 10px', border: '2px solid ' + (formData.pricingMode === id ? '#ea580c' : '#e5e7eb'), background: formData.pricingMode === id ? '#fff7ed' : '#fff' }
+    }, h('div', { style: { fontWeight: 700, fontSize: 14, color: '#111827' } }, (formData.pricingMode === id ? '● ' : '○ ') + label), h('div', { style: { fontSize: 12, color: '#6b7280' } }, sub));
+    const sumPct = (Number(st.taxesPct) || 0) + (Number(st.cardFeesPct) || 0) + (Number(st.fixedCostsPct) || 0);
+    return h('div', { className: 'bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 border-2 border-orange-300' },
+      h('h3', { className: 'text-lg font-bold text-gray-800 mb-3' }, '💰 Pre\xE7o da proposta'),
+      (() => {
+        if (!proposal || !proposal.pricingSnapshot) return null;
+        const cur = currentRules();
+        if (!cur || sameRules(proposal.pricingSnapshot, cur)) return null;
+        const usingSaved = sameRules(pricingSettings, proposal.pricingSnapshot);
+        return h('div', { 'data-testid': 'rules-note', className: 'text-xs', style: { background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 8px', marginBottom: 10, color: '#713f12' } },
+          usingSaved ? 'Esta proposta usa os custos da empresa de quando foi feita (voc\xEA mudou depois). ' : 'Usando os custos da empresa atuais. ',
+          h('span', { role: 'button', onClick: () => setPricingSettings(usingSaved ? cur : proposal.pricingSnapshot), style: { color: '#c2410c', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 } },
+            usingSaved ? 'Usar os atuais' : 'Voltar aos da proposta'));
+      })(),
+      R.legacy ? h('div', { className: 'bg-yellow-50 border border-yellow-300 rounded p-2 text-yellow-800 text-xs mb-3' }, '\u2139\uFE0F Proposta antiga: o valor gravado foi mantido. Para recalcular com as regras novas, remova o card\xE1pio (\uD83D\uDDD1\uFE0F) e selecione de novo.') : null,
+      h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 } },
+        modeBtn('markup', 'Markup', 'Pratos com o markup de cada um + serviços com o markup de serviços'),
+        modeBtn('divisor', 'Custos da empresa', 'Custo ÷ (1 − impostos − taxas − custos fixos − lucro)')),
+      h('div', { className: 'space-y-2 text-sm' },
+        line(formData.totalType === 'items' ? 'Comida (lista de compras) — custo' : 'Comida — custo', brl(R.foodCost)),
+        R.mode === 'markup' && formData.totalType === 'menu_price' ? line('Comida — preço com markup dos pratos', brl(R.foodPrice)) : null,
+        line('Apoio e log\xEDstica', brl(R.support)),
+        line('M\xE3o de obra', brl(R.labor)),
+        line('Transporte', brl(R.transport)),
+        R.mode === 'markup' && (Number(st.serviceMarkupPct) || 0) > 0 ? line('Servi\xE7os com markup de ' + pct(st.serviceMarkupPct), brl(R.servicesPrice)) : null,
+        R.inflationAmount > 0 ? line('Corre\xE7\xE3o at\xE9 o evento (' + R.months + (R.months === 1 ? ' m\xEAs' : ' meses') + ' \xD7 ' + pct(st.inflationMonthlyPct) + ') — j\xE1 inclu\xEDda', brl(R.inflationAmount), { muted: true }) : null,
+        h('div', { className: 'border-t-2 border-orange-400 pt-2 mt-2' }, line('CUSTO DIRETO', brl(R.directCost), { bold: true })),
+        R.mode === 'divisor' ? h('p', { className: 'text-xs text-gray-600' },
+          'Impostos ' + pct(st.taxesPct) + ' + taxas ' + pct(st.cardFeesPct) + ' + custos fixos ' + pct(st.fixedCostsPct) + ' + lucro ' + pct(st.targetProfitPct) + '. ',
+          h('span', { role: 'button', onClick: () => window.openPricingSettings && window.openPricingSettings(), style: { color: '#c2410c', textDecoration: 'underline', cursor: 'pointer' } }, 'Ajustar custos da empresa')) : null,
+        R.divisorInvalid ? h('div', { className: 'bg-red-50 border border-red-300 rounded p-2 text-red-700 text-xs' }, '⚠️ A soma de impostos, taxas, custos fixos e lucro passou de 95%. Revise os custos da empresa.') : null,
+        h('div', { className: 'mt-3 grid grid-cols-2 gap-2' },
+          h('label', { className: 'text-xs text-gray-600' }, 'Meses at\xE9 o evento (corre\xE7\xE3o)',
+            h('input', { type: 'number', min: 0, step: 1, value: formData.inflationMonths != null && formData.inflationMonths !== '' ? formData.inflationMonths : autoMonths,
+              onChange: e => handleChange('inflationMonths', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0)),
+              className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
+          h('label', { className: 'text-xs text-gray-600' }, 'Ajuste final (%) — desconto ou acr\xE9scimo',
+            h('input', { type: 'number', step: 1, value: formData.markupPercent === 0 ? 0 : formData.markupPercent,
+              onChange: e => { const v = parseFloat(e.target.value); handleChange('markupPercent', isNaN(v) ? 0 : v); },
+              className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' }))),
+        R.doubleMargin ? h('div', { className: 'bg-yellow-50 border border-yellow-300 rounded p-2 text-yellow-800 text-xs' }, '⚠️ Os pratos j\xE1 t\xEAm markup. O ajuste final de ' + pct(formData.markupPercent) + ' entra em cima disso (margem sobre margem).') : null,
+        h('div', { className: 'mt-4 pt-4 border-t-2 border-green-400 flex justify-between bg-green-50 rounded-lg p-3' },
+          h('span', { className: 'text-lg font-bold text-green-800' }, 'VALOR FINAL'),
+          h('span', { className: 'text-2xl font-bold text-green-600' }, 'R$ ', (R.finalTotalRounded || Math.ceil(R.finalTotal || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }))),
+        line('Por pessoa', brl(R.pricePerPerson), { muted: true }),
+        h('div', { className: 'mt-3 p-3 rounded-lg ' + (R.noProfit ? 'bg-red-50 border border-red-300' : 'bg-white border border-gray-200') },
+          sumPct > 0 ? line('Impostos, taxas e custos fixos (' + pct(sumPct) + ' do pre\xE7o)', '− ' + brl(R.salesDeductions), { muted: true }) : null,
+          line('Lucro estimado', brl(R.profit) + ' (' + pct(R.profitPct) + ')', { bold: true }),
+          line('Markup sobre o custo', pct(R.markupOnCostPct), { muted: true }),
+          line('CMV (comida \xF7 pre\xE7o)', pct(R.cmvPct), { muted: true }),
+          R.noProfit ? h('p', { className: 'text-red-700 text-xs font-semibold mt-1' }, '⚠️ Proposta SEM LUCRO: o valor final n\xE3o cobre o custo. Escolha "Pratos + Margem", use o modo "Custos da empresa" ou aumente o ajuste final.') : null,
+          sumPct === 0 ? h('p', { className: 'text-xs text-gray-500 mt-1' }, 'Dica: cadastre impostos, taxas e custos fixos em ',
+            h('span', { role: 'button', onClick: () => window.openPricingSettings && window.openPricingSettings(), style: { color: '#c2410c', textDecoration: 'underline', cursor: 'pointer' } }, 'Custos da empresa'),
+            ' para ver o lucro real.') : null)),
+      h('div', { className: 'mt-4 pt-4 border-t border-orange-300' },
+        h('label', { className: 'flex items-center gap-2 cursor-pointer' },
+          h('input', { type: 'checkbox', checked: formData.includeDishPhotos, onChange: e => handleChange('includeDishPhotos', e.target.checked), className: 'w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500' }),
+          h('span', { className: 'text-sm font-medium text-gray-700' }, '📸 Incluir fotos dos pratos no card\xE1pio')),
+        h('p', { className: 'text-xs text-gray-500 mt-1 ml-7' }, 'Quando desmarcado, a proposta mostrar\xE1 apenas os nomes dos pratos')));
+  })()), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-200"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onCancel,

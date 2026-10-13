@@ -103,9 +103,9 @@ const DishForm = React.memo(function DishForm({
         } else if (unit === 'g' || unit === 'ml') {
           quantityInGrams = quantity;
         }
-        const baseCost = quantityInGrams * unitCost;
-        const lossMultiplier = 1 + lossPercentage / 100;
-        const ingredientCost = baseCost * lossMultiplier;
+        // Custo = quantidade COMPRADA (bruta) × custo unitário.
+        // A perda NÃO entra no custo: ela já reduz o peso final do prato (custo/100 g e por porção sobem sozinhos).
+        const ingredientCost = quantityInGrams * unitCost;
         return {
           ...ing,
           loss: lossPercentage / 100,
@@ -251,6 +251,10 @@ const DishForm = React.memo(function DishForm({
     return formData.ingredients.reduce((sum, ing) => {
       // ✅ Pular ingredientes descartáveis (não contam no peso final)
       if (ing.isDiscarded) {
+        return sum;
+      }
+      // Ingredientes por unidade (pão, ovo, lata) não entram no peso do prato
+      if (ing.unitType === 'unit' || String(ing.unit || '').toLowerCase() === 'un') {
         return sum;
       }
 
@@ -546,10 +550,8 @@ const DishForm = React.memo(function DishForm({
     // Para ingredientes por unidade, não precisa converter unidades
     // Para ingredientes por peso, converter para gramas
     const quantityForCalculation = isUnitType ? initialQuantity : initialQuantity;
-    const quantityToBuy = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss ? window.lossCalculations.calculateQuantityWithLoss(quantityForCalculation, loss) : loss > 0 && loss < 1 ? quantityForCalculation / (1 - loss) : quantityForCalculation;
-
-    // Custo total = quantidade a comprar × custo unitário (grama OU unidade)
-    const totalCost = quantityToBuy * costPerGramMl;
+    // Custo total = quantidade comprada (bruta) × custo unitário (grama OU unidade); a perda só reduz o peso final
+    const totalCost = quantityForCalculation * costPerGramMl;
     console.log('📝 [handleAddIngredient] isUnitType:', isUnitType, 'quantity:', initialQuantity, 'unit:', initialUnit);
     console.log('📝 [handleAddIngredient] quantityToBuy:', quantityToBuy, 'totalCost:', totalCost);
     // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
@@ -619,11 +621,8 @@ const DishForm = React.memo(function DishForm({
             }
           }
 
-          // Aplicar perda
-          const quantityToBuy = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss ? window.lossCalculations.calculateQuantityWithLoss(quantityForCalculation, loss) : loss > 0 && loss < 1 ? quantityForCalculation / (1 - loss) : quantityForCalculation;
-
-          // Custo = quantidade a comprar × custo unitário (grama OU unidade)
-          const totalCost = quantityToBuy * ing.costPerUnit;
+          // Custo = quantidade comprada (bruta) × custo unitário (grama OU unidade); a perda só reduz o peso final
+          const totalCost = quantityForCalculation * ing.costPerUnit;
           return {
             ...ing,
             quantity: quantity,
@@ -666,8 +665,7 @@ const DishForm = React.memo(function DishForm({
 
           // Aplicar perda: quantidade a comprar considerando a perda
           const loss = (parseFloat(ing.lossPercentage) || 0) / 100;
-          const quantityToBuy = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss ? window.lossCalculations.calculateQuantityWithLoss(quantityInGrams, loss) : loss > 0 && loss < 1 ? quantityInGrams / (1 - loss) : quantityInGrams;
-          const finalCost = quantityToBuy * costPerGramMl;
+          const finalCost = quantityInGrams * costPerGramMl; // quantidade bruta × custo/g (perda só reduz o peso final)
           return {
             ...ing,
             quantity: newQuantity,
@@ -904,7 +902,7 @@ const DishForm = React.memo(function DishForm({
     className: "grid grid-cols-3 gap-2"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "text-xs text-gray-600"
-  }, "Quantidade"), /*#__PURE__*/React.createElement("input", {
+  }, "Qtd. comprada (bruta)"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: ing.quantity === 0 ? '' : ing.quantity,
     onChange: e => handleUpdateIngredientQuantity(ing.id, e.target.value),
@@ -971,7 +969,7 @@ const DishForm = React.memo(function DishForm({
     className: "grid grid-cols-2 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Margem de Lucro (%)"), /*#__PURE__*/React.createElement("input", {
+  }, "Markup (%) \u2014 quanto somar ao custo"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: formData.profitMargin,
     onChange: e => handleMarginChange(e.target.value),
@@ -981,7 +979,7 @@ const DishForm = React.memo(function DishForm({
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
   }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "\uD83D\uDCA1 Ex: 300% = vender por 4x o custo")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, "\uD83D\uDCA1 Ex.: markup 300% = vender por 4\xD7 o custo (margem real de 75%)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Pre\xE7o Sugerido ", formData.useWeightCalculation ? "por Por\xE7\xE3o" : "por 100g"), /*#__PURE__*/React.createElement("input", {
     type: "number",
@@ -993,7 +991,16 @@ const DishForm = React.memo(function DishForm({
     className: "w-full px-4 py-2 border border-green-300 rounded-lg text-lg font-bold text-green-600 focus:ring-2 focus:ring-green-500 focus:border-transparent"
   }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "\uD83D\uDCCA Custo base: R$ ", formData.useWeightCalculation ? calculateCostPerServing.toFixed(2) : (calculateTotalCost / calculateTotalWeight * 100).toFixed(2)))), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCCA Custo base: R$ ", formData.useWeightCalculation ? calculateCostPerServing.toFixed(2) : (calculateTotalCost / calculateTotalWeight * 100).toFixed(2)), (() => {
+    // Indicadores (out/2026): margem real sobre o preço e CMV (custo ÷ preço)
+    const ind = window.PricingRules && window.PricingRules.indicators(getBaseCost(), parseFloat(formData.suggestedPrice) || 0);
+    if (!ind) return null;
+    const f = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+    const cor = ind.cmvPct > 40 ? 'text-red-600' : ind.cmvPct > 35 ? 'text-yellow-700' : 'text-green-700';
+    return /*#__PURE__*/React.createElement("p", {
+      className: "text-xs mt-1 " + cor
+    }, "Margem real ", f(ind.marginPct), " \xB7 CMV ", f(ind.cmvPct), ind.cmvPct > 40 ? " (alto: comida acima de 40% do pre\xE7o)" : "");
+  })())), /*#__PURE__*/React.createElement("div", {
     className: "mt-4 p-3 bg-white rounded-lg border border-green-200"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-4 text-sm"

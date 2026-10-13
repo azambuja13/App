@@ -96,7 +96,7 @@ const TransportForm = React.memo(function TransportForm({
     placeholder: "0.50"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Ped\xE1gio (R$)"), /*#__PURE__*/React.createElement("input", {
+  }, "Ped\xE1gio por viagem, ida + volta (R$)"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: transport.toll === 0 ? '' : transport.toll,
     onChange: e => onTransportChange({
@@ -127,7 +127,7 @@ const TransportForm = React.memo(function TransportForm({
     className: "text-sm text-blue-900"
   }, /*#__PURE__*/React.createElement("p", {
     className: "font-semibold mb-2"
-  }, "\uD83D\uDCCA Detalhes do C\xE1lculo:"), /*#__PURE__*/React.createElement("p", null, "\u2022 Dist\xE2ncia total (ida e volta): ", totalDistance.toFixed(1), " km"), /*#__PURE__*/React.createElement("p", null, "\u2022 Litros necess\xE1rios: ", litersNeeded.toFixed(2), " L"), /*#__PURE__*/React.createElement("p", null, "\u2022 Custo combust\xEDvel: R$ ", fuelCost.toFixed(2)), transport.costPerKm > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Custo rodagem: R$ ", roadCost.toFixed(2)), transport.toll > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Ped\xE1gio: R$ ", transport.toll.toFixed(2)), transport.quantity > 1 && /*#__PURE__*/React.createElement("p", {
+  }, "\uD83D\uDCCA Detalhes do C\xE1lculo:"), /*#__PURE__*/React.createElement("p", null, "\u2022 Dist\xE2ncia total (ida e volta): ", totalDistance.toFixed(1), " km"), /*#__PURE__*/React.createElement("p", null, "\u2022 Litros necess\xE1rios: ", litersNeeded.toFixed(2), " L"), /*#__PURE__*/React.createElement("p", null, "\u2022 Custo combust\xEDvel: R$ ", fuelCost.toFixed(2)), transport.costPerKm > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Custo rodagem: R$ ", roadCost.toFixed(2)), transport.toll > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Ped\xE1gio (ida + volta \xD7 ", transport.quantity || 1, " viagem(ns)): R$ ", (transport.toll * (transport.quantity || 1)).toFixed(2)), transport.quantity > 1 && /*#__PURE__*/React.createElement("p", {
     className: "font-semibold mt-1"
   }, "\u2022 Total para ", transport.quantity, " viagem(ns): R$ ", transportCost.toFixed(2)))));
 });

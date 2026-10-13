@@ -124,8 +124,8 @@ const ItemsList = React.memo(function ItemsList({
 
       items.forEach(item => {
         const isUnitType = item.unitType === 'unit' || item.unit === 'un';
-        const quantity = Math.ceil(item.qtyInKgL || 0);
-        const unit = isUnitType ? 'un' : 'kg/L';
+        const quantity = item.qtyRoundedLabel || `${Math.ceil(item.qtyInKgL || 0)}`;
+        const unit = item.qtyRoundedLabel ? '' : (isUnitType ? 'un' : 'kg/L');
         const itemName = item.ingredient?.nome || item.ingredient?.name || item.name || 'Sem nome';
 
         html += `
@@ -251,7 +251,7 @@ const ItemsList = React.memo(function ItemsList({
       }, formatCurrency(item.total))), /*#__PURE__*/React.createElement("div", {
         className: "grid gap-2 mt-2",
         style: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }
-      }, cell("Consumo/pessoa (preparado)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (cru)", fmtPerPerson(qtyPerPersonBruto)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Quantidade (arredondado)", isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)));
+      }, cell("Consumo/pessoa (preparado)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (cru)", fmtPerPerson(qtyPerPersonBruto)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Comprar (pela embalagem)", item.qtyRoundedLabel || (isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`))));
     })), /*#__PURE__*/React.createElement("div", {
       // Telas largas (lg): tabela original
       className: "hidden lg:block overflow-x-auto"
@@ -321,7 +321,7 @@ const ItemsList = React.memo(function ItemsList({
         color: '#6c757d',
         fontSize: '10px'
       }
-    }, "(arredondado)")), /*#__PURE__*/React.createElement("th", {
+    }, "(pela embalagem)")), /*#__PURE__*/React.createElement("th", {
       className: "px-4 py-3 text-right text-xs font-semibold text-gray-600"
     }, /*#__PURE__*/React.createElement("div", null, "Total (R$)"), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -362,7 +362,7 @@ const ItemsList = React.memo(function ItemsList({
         className: "px-4 py-3 text-right font-medium text-gray-700"
       }, isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-right font-medium text-gray-700"
-      }, isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`), /*#__PURE__*/React.createElement("td", {
+      }, item.qtyRoundedLabel || (isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-right font-bold text-orange-600"
       }, formatCurrency(item.total)));
     })))));

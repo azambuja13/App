@@ -458,7 +458,7 @@ function SavedMenusList() {
     className: "text-xs text-green-700 font-semibold uppercase"
   }, "Pre\xE7o com Margem")), /*#__PURE__*/React.createElement("div", {
     className: "text-xs text-green-600 font-medium mt-1"
-  }, "+", ((menu.stats.totalPrice - menu.stats.totalCost) / menu.stats.totalCost * 100).toFixed(0), "% margem \xB7 ", "R$ ", (menu.stats.totalPrice - menu.stats.totalCost).toFixed(2), " lucro")), /*#__PURE__*/React.createElement("span", {
+  }, "+", ((menu.stats.totalPrice - menu.stats.totalCost) / menu.stats.totalCost * 100).toFixed(0), "% markup \xB7 ", "R$ ", (menu.stats.totalPrice - menu.stats.totalCost).toFixed(2), " lucro")), /*#__PURE__*/React.createElement("span", {
     className: "text-2xl font-bold text-green-600"
   }, "R$ ", menu.stats.totalPrice.toFixed(2))) : /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between"

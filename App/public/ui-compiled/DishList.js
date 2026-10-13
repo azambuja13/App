@@ -505,8 +505,8 @@ const DishList = React.memo(function DishList({
                     // Converter para gramas
                     const quantityInGrams = (unit === 'kg' || unit === 'L') ? quantity * 1000 : quantity;
 
-                    // Calcular custo total com perda
-                    const totalIngredientCost = quantityInGrams * unitCost * (1 + lossPercentage / 100);
+                    // Custo = quantidade comprada (bruta) × custo/g (a perda só reduz o peso final)
+                    const totalIngredientCost = quantityInGrams * unitCost;
 
                     return `
                         <tr>

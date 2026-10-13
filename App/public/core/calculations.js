@@ -133,6 +133,13 @@ export function calculateSupportCost(supportItems = [], onlyActive = true) {
  * @returns {number} Custo de mão de obra
  */
 export function calculateLaborCost(labor = {}) {
+    // Equipe (out/2026): Σ pessoas × horas × valor/hora × (1 + encargos%)
+    if (Array.isArray(labor.team) && labor.team.length > 0) {
+        return labor.team.reduce((sum, r) => {
+            const n = v => parseFloat(v) || 0;
+            return sum + n(r.people) * n(r.hours) * n(r.rate) * (1 + n(r.chargesPct) / 100);
+        }, 0);
+    }
     const hours = parseFloat(labor.hours) || 0;
     const rate = parseFloat(labor.rate || labor.hourlyRate) || 0;
 

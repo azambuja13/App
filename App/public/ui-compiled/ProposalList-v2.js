@@ -605,9 +605,9 @@ function ProposalCard({
     className: "bg-green-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-green-600 mb-1"
-  }, "Margem"), /*#__PURE__*/React.createElement("p", {
+  }, proposal.profitPct != null ? "Lucro est." : "Margem"), /*#__PURE__*/React.createElement("p", {
     className: "text-base font-bold text-green-800"
-  }, proposal.markupPercent || 0, "%")), /*#__PURE__*/React.createElement("div", {
+  }, proposal.profitPct != null ? Math.round(Number(proposal.profitPct) || 0) : (proposal.markupPercent || 0), "%")), /*#__PURE__*/React.createElement("div", {
     className: "bg-purple-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-purple-600 mb-1"

@@ -364,9 +364,8 @@ etc.`,
                           const unitCost = (ing.costPerUnit || 0) / (ing.unitSize || 1);
 
                           // Calcular valor total com perda (quantidade a comprar considerando perda)
-                          const lossDecimal = (parseFloat(ing.lossPercentage) || 0) / 100;
-                          const quantityToBuy = lossDecimal > 0 && lossDecimal < 1 ? quantityInBaseUnit / (1 - lossDecimal) : quantityInBaseUnit;
-                          const totalCost = quantityToBuy * unitCost;
+                          // quantidade comprada (bruta) × custo unitário; a perda só reduz o peso final
+                          const totalCost = quantityInBaseUnit * unitCost;
 
                           return `R$ ${totalCost.toFixed(2)}`;
                         })()

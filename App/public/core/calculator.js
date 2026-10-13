@@ -121,12 +121,12 @@ export function calculateItems(items, ingredients, guests) {
             const unitSize = ingredient.unitSize || 1;
             const costPerUnit = ingredientCost / unitSize;
 
-            // ✅ Arredondar unidades para cima (sempre comprar pelo menos o necessário)
+            // ✅ Arredondar unidades para cima (para a COMPRA)
             const unitsRounded = Math.ceil(unitsWithLoss);
 
-            // Custo total = quantidade de unidades ARREDONDADA × custo por unidade
-            // Exemplo: 18.5 unidades → arredonda para 19 unidades → custo baseado em 19
-            const total = unitsRounded * costPerUnit;
+            // Custo do evento = unidades realmente usadas × custo por unidade
+            // (a sobra da compra não é custo deste evento)
+            const total = unitsWithLoss * costPerUnit;
 
             // 🐛 DEBUG: Log do cálculo por unidade
             if (DEBUG) console.log('💰 [calculateItems] Cálculo POR UNIDADE:', {
@@ -151,6 +151,7 @@ export function calculateItems(items, ingredients, guests) {
                 unit: 'un',
                 unitType: 'unit',
                 costPerUnit,           // Custo por unidade individual
+                qtyRoundedLabel: `${unitsRounded} un`,
                 qtyToBuy: unitsWithLoss,  // Quantidade total em unidades (não em kg)
                 qtyInKgL: unitsWithLoss,  // Para "Kg/L" vai mostrar quantidade em Un
                 total
@@ -203,13 +204,19 @@ export function calculateItems(items, ingredients, guests) {
             // Total em kg/L
             const qtyInKgL = qtyWithLossAndYield / 1000;
 
-            // ✅ Arredondar quantidade para cima (sempre comprar pelo menos o necessário)
-            const qtyRounded = Math.ceil(qtyInKgL);
-            const qtyRoundedInGrams = qtyRounded * 1000;
+            // ✅ Arredondar para cima pelo TAMANHO DA EMBALAGEM do ingrediente (para a COMPRA)
+            //    ex.: pimenta em pacote de 100 g, precisa 30 g → compra 1 pacote (100 g), não 1 kg
+            const packSize = (parseFloat(ingredient.unitSize) > 0) ? parseFloat(ingredient.unitSize) : 1000;
+            const packs = qtyWithLossAndYield > 0 ? Math.ceil(qtyWithLossAndYield / packSize - 1e-9) : 0;
+            const qtyRoundedInGrams = packs * packSize;
+            const fmtQ = g => g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg/L` : `${Math.round(g)} g/ml`;
+            const qtyRoundedLabel = packs > 0
+                ? (packSize === 1000 ? fmtQ(qtyRoundedInGrams) : `${fmtQ(qtyRoundedInGrams)} (${packs} emb. de ${fmtQ(packSize)})`)
+                : '0';
 
-            // Custo total - calculado sobre a quantidade ARREDONDADA (não a exata)
-            // Exemplo: 22.5 kg → arredonda para 23 kg → custo baseado em 23 kg
-            const total = costPerGramMl * qtyRoundedInGrams;
+            // Custo do evento = quantidade realmente usada (exata) × custo/g.
+            // A sobra da embalagem não é custo deste evento.
+            const total = costPerGramMl * qtyWithLossAndYield;
 
             // 🐛 DEBUG: Log do cálculo por peso
             if (DEBUG) console.log('💰 [calculateItems] Cálculo POR PESO:', {
@@ -241,6 +248,11 @@ export function calculateItems(items, ingredients, guests) {
                 costPerGramMl,
                 qtyToBuy,
                 qtyInKgL,
+                qtyRoundedInGrams,
+                packSize,
+                packs,
+                qtyRoundedLabel,
+                purchaseCost: costPerGramMl * qtyRoundedInGrams, // custo da compra (com sobra)
                 total
             };
         }

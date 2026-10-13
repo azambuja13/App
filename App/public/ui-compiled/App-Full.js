@@ -2170,6 +2170,10 @@ window.AppFull = function AppFull() {
     href: window.supportMailto ? window.supportMailto() : 'mailto:rafael.oliveira.azambuja@gmail.com',
     className: "mx-4 my-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50"
   }, "\u2709\uFE0F Falar com o suporte"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    onClick: () => window.openPricingSettings && window.openPricingSettings(),
+    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+  }, "\uD83D\uDCCA Custos da empresa (impostos, taxas, lucro)"), /*#__PURE__*/React.createElement("div", {
     className: "p-4 border-t border-gray-200 bg-blue-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-blue-200"
@@ -2986,6 +2990,7 @@ window.AppFull = function AppFull() {
       monthsUntilEvent: state.monthsUntilEvent,
       clientData: state.clientData,
       proposalData: state.proposalData,
+      eventName: state.eventName,
       costs: costs,
       linkedMenuId: state.linkedMenuId,
       linkedMenuName: state.linkedMenuName

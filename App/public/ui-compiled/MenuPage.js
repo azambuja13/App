@@ -570,7 +570,7 @@ function MenuPage({
         className: "mt-2"
       }, /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "Valor/Pessoa (margem ", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
+      }, "Valor/Pessoa (markup ", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
         className: profitMargin > 0 ? "text-lg font-bold text-green-600" : "text-lg font-bold text-gray-700"
       }, "R$ ", (() => {
         const dishCost = item.dishCost || 0;
@@ -596,7 +596,7 @@ function MenuPage({
         className: "mt-2"
       }, /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "Total com margem (", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
+      }, "Total com markup (", profitMargin, "%)"), /*#__PURE__*/React.createElement("p", {
         className: profitMargin > 0 ? "text-lg font-bold text-green-600" : "text-lg font-bold text-gray-700"
       }, "R$ ", (() => {
         const dishCost = item.dishCost || 0;

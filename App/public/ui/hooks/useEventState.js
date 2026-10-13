@@ -103,13 +103,14 @@ const saveToBackend = async (settingsData) => {
         const token = localStorage.getItem('accessToken');
         const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
+        // PATCH = mescla com o que já está salvo (não apaga outras configurações, ex.: custos da empresa)
         const response = await fetch(`${backendURL}/api/user-settings`, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ settingsData })
+            body: JSON.stringify({ partialSettings: settingsData })
         });
 
         if (!response.ok) {

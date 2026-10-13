@@ -85,7 +85,9 @@ async function calculateEventCosts(data, ingredients) {
     // Usar módulo calculations para custo de mão de obra
     const laborCost = window.calculateLaborCost
         ? window.calculateLaborCost(data.labor || {})
-        : (data.labor?.hours || 0) * (data.labor?.rate || data.labor?.hourlyRate || 0);
+        : (Array.isArray(data.labor?.team) && data.labor.team.length > 0
+            ? data.labor.team.reduce((s, r) => s + (parseFloat(r.people) || 0) * (parseFloat(r.hours) || 0) * (parseFloat(r.rate) || 0) * (1 + (parseFloat(r.chargesPct) || 0) / 100), 0)
+            : (data.labor?.hours || 0) * (data.labor?.rate || data.labor?.hourlyRate || 0));
 
     // Usar módulo calculations para custo de transporte
     const transportCost = window.calculateTransportCost
@@ -117,21 +119,15 @@ async function calculateEventCosts(data, ingredients) {
     console.log(`✅ [useCalculations] Total CARDÁPIO (com margem): R$ ${menuPriceTotal.toFixed(2)}`);
     console.log(`✅ [useCalculations] Margem do cardápio: R$ ${menuMarginAmount.toFixed(2)}`)
 
-    // Usar módulo calculations para aplicar inflação (SEM margem)
+    // Correção até o evento (out/2026): só sobre INSUMOS (comida e apoio).
+    // Mão de obra e transporte não são corrigidos. Taxa mensal vem de "Custos da empresa" (padrão 1%).
     const monthsUntilEvent = data.monthsUntilEvent || 0;
-    const totalCost = window.applyInflation
-        ? window.applyInflation(subtotalBeforeInflation, monthsUntilEvent, 0.01)
-        : subtotalBeforeInflation * Math.pow(1.01, monthsUntilEvent);
-
-    // Aplicar inflação no total COM margem
-    const totalWithMargin = window.applyInflation
-        ? window.applyInflation(subtotalWithMarginBeforeInflation, monthsUntilEvent, 0.01)
-        : subtotalWithMarginBeforeInflation * Math.pow(1.01, monthsUntilEvent);
-
-    // Calcular multiplicador de inflação para log
-    const inflationMultiplier = monthsUntilEvent > 0
-        ? Math.pow(1.01, monthsUntilEvent)
-        : 1;
+    const monthlyRate = (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1) / 100;
+    const inflationMultiplier = monthsUntilEvent > 0 ? Math.pow(1 + monthlyRate, monthsUntilEvent) : 1;
+    const totalCost = (ingredientsCost + supportCost) * inflationMultiplier + laborCost + transportCost;
+    const totalWithMargin = hasActiveMenu
+        ? (menuPriceTotal + supportCost) * inflationMultiplier + laborCost + transportCost
+        : totalCost;
 
     const result = {
         itemsCalculated,
@@ -277,6 +273,7 @@ function useCalculations(eventData, ingredients = []) {
         supportHash,            // ✅ Usar hash ao invés de array
         eventData.labor?.hours,
         eventData.labor?.rate,
+        JSON.stringify(eventData.labor?.team || []),
         eventData.transport?.active,
         eventData.transport?.distance,
         eventData.transport?.consumption,

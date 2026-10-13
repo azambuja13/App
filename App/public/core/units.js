@@ -73,9 +73,11 @@ export const ALL_UNITS = Object.keys(UNIT_CONVERSIONS);
  */
 export function convertToGrams(value, fromUnit) {
     const val = parseFloat(value) || 0;
-    const unit = String(fromUnit).toLowerCase().trim();
+    const raw = String(fromUnit).trim();
+    const unit = raw.toLowerCase();
 
-    const factor = UNIT_CONVERSIONS[unit];
+    // Procura do jeito que veio e em minúsculas ('L' e 'l' = litro)
+    const factor = UNIT_CONVERSIONS[raw] ?? UNIT_CONVERSIONS[unit] ?? (unit === 'l' ? 1000 : undefined);
 
     if (factor === undefined) {
         console.warn(`[Units] Unidade desconhecida: "${fromUnit}". Usando valor direto.`);
@@ -93,9 +95,10 @@ export function convertToGrams(value, fromUnit) {
  */
 export function convertFromGrams(grams, toUnit) {
     const val = parseFloat(grams) || 0;
-    const unit = String(toUnit).toLowerCase().trim();
+    const raw = String(toUnit).trim();
+    const unit = raw.toLowerCase();
 
-    const factor = UNIT_CONVERSIONS[unit];
+    const factor = UNIT_CONVERSIONS[raw] ?? UNIT_CONVERSIONS[unit] ?? (unit === 'l' ? 1000 : undefined);
 
     if (factor === undefined) {
         console.warn(`[Units] Unidade desconhecida: "${toUnit}". Usando valor direto.`);

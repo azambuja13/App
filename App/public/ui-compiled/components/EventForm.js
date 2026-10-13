@@ -58,7 +58,7 @@ const EventForm = React.memo(function EventForm({
     placeholder: "0"
   }))), monthsUntilEvent > 0 && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2"
-  }, "Corre\xE7\xE3o: +", ((Math.pow(1.01, monthsUntilEvent) - 1) * 100).toFixed(2), "% materiais"));
+  }, "Corre\xE7\xE3o: +", ((Math.pow(1 + (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1) / 100, monthsUntilEvent) - 1) * 100).toFixed(2), "% em comida e apoio (", (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1), "% ao m\xEAs)"));
 });
 
 // Expor ao window para uso com Babel

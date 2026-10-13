@@ -9,6 +9,14 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Preços mais precisos:**
+  - **Custo dos pratos:** a perda dos ingredientes era contada duas vezes. Agora ela só reduz o peso final, e custos e preços sugeridos ficaram corretos (em geral, menores). O app recalcula seus pratos sozinho na primeira vez que você entrar depois da atualização.
+  - **Propostas:** usam o cardápio e os convidados da própria proposta e mostram o lucro estimado. Elas vêm com o markup dos pratos e avisam quando estão sem lucro.
+- **Custos da empresa:** cadastre impostos, taxas de cartão, custos fixos e lucro desejado. A proposta pode calcular o preço por esses custos (método do divisor).
+- **Mão de obra por equipe:** função, número de pessoas, horas, valor/hora e encargos.
+- **Lista de compras:**
+  - arredonda pela embalagem (100 g de pimenta, e não 1 kg);
+  - o custo do evento considera o que é usado.
 - **Mensagens prontas para WhatsApp:** escolha um modelo (primeiro contato, retorno da proposta, confirmação, pagamento, agradecimento, avaliação e recontato) e o texto já vem com o nome do cliente, o evento, a data e o valor.
 - **Modelos editáveis:** escreva os textos do seu jeito, crie modelos novos e cadastre o link de avaliação do Google.
 - **Relatórios (Premium):** taxa de fechamento, ticket médio, faturamento por mês, vendas por origem e motivos de perda.
@@ -69,7 +77,7 @@ Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 - **Clientes:** cadastro de clientes.
 - **Eventos:** dados do evento (cliente, data, convidados, local) e eventos salvos.
 - **Ingredientes:** banco de ingredientes com custo, perda e rendimento.
-- **Pratos:** receitas com custo, margem e preço sugerido.
+- **Pratos:** receitas com custo, markup e preço sugerido.
 - **Cardápio:** pratos do evento atual e consumo por pessoa.
 - **Salvos:** cardápios salvos para reutilizar.
 - **Itens:** lista de compras do evento.
@@ -99,7 +107,7 @@ Onde encontrar o painel:
 ### 3.3 Passo a passo de um orçamento
 
 1. **Ingredientes:** cadastre os ingredientes com o preço que você paga.
-2. **Pratos:** crie os pratos com os ingredientes e defina a margem de lucro.
+2. **Pratos:** crie os pratos com os ingredientes e defina o markup.
 3. **Cardápio:** adicione os pratos do evento e ajuste o consumo por pessoa.
 4. **Salvar cardápio:** a proposta é montada a partir de um cardápio salvo.
 5. **Clientes:** cadastre o cliente na aba Clientes ou crie o contato direto no Funil.
@@ -131,6 +139,30 @@ Os dados da empresa aparecem nas propostas e o nome da empresa entra nas mensage
 Para colocar o **logo**, toque no círculo no topo do painel e escolha a imagem.
 
 > **Dica:** escreva a história em 2 ou 3 frases curtas. Por exemplo: "Há mais de 10 anos levando churrasco de qualidade para casamentos, aniversários e eventos corporativos."
+
+### 4.1 Custos da empresa (impostos, taxas e lucro)
+
+![Custos da empresa](manual/29-custos-empresa.jpg)
+
+No painel da empresa, toque em **"📊 Custos da empresa"**. Os percentuais entram nas propostas para mostrar o **lucro de verdade** e, se você quiser, para **calcular o preço**.
+
+| Campo | O que é | Exemplo |
+|---|---|---|
+| Impostos sobre a venda | alíquota efetiva do seu regime (pergunte ao contador) | 8% |
+| Taxas de cartão e comissões | média do que você paga por venda | 3% |
+| Custos fixos | aluguel, gás, energia, contador, veículo, pró-labore ÷ faturamento do mês | 15% |
+| Lucro desejado | quanto do preço deve sobrar de lucro | 20% |
+| Markup sobre serviços | quanto somar ao custo de apoio, mão de obra e transporte | 20% |
+| Correção mensal | correção de comida e apoio até a data do evento | 1% |
+
+A **calculadora de custos fixos** faz a conta: custos fixos do mês ÷ faturamento médio do mês.
+
+> **Exemplo do método do divisor:**
+> - custo direto do evento: R$ 10.000;
+> - impostos 8% + taxas 3% + custos fixos 15% + lucro 20% = 46%;
+> - preço = 10.000 ÷ (1 − 0,46) = **R$ 18.518,52**.
+>
+> Desse valor: R$ 2.037 vão para impostos e taxas, R$ 2.778 para os custos fixos e R$ 3.704 são lucro.
 
 ---
 
@@ -468,17 +500,22 @@ Os preços estimados pela IA são uma referência. Confirme sempre com seus forn
 1. Toque em **"Novo Prato"**.
 2. Preencha nome, descrição, categoria (Entrada, Prato Principal, Acompanhamento, Sobremesa, Bebida, Outro) e o **número de porções** que o prato rende.
 3. Escolha o cálculo: **por porção** (marcado) ou **por peso, em R$ por 100 g** (desmarcado).
-4. Toque em **"Adicionar Ingrediente"**, escolha o ingrediente e informe a quantidade.
+4. Toque em **"Adicionar Ingrediente"**, escolha o ingrediente e informe a **quantidade comprada (bruta)**, antes de limpar ou cozinhar.
 5. Marque **"Descartável após uso"** para itens como sal, açúcar ou vinho de marinada. Eles contam no custo, mas não no peso final.
-6. Defina a **margem de lucro (%)**. O preço sugerido aparece por porção ou por 100 g.
+6. Defina o **markup (%)**, ou seja, quanto somar ao custo. O preço sugerido aparece por porção ou por 100 g. Embaixo aparecem a **margem real** e o **CMV** (custo ÷ preço). O CMV fica vermelho acima de 40%.
 7. Se quiser, adicione até 3 fotos, observações e a ficha técnica (tempo, temperatura, equipamentos).
 8. Toque em **"Criar Prato"**.
 
-O resumo mostra o custo total e o peso final depois da perda dos ingredientes.
+O resumo mostra o custo total e o peso final depois da perda dos ingredientes. A perda **não** aumenta o custo: ela diminui o peso final, e por isso o custo por 100 g e por porção sobe na medida certa.
 
-> **Exemplo de margem:** um prato que custa R$ 10,00 por porção:
-> - com margem de **100%**, é vendido por R$ 20,00;
-> - com **300%**, por R$ 40,00 (4 vezes o custo).
+> **Exemplo de custo:** costela, 3 kg comprados a R$ 34,90/kg, com 40% de perda (osso e gordura):
+> - custo = 3 × 34,90 = **R$ 104,70**;
+> - peso final = 3.000 g × 60% = **1.800 g**;
+> - custo por 100 g = **R$ 5,82**.
+
+> **Markup × margem:** um prato que custa R$ 10,00 por porção:
+> - com markup de **100%**, é vendido por R$ 20,00 (margem real 50%, CMV 50%);
+> - com markup de **300%**, por R$ 40,00 (margem real 75%, CMV 25%).
 
 ### 13.2 Outras ações
 
@@ -493,7 +530,7 @@ O resumo mostra o custo total e o peso final depois da perda dos ingredientes.
 ![Cardápio do evento](manual/21-cardapio.jpg)
 
 1. Na aba **Pratos**, toque em **"Adicionar ao Cardápio"** nos pratos desejados.
-2. Na aba **Cardápio**, ajuste o **consumo por pessoa** (em gramas) de cada prato.
+2. Na aba **Cardápio**, ajuste as **porções por pessoa** de cada prato. Nos pratos vendidos por peso, 1 porção = 100 g. Por exemplo, 2,5 porções = 250 g por pessoa.
 3. Confira o custo por pessoa, o valor por pessoa e o total geral.
 4. Toque em **"Gerar Lista de Compras"** para enviar os ingredientes para a aba Itens.
 5. Toque em **"Salvar Cardápio"**, dê um nome, escolha o tipo de evento e, se quiser, escreva uma descrição. Se já existir um cardápio com o mesmo nome, o sistema pergunta se deve sobrescrever.
@@ -533,7 +570,8 @@ A aba **Itens** mostra os ingredientes do evento calculados para o número de co
 
 - **A Servir:** quantidade pronta, depois do preparo.
 - **A Comprar:** quantidade crua, já considerando perda e rendimento.
-- **Custo Total** de cada item.
+- **Comprar (pela embalagem):** a quantidade exata arredondada para cima pelo tamanho da embalagem cadastrada no ingrediente. Por exemplo, 30 g de pimenta → 1 embalagem de 100 g.
+- **Custo Total** de cada item: o custo do que é **usado** no evento. A sobra da embalagem não entra no preço do evento.
 
 Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 
@@ -546,8 +584,17 @@ Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 Tudo fica na aba **Apoio** e entra no custo do evento.
 
 - **Apoio e logística:** toque em "Novo Item" e informe nome, custo e quantidade (por exemplo: carvão, gelo, louças, guardanapos). Desmarque a caixinha para tirar um item do evento sem apagá-lo.
-- **Transporte e pedágio:** marque "Ativo" e informe distância (km), consumo (km/l), preço do combustível, pedágio e número de viagens.
-- **Mão de obra:** informe as horas trabalhadas e o valor por hora.
+- **Transporte e pedágio:** marque "Ativo" e informe:
+  - distância de ida (km);
+  - consumo (km/l);
+  - preço do combustível;
+  - **pedágio por viagem (ida + volta)**;
+  - número de viagens.
+- **Mão de obra:** para um cálculo simples, informe horas e valor/hora. Para uma equipe, toque em **"👥 Montar equipe"** e cadastre cada função: pessoas, horas, R$/hora e encargos (%). Para diária, use 1 hora e o valor da diária.
+
+![Mão de obra por equipe](manual/30-mao-de-obra.jpg)
+
+> **Exemplo de equipe:** 4 garçons × 6 h × R$ 25 + 20% de encargos = R$ 720; 2 churrasqueiros × 8 h × R$ 40 = R$ 640. Total da mão de obra: **R$ 1.360**.
 
 > **Exemplo:** carvão em saco de 5 kg a R$ 32,00, 12 sacos: o sistema soma R$ 384,00 no custo do evento.
 
@@ -562,7 +609,7 @@ Tudo fica na aba **Apoio** e entra no custo do evento.
 1. Na aba **Eventos**, preencha o nome do evento.
 2. Escolha o **cliente** (cadastre antes na aba Clientes).
 3. Informe a data, o número de convidados e o local.
-4. Em **"Meses até o Evento"**, informe quantos meses faltam. O sistema aplica correção de 1% ao mês nos materiais.
+4. Em **"Meses até o Evento"**, informe quantos meses faltam. O sistema corrige **comida e apoio** pela correção mensal de "Custos da empresa" (padrão 1% ao mês). Mão de obra e transporte não são corrigidos.
 5. Confira os totais: ingredientes, apoio, transporte, mão de obra, total, total dos pratos e total com margem.
 6. Toque em **"Salvar Evento"**.
 
@@ -584,7 +631,10 @@ Tudo fica na aba **Apoio** e entra no custo do evento.
 1. Na aba **Propostas**, toque em **"Nova Proposta"**.
 2. Dê um nome à proposta. Por exemplo: "Casamento Mariana & Lucas". O nome aparece nas mensagens prontas como {evento}.
 3. Escolha o **cardápio salvo**.
-4. Escolha qual total usar: total dos itens do evento, total dos pratos sem margem ou total dos pratos com margem.
+4. Escolha qual total usar para a comida:
+   - **Pratos + markup** (recomendado e padrão);
+   - pratos só pelo custo;
+   - lista de compras do evento.
 5. Confira o cliente, a data, os convidados e o local.
 6. Preencha:
    - observações;
@@ -593,11 +643,45 @@ Tudo fica na aba **Apoio** e entra no custo do evento.
    - confirmação mínima (dias);
    - formas aceitas (dinheiro, cartão, PIX).
 7. Escolha quais dados da empresa aparecem: nome, contatos, história, missão, visão, valores, motivação e fotos.
-8. Ajuste a **margem de lucro (%)** da proposta, se quiser. Use 0% para mostrar só o custo.
+8. Confira o **Preço da proposta** (veja 19.2). Se quiser, use o **ajuste final (%)** para dar desconto (número negativo) ou acréscimo.
 9. Escolha se as fotos dos pratos aparecem no cardápio.
 10. Toque em **"Salvar Proposta"**.
 
-### 19.2 Acompanhar
+### 19.2 Preço da proposta
+
+![Preço da proposta](manual/28-proposta-preco.jpg)
+
+O preço é calculado com o **cardápio escolhido** e os **convidados da própria proposta**. Mudou os convidados, o valor muda junto. Há dois modos:
+
+- **Markup:** comida com o markup de cada prato, mais apoio, mão de obra e transporte com o "markup sobre serviços" de Custos da empresa.
+- **Custos da empresa:** preço = custo direto ÷ (1 − impostos − taxas − custos fixos − lucro), com os percentuais de Custos da empresa (capítulo 4.1).
+
+O quadro mostra:
+
+- custo da comida, apoio, mão de obra e transporte;
+- a correção até o evento, calculada pela data;
+- o **custo direto** e o **valor final**;
+- o **lucro estimado** (já descontando impostos, taxas e custos fixos), o markup sobre o custo e o CMV.
+
+Avisos:
+
+- **Proposta SEM LUCRO:** o valor final não cobre o custo. O sistema pede confirmação antes de salvar.
+- **Margem sobre margem:** os pratos já têm markup e o ajuste final soma mais em cima.
+
+**Editar uma proposta** mantém os convidados, os custos e as regras dela, mesmo que o evento aberto na aba Eventos seja outro. Propostas antigas, sem os números do cardápio, mantêm o valor gravado. Para recalcular uma delas, remova o cardápio e selecione de novo.
+
+**Mudou o evento depois de fazer a proposta?** Abra o evento na aba Eventos, edite a proposta e toque em **🔄 Puxar dados do evento** (no quadro Dados do Evento). Aparece o que muda (convidados, data, local, cliente, apoio, mão de obra, transporte) e o valor final antes e depois. Toque em **Aplicar na proposta** e depois em salvar. Errou? Toque em **Desfazer** antes de salvar.
+
+> 💡 Exemplo: proposta com 120 convidados, R$ 20.150. O evento passou para 240 convidados e abril/2027. Ao puxar, a prévia mostra 120 → 240 e o novo valor final, já com a correção dos meses até a nova data.
+
+**Custos da empresa na proposta:** cada proposta grava os custos da empresa (impostos, taxas, custos fixos e lucro) do dia em que foi salva. Se você mudar esses custos depois, a proposta avisa no quadro Preço da proposta e você escolhe **Usar os atuais** ou **Voltar aos da proposta**. No modo Markup eles só mudam o lucro estimado; no modo Custos da empresa mudam o preço.
+
+> **Exemplo:** cardápio com custo de R$ 109,60 e preço com markup de R$ 158,90 por pessoa, 120 convidados, apoio R$ 384 e mão de obra R$ 360:
+> - custo direto: R$ 13.896;
+> - valor final no modo Markup: R$ 19.812;
+> - com 240 convidados, o valor recalcula para R$ 38.880.
+
+### 19.3 Acompanhar
 
 ![Cartão da proposta com os botões](manual/26-proposta-cartao.jpg)
 
@@ -614,7 +698,7 @@ Tudo fica na aba **Apoio** e entra no custo do evento.
 
 A mudança de status também move o negócio no Funil e atualiza a Agenda: Enviada aparece em negociação e Aprovada aparece como data fechada.
 
-### 19.3 Visualizar, imprimir e compartilhar
+### 19.4 Visualizar, imprimir e compartilhar
 
 ![Visualizar a proposta: modelos e botões](manual/27-proposta-visualizar.jpg)
 
@@ -738,6 +822,11 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 - São contatos sem origem preenchida, ou propostas antigas de antes do CRM. Abra a ficha do cliente e escolha a origem.
 
+### Os custos dos meus pratos mudaram
+
+- Isso é a correção da perda, que antes era contada duas vezes. Os custos e preços sugeridos ficaram mais baixos e corretos.
+- Revise o markup dos pratos com mais perda (carnes com osso, peixes). Talvez valha subir o markup para manter o preço de venda.
+
 ### Valores zerados ou estranhos
 
 - Confira se todos os ingredientes têm preço.
@@ -766,7 +855,8 @@ Ao escrever, conte o que aconteceu, em qual aba e, se possível, envie um print 
 - Entrar com e-mail e criar a senha.
 - Preencher os Dados da Empresa e colocar o logo.
 - Cadastrar os principais ingredientes com preço.
-- Criar os primeiros pratos com margem de lucro.
+- Cadastrar os Custos da empresa (impostos, taxas, custos fixos e lucro).
+- Criar os primeiros pratos com markup.
 - Montar e salvar um cardápio.
 - Cadastrar um cliente (ou criar o contato no Funil, com a origem).
 - Criar e visualizar a primeira proposta.
