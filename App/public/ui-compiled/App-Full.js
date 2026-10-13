@@ -2838,9 +2838,6 @@ window.AppFull = function AppFull() {
   }), "Apoio"), /*#__PURE__*/React.createElement(ProposalTabButton, {
     isActive: state.activeTab === 'proposals',
     onClick: () => state.setActiveTab('proposals')
-  }), /*#__PURE__*/React.createElement(WhatsAppTabButton, {
-    isActive: state.activeTab === 'whatsapp',
-    onClick: () => state.setActiveTab('whatsapp')
   })), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement(IngredientsDatabase, {
