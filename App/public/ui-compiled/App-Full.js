@@ -80,19 +80,22 @@ function WhatsAppTabButton({
   onClick
 }) {
   const [showUpgradeModal, setShowUpgradeModal] = React.useState(false);
-  const [currentPlan, setCurrentPlan] = React.useState('offline');
-  const [hasAccess, setHasAccess] = React.useState(false);
+  // Plano conferido a cada desenho e no clique (a licença pode carregar depois do botão aparecer)
+  const ConfigHelperNow = window.ConfigHelper;
+  const currentPlan = ConfigHelperNow ? ConfigHelperNow.getCurrentPlan() : 'offline';
+  const hasAccess = ConfigHelperNow ? ConfigHelperNow.hasFeatureAccess('whatsapp') : false;
+  const [, setTick] = React.useState(0);
   React.useEffect(() => {
-    const ConfigHelper = window.ConfigHelper;
-    if (ConfigHelper) {
-      const plan = ConfigHelper.getCurrentPlan();
-      const access = ConfigHelper.hasFeatureAccess('whatsapp');
-      setCurrentPlan(plan);
-      setHasAccess(access);
-    }
+    // Revisa algumas vezes logo depois do login (a licença chega do servidor)
+    const ids = [1000, 3000, 8000].map(ms => setTimeout(() => setTick(t => t + 1), ms));
+    const upd = () => setTick(t => t + 1);
+    window.addEventListener('backend-phase2-complete', upd);
+    window.addEventListener('focus', upd);
+    return () => { ids.forEach(clearTimeout); window.removeEventListener('backend-phase2-complete', upd); window.removeEventListener('focus', upd); };
   }, []);
   const handleClick = e => {
-    if (!hasAccess) {
+    if (window.ConfigHelper) { window.ConfigHelper._cachedPlan = null; window.ConfigHelper._cacheTime = null; }
+    if (!(window.ConfigHelper && window.ConfigHelper.hasFeatureAccess('whatsapp'))) {
       e.preventDefault();
       e.stopPropagation();
       setShowUpgradeModal(true);
@@ -2174,6 +2177,15 @@ window.AppFull = function AppFull() {
     onClick: () => window.openPricingSettings && window.openPricingSettings(),
     className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
   }, "\uD83D\uDCCA Custos da empresa (impostos, taxas, lucro)"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    onClick: () => {
+      if (window.ConfigHelper) { window.ConfigHelper._cachedPlan = null; window.ConfigHelper._cacheTime = null; }
+      if (window.ConfigHelper && !window.ConfigHelper.hasFeatureAccess('whatsapp')) { alert('📱 O envio de propostas pelo WhatsApp é do plano PREMIUM.'); return; }
+      state.setActiveTab('whatsapp');
+      try { window.scrollTo(0, 0); } catch (e) {}
+    },
+    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-green-200 bg-white text-green-700 text-sm font-semibold hover:bg-green-50 cursor-pointer"
+  }, "\uD83D\uDCF1 WhatsApp (envio de propostas)"), /*#__PURE__*/React.createElement("div", {
     className: "p-4 border-t border-gray-200 bg-blue-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-blue-200"

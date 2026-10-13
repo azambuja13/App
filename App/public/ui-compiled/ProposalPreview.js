@@ -423,10 +423,15 @@ function ProposalPreview({
         return;
       }
 
-      const clientPhone = proposal.clientPhone || clientData?.phone;
+      let clientPhone = proposal.clientPhone || clientData?.phone;
       if (!clientPhone) {
-        alert('❌ Proposta não possui telefone do cliente. Adicione o telefone antes de enviar.');
-        return;
+        // Proposta sem telefone: pede na hora (com DDD)
+        const typed = window.prompt('📱 Esta proposta não tem o telefone do cliente.\n\nDigite o WhatsApp do cliente com DDD (ex.: 34 99999-9999):', '');
+        if (!typed || String(typed).replace(/\D/g, '').length < 10) {
+          if (typed) alert('❌ Telefone incompleto. Use DDD + número.');
+          return;
+        }
+        clientPhone = typed;
       }
 
       // 2. Enviar para backend (PDF será gerado lá)
@@ -446,10 +451,11 @@ function ProposalPreview({
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ phone: clientPhone })
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ success: false, message: 'Resposta inválida do servidor (HTTP ' + response.status + ')' }));
 
       if (result.success) {
         alert(`✅ ${result.message}\n\nWhatsApp enviado para: ${clientPhone}`);
@@ -588,9 +594,9 @@ function ProposalPreview({
     d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
   })), "Excluir"), /*#__PURE__*/React.createElement("button", {
     onClick: sendViaWhatsApp,
-    disabled: isSendingWhatsApp || !proposal?.clientPhone && !clientData?.phone,
+    disabled: isSendingWhatsApp,
     className: "flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed",
-    title: !proposal?.clientPhone && !clientData?.phone ? 'Adicione o telefone do cliente primeiro' : 'Enviar proposta via WhatsApp'
+    title: !proposal?.clientPhone && !clientData?.phone ? 'Sem telefone na proposta: o app vai pedir o número do cliente' : 'Enviar proposta via WhatsApp'
   }, isSendingWhatsApp ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("svg", {
     className: "animate-spin h-5 w-5",
     xmlns: "http://www.w3.org/2000/svg",
