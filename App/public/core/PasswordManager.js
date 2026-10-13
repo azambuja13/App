@@ -121,6 +121,49 @@ class PasswordManager {
     }
 
     /**
+     * Credencial para entrar sem internet (out/2026): guarda só um hash PBKDF2 da senha
+     * (nunca a senha), o e-mail e a chave da conta do último login com internet neste aparelho.
+     */
+    static async _hashPassword(identifier, password, saltB64) {
+        const enc = new TextEncoder();
+        const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+        const key = await crypto.subtle.importKey('raw', enc.encode(String(identifier).toLowerCase().trim() + '\u0000' + password), 'PBKDF2', false, ['deriveBits']);
+        const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 120000, hash: 'SHA-256' }, key, 256);
+        return btoa(String.fromCharCode(...new Uint8Array(bits)));
+    }
+
+    static async saveOfflineCredential(identifier, password, user = null) {
+        try {
+            if (!identifier || !password || !(window.crypto && crypto.subtle)) return;
+            const salt = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+            const hash = await this._hashPassword(identifier, password, salt);
+            const ids = [String(identifier).toLowerCase().trim()];
+            if (user && user.email) ids.push(String(user.email).toLowerCase().trim());
+            localStorage.setItem('offline_credential', JSON.stringify({
+                ids, salt, hash, user: user ? { licenseKey: user.licenseKey || null, email: user.email || null, id: user.id || null } : null, at: Date.now()
+            }));
+            // Senha em texto não fica mais guardada no aparelho
+            await this.init();
+            try { await this.storage.remove('appPassword'); } catch (e) {}
+        } catch (e) {
+            console.warn('⚠️ Não foi possível guardar o acesso offline:', e && e.message);
+        }
+    }
+
+    static async checkOfflineCredential(identifier, password) {
+        try {
+            const c = JSON.parse(localStorage.getItem('offline_credential') || 'null');
+            if (!c || !c.salt || !c.hash || !Array.isArray(c.ids)) return null;
+            const id = String(identifier || '').toLowerCase().trim();
+            if (!c.ids.includes(id) && !(c.user && c.user.licenseKey === identifier)) return null;
+            const hash = await this._hashPassword(c.ids[0], password, c.salt);
+            return hash === c.hash ? { user: c.user || null } : false;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
      * Retorna a senha salva
      */
     static async getStoredPassword() {
@@ -220,6 +263,7 @@ class PasswordManager {
                 await this.storage.set('passwordSet', 'true');
 
                 console.log('✅ Senha validada com sucesso na API');
+                await this.saveOfflineCredential(currentLicenseKey, password, result.data?.user || null);
 
                 // PASSO 2: Fazer login automático para obter accessToken (JWT)
                 // Isso permite sincronização multi-dispositivo via API REST
@@ -284,6 +328,22 @@ class PasswordManager {
             }
         } catch (error) {
             console.error('❌ Erro ao validar senha na API:', error);
+
+            // Sem internet: entra com o último acesso feito neste aparelho (hash da senha)
+            const isNetwork = !(error && error.statusCode) && (error && (error.name === 'TypeError' || /Failed to fetch|Load failed|NetworkError|network connection/i.test(String(error.message || ''))));
+            if (isNetwork) {
+                const off = await this.checkOfflineCredential(currentLicenseKey, password);
+                if (off && off !== false) {
+                    console.warn('📴 Entrando sem internet com o último acesso deste aparelho');
+                    if (window.OfflineCache) window.OfflineCache.setOffline(true);
+                    return { success: true, offline: true, message: '✅ Entrou sem internet (dados salvos neste aparelho)', user: off.user };
+                }
+                if (off === false) {
+                    const attempts = await this.incrementAttempts();
+                    return { success: false, locked: false, attemptsRemaining: MAX_ATTEMPTS - attempts, message: '❌ Senha incorreta! (sem internet)' };
+                }
+                return { success: false, locked: false, message: '📴 Sem internet. Para entrar sem internet, faça login uma vez com internet neste aparelho.' };
+            }
 
             // Em caso de erro de rede, permitir fallback local SOMENTE em modo offline
             if (window.APP_CONFIG?.mode === 'offline') {

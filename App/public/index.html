@@ -26,19 +26,19 @@
 
     <!-- ===== INDEXEDDB BLOCKER (MUST BE ABSOLUTELY FIRST!) ===== -->
     <!-- CRITICAL: Este script DEVE ser o primeiro para interceptar todas as chamadas de IndexedDB -->
-    <script src="config/indexeddb-blocker.js?v=1762564421"></script>
+    <script src="config/indexeddb-blocker.js?v=1792000000"></script>
 
     <!-- React 18 (PRODUCTION BUILD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js?v=1762564421"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js?v=1762564421"></script>
+    <script src="vendor/react.production.min.js?v=18.3.1"></script>
+    <script src="vendor/react-dom.production.min.js?v=18.3.1"></script>
 
     <!-- jsPDF e html2canvas: SEMPRE CARREGADOS (necessário para WhatsApp) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js?v=1762564421"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js?v=1762564421"></script>
+    <script src="vendor/jspdf.umd.min.js?v=2.5.1"></script>
+    <script src="vendor/html2canvas.min.js?v=1.4.1"></script>
     <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1762564421"></script> -->
 
     <!-- Socket.io para WebSocket -->
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js?v=1762564421"></script>
+    <script src="vendor/socket.io.min.js?v=4.8.1"></script>
 
     <style>
         body {
@@ -54,7 +54,8 @@
     <div id="root"></div>
 
     <!-- ===== CORE MODULES ===== -->
-    <script src="config/app-config.js?v=1791940000"></script>
+    <script src="config/app-config.js?v=1792000000"></script>
+    <script src="utils/offline-cache.js?v=1792000000"></script>
 
     <!-- ===== CONDITIONAL LOADING - default-ingredients.js ===== -->
     <!-- Carregado APENAS em modo OFFLINE, após app-config.js estar pronto -->
@@ -84,7 +85,7 @@
     </script>
 
     <!-- API Client - Backend Integration (CLOUD only) -->
-    <script src="api-client.js?v=1791940000"></script>
+    <script src="api-client.js?v=1792000000"></script>
 
     <!-- Storage Adapters - Sistema de storage por plano -->
     <script src="adapters/StorageAdapter.js?v=1762564421"></script>
@@ -127,7 +128,7 @@
     <script type="module" src="utils/phone-mask.js?v=1762564421"></script>
 
     <!-- IMPORTANTE: PasswordManager e LicenseValidator devem ser carregados ANTES de session-auth.js -->
-    <script src="core/PasswordManager.js?v=1762564421"></script>
+    <script src="core/PasswordManager.js?v=1792000000"></script>
     <script src="core/LicenseValidator.js?v=1762564421"></script>
 
     <script src="machine-fingerprint.js?v=1762564421"></script>
@@ -226,7 +227,7 @@
     <script src="ui/hooks/useCalculations.js?v=1791940000"></script>
 
     <!-- ===== APP FULL ===== -->
-    <script src="ui-compiled/App-Full.js?v=1791980000"></script>
+    <script src="ui-compiled/App-Full.js?v=1792000000"></script>
 
     <!-- Renderizar App -->
     <script>

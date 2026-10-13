@@ -653,6 +653,15 @@ window.AppFull = function AppFull() {
         }
       } catch (error) {
         console.error('❌ Erro ao verificar licença na API:', error);
+        // Sem internet: se este e-mail já entrou neste aparelho, mostra "Entrar" (login offline)
+        try {
+          const c = JSON.parse(localStorage.getItem('offline_credential') || 'null');
+          if (c && Array.isArray(c.ids) && c.ids.includes(state.email.trim().toLowerCase())) {
+            if (window.OfflineCache) window.OfflineCache.setOffline(true);
+            setPasswordSet(true);
+            return;
+          }
+        } catch (e) {}
         // Em caso de erro, deixar o usuário tentar criar senha
         setPasswordSet(false);
       }
@@ -1860,7 +1869,7 @@ window.AppFull = function AppFull() {
 
         // Salvar senha localmente também (para fallback offline)
         console.log('💾 Salvando senha no storage local...');
-        await storage.set('appPassword', password);
+        await window.PasswordManager.saveOfflineCredential(email, password); // hash para entrar sem internet (sem guardar a senha)
         await storage.set('passwordSet', 'true');
         setPasswordSet(true);
         console.log('✅ Estado React atualizado: passwordSet = true');

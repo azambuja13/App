@@ -11,6 +11,8 @@
     // Guardar referência original ANTES de qualquer outro código carregar
     const originalIndexedDB = window.indexedDB;
     const originalOpen = originalIndexedDB ? originalIndexedDB.open.bind(originalIndexedDB) : null;
+    // Cache do modo offline (utils/offline-cache.js) usa um banco próprio, só para leitura sem internet
+    window.__rawIndexedDB = originalIndexedDB;
 
     console.log('🔒 [IndexedDB Blocker] IndexedDB original:', !!originalIndexedDB);
     console.log('🔒 [IndexedDB Blocker] licenseType:', localStorage.getItem('licenseType'));

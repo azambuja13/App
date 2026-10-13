@@ -83,6 +83,8 @@ class PrecificacaoAPI {
 
     async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
+        const method = String(options.method || 'GET').toUpperCase();
+        const OC = window.OfflineCache;
 
         // Obter accessToken do localStorage
         const accessToken = localStorage.getItem('accessToken');
@@ -139,8 +141,26 @@ class PrecificacaoAPI {
                 throw error;
             }
 
+            // Modo offline: guarda a última resposta de cada consulta
+            if (OC) { OC.setOffline(false); if (method === 'GET') OC.put(endpoint, data); }
             return data;
         } catch (error) {
+            // Sem internet: consultas usam a última cópia guardada; salvar avisa
+            if (OC && OC.isNetworkError(error)) {
+                OC.setOffline(true);
+                if (method === 'GET') {
+                    const cached = await OC.get(endpoint);
+                    if (cached) {
+                        console.warn('📴 [Offline] Usando cópia guardada de', endpoint);
+                        return cached.data;
+                    }
+                }
+                const offErr = new Error(method === 'GET'
+                    ? 'Sem internet e sem cópia guardada destes dados neste aparelho.'
+                    : 'Sem internet: não foi possível salvar. Conecte-se e tente de novo.');
+                offErr.offline = true;
+                throw offErr;
+            }
             // Logar message/statusCode/stack explicitamente: o bridge nativo do Capacitor (app iOS)
             // serializa objetos Error como "{}" no console, escondendo a causa real.
             console.error('❌ Erro na API:', error && error.message ? error.message : String(error), error && error.statusCode ? `(status ${error.statusCode})` : '(sem status - possível erro de rede/CORS/JSON)');
@@ -2399,9 +2419,7 @@ async function initializeApp(licenseKey) {
                     savedMenusManager.loadMenus().then(() => console.log(`✅ Phase 2: Cardápios carregados em ${(performance.now() - phase2Start).toFixed(0)}ms`)),
                     clientManager.loadClients().then(() => console.log(`✅ Phase 2: Clientes carregados em ${(performance.now() - phase2Start).toFixed(0)}ms`)),
                     proposalManager.loadProposals().then(() => console.log(`✅ Phase 2: Propostas carregadas em ${(performance.now() - phase2Start).toFixed(0)}ms`)),
-                    fetch(`${API_CONFIG.baseURL}/api/company/whatsapp`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json' }
-                    }).then(r => r.json()).then(data => {
+                    api.request('/api/company/whatsapp').then(data => {
                         if (data.success && data.data) {
                             window.whatsappSettings = data.data;
                             console.log(`✅ Phase 2: WhatsApp carregado em ${(performance.now() - phase2Start).toFixed(0)}ms`);
@@ -2410,9 +2428,7 @@ async function initializeApp(licenseKey) {
                         window.whatsappSettings = null;
                         console.log(`⚠️ Phase 2: WhatsApp não disponível`);
                     }),
-                    fetch(`${API_CONFIG.baseURL}/api/user-settings`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}`, 'Content-Type': 'application/json' }
-                    }).then(r => r.json()).then(result => {
+                    api.request('/api/user-settings').then(result => {
                         if (result.success && result.data?.settingsData) {
                             window.userSettings = result.data.settingsData;
                             console.log(`✅ Phase 2: Configurações carregadas em ${(performance.now() - phase2Start).toFixed(0)}ms`);
