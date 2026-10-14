@@ -110,7 +110,7 @@ export function calculateItems(items, ingredients, guests) {
             const totalUnitsNeeded = unitsPerPerson * (parseFloat(guests) || 0);
 
             // Aplicar perda (ex: 5% de pães quebrados)
-            const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+            const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
             const unitsWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
                 ? window.lossCalculations.calculateQuantityWithLoss(totalUnitsNeeded, lossDecimal)
                 : (lossDecimal > 0 && lossDecimal < 1 ? totalUnitsNeeded / (1 - lossDecimal) : totalUnitsNeeded);
@@ -165,14 +165,13 @@ export function calculateItems(items, ingredients, guests) {
             // Converter quantidade para g/ml
             // FIX: Garantir que valores são numéricos
             let qtyInGramsMl = parseFloat(item.qtyPerPerson) || 0;
-            if (item.unit === 'kg') qtyInGramsMl *= 1000;
-            else if (item.unit === 'L') qtyInGramsMl *= 1000;
+            if (['kg', 'l', 'litro', 'litros'].includes(String(item.unit || '').toLowerCase())) qtyInGramsMl *= 1000;
 
             // Total necessário para todos os convidados
             const totalQtyNeeded = qtyInGramsMl * (parseFloat(guests) || 0);
 
             // ✅ Aplicar perda INVERSA (para calcular quantidade bruta a comprar)
-            const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+            const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
             const qtyWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
                 ? window.lossCalculations.calculateQuantityWithLoss(totalQtyNeeded, lossDecimal)
                 : (lossDecimal > 0 && lossDecimal < 1 ? totalQtyNeeded / (1 - lossDecimal) : totalQtyNeeded);

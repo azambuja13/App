@@ -446,16 +446,20 @@ function ProposalPreview({
       console.log('📤 [WhatsApp] Enviando para API:', `${API_URL}/api/proposals/${proposal.id}/send-whatsapp`);
       console.log('   PDF será gerado no backend com Puppeteer (qualidade perfeita)');
 
-      const response = await fetch(`${API_URL}/api/proposals/${proposal.id}/send-whatsapp`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ phone: clientPhone })
-      });
-
-      const result = await response.json().catch(() => ({ success: false, message: 'Resposta inválida do servidor (HTTP ' + response.status + ')' }));
+      // Pelo cliente da API (renova o login vencido sozinho)
+      let result;
+      const apiCli = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+      if (apiCli && typeof apiCli.request === 'function') {
+        try { result = await apiCli.request(`/api/proposals/${proposal.id}/send-whatsapp`, { method: 'POST', body: JSON.stringify({ phone: clientPhone }) }); }
+        catch (e) { result = { success: false, message: e.message }; }
+      } else {
+        const response = await fetch(`${API_URL}/api/proposals/${proposal.id}/send-whatsapp`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: clientPhone })
+        });
+        result = await response.json().catch(() => ({ success: false, message: 'Resposta inválida do servidor (HTTP ' + response.status + ')' }));
+      }
 
       if (result.success) {
         alert(`✅ ${result.message}\n\nWhatsApp enviado para: ${clientPhone}`);

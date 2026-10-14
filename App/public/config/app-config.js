@@ -614,6 +614,13 @@ window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey)
             }
         } catch (e) { console.warn('⚠️ [Conta] Erro ao limpar IndexedDB (appData):', e); }
         window.userSettings = null;
+        // Cópia offline e acesso offline da conta anterior
+        try { if (window.OfflineCache) window.OfflineCache.clearCache(); } catch (e) { }
+        try {
+            const cred = JSON.parse(localStorage.getItem('offline_credential') || 'null');
+            const novo = String(newEmail || '').toLowerCase().trim();
+            if (cred && !((cred.ids || []).includes(novo) || (cred.user && cred.user.licenseKey === newLicenseKey))) localStorage.removeItem('offline_credential');
+        } catch (e) { }
         try { if (window.companyManager && typeof window.companyManager.clearCompanyData === 'function') await window.companyManager.clearCompanyData(); } catch (e) { }
     }
     localStorage.setItem('local_data_owner', newId);

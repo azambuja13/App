@@ -377,7 +377,7 @@ const DishForm = React.memo(function DishForm({
     setFormData(prev => ({
       ...prev,
       suggestedPrice: value,
-      profitMargin: newMargin ? newMargin.toFixed(0) : ''
+      profitMargin: newMargin ? String(Math.round(newMargin * 100) / 100) : '' // 2 casas: o preço digitado é o que fica salvo
     }));
   };
 
@@ -616,7 +616,7 @@ const DishForm = React.memo(function DishForm({
             // Converter quantidade para gramas/ml apenas para ingredientes por peso
             if (String(ing.unit || '').toLowerCase() === 'kg') {
               quantityForCalculation = quantity * 1000;
-            } else if (String(ing.unit || '').toLowerCase() === 'l') {
+            } else if (['l', 'litro', 'litros'].includes(String(ing.unit || '').toLowerCase())) {
               quantityForCalculation = quantity * 1000;
             }
           }
@@ -651,7 +651,7 @@ const DishForm = React.memo(function DishForm({
           let quantityInGrams = ing.quantity;
           if (String(ing.unit || '').toLowerCase() === 'kg') {
             quantityInGrams = ing.quantity * 1000;
-          } else if (String(ing.unit || '').toLowerCase() === 'l') {
+          } else if (['l', 'litro', 'litros'].includes(String(ing.unit || '').toLowerCase())) {
             quantityInGrams = ing.quantity * 1000;
           }
 
@@ -659,7 +659,7 @@ const DishForm = React.memo(function DishForm({
           let newQuantity = quantityInGrams;
           if (String(newUnit || '').toLowerCase() === 'kg') {
             newQuantity = quantityInGrams / 1000;
-          } else if (String(newUnit || '').toLowerCase() === 'l') {
+          } else if (['l', 'litro', 'litros'].includes(String(newUnit || '').toLowerCase())) {
             newQuantity = quantityInGrams / 1000;
           }
 

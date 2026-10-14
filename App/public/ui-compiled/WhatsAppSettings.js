@@ -18,20 +18,38 @@ function WhatsAppSettings() {
   const [loading, setLoading] = useState(false);  // Iniciar como false para renderização instantânea
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  // O servidor não devolve o Access Token: só se existe (hasAccessToken) e o final (accessTokenHint).
+  // O campo do token fica vazio; em branco = manter o token salvo.
   const [settings, setSettings] = useState({
     whatsappEnabled: false,
     whatsappAccessToken: '',
     whatsappPhoneNumberId: '',
     whatsappBusinessAccountId: '',
-    whatsappPhoneNumber: ''
+    whatsappPhoneNumber: '',
+    hasAccessToken: false,
+    accessTokenHint: null
   });
+  const [mexeuHabilitar, setMexeuHabilitar] = useState(false);
   const [tpl, setTpl] = useState(() => {
     const t = window.userSettings && window.userSettings.whatsappTemplate;
     return { name: (t && t.name) || '', language: (t && t.language) || 'pt_BR' };
   });
+  const [tplMexido, setTplMexido] = useState(false);
   const [testInfo, setTestInfo] = useState(null);
-  const apiURL = () => window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-  const configurado = !!(settings.whatsappEnabled && settings.whatsappAccessToken && settings.whatsappPhoneNumberId);
+  const api = () => window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+  const temToken = !!(settings.hasAccessToken || String(settings.whatsappAccessToken || '').trim());
+  const configurado = !!(settings.whatsappEnabled && temToken && settings.whatsappPhoneNumberId);
+
+  const aplicar = d => setSettings(prev => ({
+    ...prev,
+    whatsappEnabled: !!d.whatsappEnabled,
+    whatsappAccessToken: '',
+    whatsappPhoneNumberId: d.whatsappPhoneNumberId || '',
+    whatsappBusinessAccountId: d.whatsappBusinessAccountId || '',
+    whatsappPhoneNumber: d.whatsappPhoneNumber || '',
+    hasAccessToken: !!d.hasAccessToken,
+    accessTokenHint: d.accessTokenHint || null
+  }));
 
   // Carregar configurações ao montar
   useEffect(() => {
@@ -40,53 +58,19 @@ function WhatsAppSettings() {
 
   const loadSettings = async () => {
     try {
-      console.log('🔍 [WhatsApp] Iniciando loadSettings...');
-
-      // Mostra o cache na hora, mas sempre confere no servidor (o cache pode estar velho depois de salvar)
-      if (window.whatsappSettings) {
-        console.log('⚡ [WhatsApp] Usando dados pré-carregados da Phase 2');
-        setSettings({
-          whatsappEnabled: window.whatsappSettings.whatsappEnabled || false,
-          whatsappAccessToken: window.whatsappSettings.whatsappAccessToken || '',
-          whatsappPhoneNumberId: window.whatsappSettings.whatsappPhoneNumberId || '',
-          whatsappBusinessAccountId: window.whatsappSettings.whatsappBusinessAccountId || '',
-          whatsappPhoneNumber: window.whatsappSettings.whatsappPhoneNumber || ''
-        });
-      }
-
-      // Fallback: carregar via HTTP se não estiver em cache
-      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const token = localStorage.getItem('accessToken');
-
-      console.log('🔍 [WhatsApp] Carregando do servidor');
-      const url = `${API_URL}/api/company/whatsapp`;
-
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao carregar configurações (${response.status})`);
-      }
-
-      const data = await response.json();
-      if (data.success && data.data) {
-        window.whatsappSettings = data.data;  // Armazenar em cache
-        setSettings({
-          whatsappEnabled: data.data.whatsappEnabled || false,
-          whatsappAccessToken: data.data.whatsappAccessToken || '',
-          whatsappPhoneNumberId: data.data.whatsappPhoneNumberId || '',
-          whatsappBusinessAccountId: data.data.whatsappBusinessAccountId || '',
-          whatsappPhoneNumber: data.data.whatsappPhoneNumber || ''
-        });
-        console.log('✅ [WhatsApp] Settings carregadas via HTTP');
-      }
+      if (window.whatsappSettings) aplicar(window.whatsappSettings); // mostra na hora; confere no servidor abaixo
+      const a = api();
+      if (!a) return;
+      const r = await a.request('/api/company/whatsapp');
+      if (r && r.data) { window.whatsappSettings = r.data; aplicar(r.data); }
+      // Modelo aprovado: sempre do servidor (evita apagar o modelo salvando antes de carregar)
+      try {
+        const us = await a.request('/api/user-settings');
+        const t = us && us.data && us.data.settingsData && us.data.settingsData.whatsappTemplate;
+        if (t && !tplMexido) setTpl({ name: t.name || '', language: t.language || 'pt_BR' });
+      } catch (e) {}
     } catch (error) {
-      console.error('❌ [WhatsApp] Erro ao carregar configurações:', error);
-      console.error('Continuando com configurações vazias...');
+      console.error('❌ [WhatsApp] Erro ao carregar configurações:', error && error.message);
     } finally {
       setLoading(false);
     }
@@ -95,49 +79,41 @@ function WhatsAppSettings() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const token = localStorage.getItem('accessToken');
-
+      const a = api();
+      if (!a) throw new Error('Aguarde o app terminar de carregar e tente de novo.');
+      const novoToken = String(settings.whatsappAccessToken || '').trim();
       const toSave = {
-        ...settings,
-        whatsappAccessToken: String(settings.whatsappAccessToken || '').trim(),
+        whatsappEnabled: settings.whatsappEnabled,
+        whatsappAccessToken: novoToken, // vazio = manter o salvo
         whatsappPhoneNumberId: String(settings.whatsappPhoneNumberId || '').trim(),
-        whatsappBusinessAccountId: String(settings.whatsappBusinessAccountId || '').trim()
+        whatsappBusinessAccountId: String(settings.whatsappBusinessAccountId || '').trim(),
+        whatsappPhoneNumber: settings.whatsappPhoneNumber || ''
       };
-      // Preencheu token e ID mas esqueceu de marcar "Habilitar": habilita
-      if (!toSave.whatsappEnabled && toSave.whatsappAccessToken && toSave.whatsappPhoneNumberId) toSave.whatsappEnabled = true;
-      if (toSave.whatsappEnabled && (!toSave.whatsappAccessToken || !toSave.whatsappPhoneNumberId)) {
+      const tokenOk = !!(novoToken || settings.hasAccessToken);
+      // Preencheu tudo mas não marcou "Habilitar" (e não desmarcou de propósito): habilita
+      if (!toSave.whatsappEnabled && !mexeuHabilitar && tokenOk && toSave.whatsappPhoneNumberId) toSave.whatsappEnabled = true;
+      if (toSave.whatsappEnabled && (!tokenOk || !toSave.whatsappPhoneNumberId)) {
         alert('Access Token e Phone Number ID são obrigatórios para habilitar WhatsApp');
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/company/whatsapp`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(toSave)
-      });
+      const data = await a.request('/api/company/whatsapp', { method: 'PUT', body: JSON.stringify(toSave) });
+      if (data && data.data) { window.whatsappSettings = data.data; aplicar(data.data); }
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Erro ao salvar configurações');
+      // Modelo aprovado (opcional): só grava se foi alterado
+      let avisoModelo = '';
+      if (tplMexido) {
+        const whatsappTemplate = { name: String(tpl.name || '').trim(), language: String(tpl.language || 'pt_BR').trim() || 'pt_BR' };
+        try {
+          await a.request('/api/user-settings', { method: 'PATCH', body: JSON.stringify({ partialSettings: { whatsappTemplate } }) });
+          try { window.userSettings = { ...(window.userSettings || {}), whatsappTemplate }; } catch (e) {}
+          setTplMexido(false);
+        } catch (e) {
+          avisoModelo = '\n\n⚠️ O modelo aprovado não foi salvo: ' + (e.message || 'erro');
+        }
       }
-      window.whatsappSettings = { ...(window.whatsappSettings || {}), ...toSave, ...(data.data || {}) };
-      setSettings(prev => ({ ...prev, ...toSave }));
 
-      // Modelo aprovado (opcional) fica nas configurações do usuário
-      const whatsappTemplate = { name: String(tpl.name || '').trim(), language: String(tpl.language || 'pt_BR').trim() || 'pt_BR' };
-      const r2 = await fetch(`${API_URL}/api/user-settings`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partialSettings: { whatsappTemplate } })
-      });
-      if (r2.ok) { try { window.userSettings = { ...(window.userSettings || {}), whatsappTemplate }; } catch (e) {} }
-
-      alert('✅ Configurações WhatsApp salvas!' + (toSave.whatsappEnabled ? '\n\nAgora toque em "Testar conexão" para conferir com a Meta.' : ''));
+      alert((toSave.whatsappEnabled ? '✅ Configurações WhatsApp salvas!\n\nAgora toque em "Testar conexão" para conferir com a Meta.' : '✅ Envio pelo WhatsApp desligado.') + avisoModelo);
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert(`Erro ao salvar: ${error.message}`);
@@ -149,32 +125,13 @@ function WhatsAppSettings() {
   const handleTest = async () => {
     try {
       setTesting(true);
-      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-      const token = localStorage.getItem('accessToken');
-
-      if (!settings.whatsappEnabled) {
+      if (!configurado) {
         alert('WhatsApp não está habilitado. Preencha, salve e depois teste.');
         return;
       }
-
-      const response = await fetch(`${API_URL}/api/company/whatsapp/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          testPhoneNumber: settings.whatsappPhoneNumber
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Erro ao testar conexão');
-      }
-
-      setTestInfo({ ok: true, ...data.data });
+      const a = api();
+      const data = await a.request('/api/company/whatsapp/test', { method: 'POST', body: JSON.stringify({ testPhoneNumber: settings.whatsappPhoneNumber }) });
+      setTestInfo({ ok: true, ...(data.data || {}) });
     } catch (error) {
       console.error('Erro ao testar:', error);
       setTestInfo({ ok: false, message: error.message });
@@ -184,6 +141,7 @@ function WhatsAppSettings() {
   };
 
   const handleInputChange = (field, value) => {
+    if (field === 'whatsappEnabled') setMexeuHabilitar(true);
     setSettings(prev => ({
       ...prev,
       [field]: value
@@ -237,13 +195,14 @@ function WhatsAppSettings() {
   }, "(Meta Business API)")), /*#__PURE__*/React.createElement("input", {
     type: "password",
     value: settings.whatsappAccessToken,
+    autoComplete: 'off',
     onChange: e => handleInputChange('whatsappAccessToken', e.target.value),
-    placeholder: "EAAhiBYqqoQgBP...",
+    placeholder: settings.hasAccessToken ? "Token salvo — em branco para manter" : "EAAhiBYqqoQgBP...",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent",
     disabled: !settings.whatsappEnabled
-  }), settings.whatsappAccessToken && /*#__PURE__*/React.createElement("p", {
+  }), settings.hasAccessToken && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "Token salvo (", settings.whatsappAccessToken.substring(0, 20), "...)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, "Token salvo (", settings.accessTokenHint || '…', "). Deixe em branco para manter; cole outro para trocar.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Phone Number ID *"), /*#__PURE__*/React.createElement("input", {
     type: "text",
@@ -278,9 +237,9 @@ function WhatsAppSettings() {
     React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-1' }, 'Modelo aprovado pela Meta (opcional, recomendado)'),
     React.createElement('p', { className: 'text-xs text-gray-500 mb-2' }, 'Sem modelo, o WhatsApp só entrega a proposta para clientes que mandaram mensagem para você nas últimas 24 h. Com um modelo aprovado, entrega para qualquer cliente.'),
     React.createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-      React.createElement('input', { type: 'text', value: tpl.name, placeholder: 'proposta_pdf', onChange: e => setTpl(t => ({ ...t, name: e.target.value })),
+      React.createElement('input', { type: 'text', value: tpl.name, placeholder: 'proposta_pdf', onChange: e => { setTplMexido(true); setTpl(t => ({ ...t, name: e.target.value })); },
         className: 'px-4 py-2 border border-gray-300 rounded-lg', style: { flex: '2 1 180px' } }),
-      React.createElement('input', { type: 'text', value: tpl.language, placeholder: 'pt_BR', onChange: e => setTpl(t => ({ ...t, language: e.target.value })),
+      React.createElement('input', { type: 'text', value: tpl.language, placeholder: 'pt_BR', onChange: e => { setTplMexido(true); setTpl(t => ({ ...t, language: e.target.value })); },
         className: 'px-4 py-2 border border-gray-300 rounded-lg', style: { flex: '1 1 90px' } })),
     React.createElement('details', { style: { marginTop: 8, fontSize: 13, color: '#374151' } },
       React.createElement('summary', { style: { cursor: 'pointer', fontWeight: 600 } }, 'Como criar o modelo'),

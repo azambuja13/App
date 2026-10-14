@@ -59,7 +59,8 @@ function monthsUntil(dateStr, today) {
   if (isNaN(d)) return 0;
   const t = today ? new Date(today) : new Date();
   const days = (d - t) / 86400000;
-  return days > 0 ? Math.ceil(days / 30.4375 - 1e-9) : 0;
+  // Meses arredondados (evento em até ~15 dias = 0; 20 dias = 1; 50 dias = 2)
+  return days > 0 ? Math.max(0, Math.round(days / 30.4375)) : 0;
 }
 
 /**

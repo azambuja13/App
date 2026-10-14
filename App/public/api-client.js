@@ -100,7 +100,23 @@ class PrecificacaoAPI {
         };
 
         try {
-            const response = await fetch(url, config);
+            // Só erro do fetch conta como "sem internet" (tempo limite de 15 s; GET tenta 2 vezes)
+            const fetchOnce = async () => {
+                const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+                try { return await fetch(url, ctrl ? { ...config, signal: ctrl.signal } : config); }
+                catch (e) { e.__network = true; throw e; }
+                finally { if (timer) clearTimeout(timer); }
+            };
+            let response;
+            try { response = await fetchOnce(); }
+            catch (e1) {
+                if (method !== 'GET' || !e1.__network || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw e1;
+                await new Promise(r => setTimeout(r, 1200));
+                response = await fetchOnce();
+            }
+            // Respondeu: tem conexão
+            if (OC) OC.setOffline(false);
 
             // Verificar se a resposta é 429 (Rate Limit)
             if (response.status === 429) {
@@ -142,16 +158,17 @@ class PrecificacaoAPI {
             }
 
             // Modo offline: guarda a última resposta de cada consulta
-            if (OC) { OC.setOffline(false); if (method === 'GET') OC.put(endpoint, data); }
+            if (OC && method === 'GET') OC.put(endpoint, data);
             return data;
         } catch (error) {
             // Sem internet: consultas usam a última cópia guardada; salvar avisa
-            if (OC && OC.isNetworkError(error)) {
+            if (OC && error && error.__network) {
                 OC.setOffline(true);
                 if (method === 'GET') {
                     const cached = await OC.get(endpoint);
                     if (cached) {
                         console.warn('📴 [Offline] Usando cópia guardada de', endpoint);
+                        OC.markServedFromCache(cached.at);
                         return cached.data;
                     }
                 }
@@ -1706,21 +1723,9 @@ class SavedMenuManager {
             }
             // Prioridade 2: Usar suggestedPrice se profitMargin não disponível
             else if (dish.suggestedPrice && dish.suggestedPrice > 0) {
-                if (isPortionBased) {
-                    // Por porção: suggestedPrice / servings × porções por pessoa
-                    const pricePerPortion = servings > 0 ? dish.suggestedPrice / servings : dish.suggestedPrice;
-                    dishPrice = pricePerPortion * portionsPerPerson;
-                    console.log(`   ⚠️ Usando suggestedPrice por PORÇÃO: ${dish.suggestedPrice.toFixed(2)} / ${servings} × ${portionsPerPerson} = R$ ${dishPrice.toFixed(2)}`);
-                } else if (totalWeight > 0) {
-                    // Por peso: suggestedPrice / totalWeight × gramas por pessoa
-                    const gramsPerPerson = portionsPerPerson * 100;
-                    const pricePerGram = dish.suggestedPrice / totalWeight;
-                    dishPrice = pricePerGram * gramsPerPerson;
-                    console.log(`   ⚠️ Usando suggestedPrice por PESO: ${dish.suggestedPrice.toFixed(2)} / ${totalWeight}g × ${gramsPerPerson}g = R$ ${dishPrice.toFixed(2)}`);
-                } else {
-                    dishPrice = dish.suggestedPrice;
-                    console.log(`   ⚠️ Usando suggestedPrice direto: R$ ${dishPrice.toFixed(2)}`);
-                }
+                // suggestedPrice é o preço da PORÇÃO (prato por porção) ou de 100 g (prato por peso):
+                // nos dois casos, preço por pessoa = suggestedPrice × porções por pessoa
+                dishPrice = Number(dish.suggestedPrice) * portionsPerPerson;
             }
             // Fallback: Usar apenas o custo (sem margem)
             else {

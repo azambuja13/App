@@ -124,11 +124,11 @@ class PasswordManager {
      * Credencial para entrar sem internet (out/2026): guarda só um hash PBKDF2 da senha
      * (nunca a senha), o e-mail e a chave da conta do último login com internet neste aparelho.
      */
-    static async _hashPassword(identifier, password, saltB64) {
+    static async _hashPassword(identifier, password, saltB64, iterations = 600000) {
         const enc = new TextEncoder();
         const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
         const key = await crypto.subtle.importKey('raw', enc.encode(String(identifier).toLowerCase().trim() + '\u0000' + password), 'PBKDF2', false, ['deriveBits']);
-        const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 120000, hash: 'SHA-256' }, key, 256);
+        const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, 256);
         return btoa(String.fromCharCode(...new Uint8Array(bits)));
     }
 
@@ -136,11 +136,12 @@ class PasswordManager {
         try {
             if (!identifier || !password || !(window.crypto && crypto.subtle)) return;
             const salt = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
-            const hash = await this._hashPassword(identifier, password, salt);
+            const it = 600000;
+            const hash = await this._hashPassword(identifier, password, salt, it);
             const ids = [String(identifier).toLowerCase().trim()];
             if (user && user.email) ids.push(String(user.email).toLowerCase().trim());
             localStorage.setItem('offline_credential', JSON.stringify({
-                ids, salt, hash, user: user ? { licenseKey: user.licenseKey || null, email: user.email || null, id: user.id || null } : null, at: Date.now()
+                ids, salt, hash, it, user: user ? { licenseKey: user.licenseKey || null, email: user.email || null, id: user.id || null } : null, at: Date.now()
             }));
             // Senha em texto não fica mais guardada no aparelho
             await this.init();
@@ -156,7 +157,9 @@ class PasswordManager {
             if (!c || !c.salt || !c.hash || !Array.isArray(c.ids)) return null;
             const id = String(identifier || '').toLowerCase().trim();
             if (!c.ids.includes(id) && !(c.user && c.user.licenseKey === identifier)) return null;
-            const hash = await this._hashPassword(c.ids[0], password, c.salt);
+            // Acesso offline vale por 14 dias desde o último login com internet
+            if (!c.at || Date.now() - c.at > 14 * 24 * 60 * 60 * 1000) return 'expired';
+            const hash = await this._hashPassword(c.ids[0], password, c.salt, c.it || 120000);
             return hash === c.hash ? { user: c.user || null } : false;
         } catch (e) {
             return null;
@@ -333,14 +336,23 @@ class PasswordManager {
             const isNetwork = !(error && error.statusCode) && (error && (error.name === 'TypeError' || /Failed to fetch|Load failed|NetworkError|network connection/i.test(String(error.message || ''))));
             if (isNetwork) {
                 const off = await this.checkOfflineCredential(currentLicenseKey, password);
+                if (off === 'expired') {
+                    return { success: false, locked: false, message: '📴 Sem internet. O acesso offline vale por 14 dias depois do último login com internet. Conecte-se para entrar.' };
+                }
                 if (off && off !== false) {
                     console.warn('📴 Entrando sem internet com o último acesso deste aparelho');
+                    await this.clearAttempts();
                     if (window.OfflineCache) window.OfflineCache.setOffline(true);
                     return { success: true, offline: true, message: '✅ Entrou sem internet (dados salvos neste aparelho)', user: off.user };
                 }
                 if (off === false) {
                     const attempts = await this.incrementAttempts();
-                    return { success: false, locked: false, attemptsRemaining: MAX_ATTEMPTS - attempts, message: '❌ Senha incorreta! (sem internet)' };
+                    const restantes = MAX_ATTEMPTS - attempts;
+                    if (restantes <= 0) {
+                        await this.lockApp();
+                        return { success: false, locked: true, maxAttemptsReached: true, minutesRemaining: LOCKOUT_MINUTES, message: '❌ Máximo de tentativas excedido! App bloqueado por 15 minutos.' };
+                    }
+                    return { success: false, locked: false, attemptsRemaining: restantes, message: `❌ Senha incorreta! ${restantes} tentativa(s) restante(s).` };
                 }
                 return { success: false, locked: false, message: '📴 Sem internet. Para entrar sem internet, faça login uma vez com internet neste aparelho.' };
             }

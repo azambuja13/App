@@ -598,7 +598,8 @@ export class MenuManager {
                 // - Ingrediente atualizado no banco para: 0.2% perda
                 // - Se usar 0.2%: 1000g × (1 - 0.2%) = 998g ≠ 800g ❌ ERRADO!
 
-                const lossPercentage = dishIng.lossPercentage || 0;
+                // Perda sempre em % (dados antigos em decimal: 0,2 = 20%), igual ao prato e ao servidor
+                const lossPercentage = (v => { const n = parseFloat(v) || 0; return n > 0 && n < 1 ? n * 100 : n; })(dishIng.lossPercentage);
                 const yieldMultiplier = dishIng.yieldMultiplier || 1;
 
                 console.log(`🔍 [MenuManager] Usando valores salvos no prato para ${dishIng.ingredientName}: loss=${lossPercentage}%, yield=${yieldMultiplier}x`);
@@ -616,6 +617,7 @@ export class MenuManager {
                         const preparedQty = rawQty * lossMultiplier * yieldMultiplier;
                         const liquidQty = preparedQty * portionFactor;
                         existing.totalQuantity += liquidQty;
+                        existing.totalGrossQty = (existing.totalGrossQty || 0) + rawQty * portionFactor;
 
                         // ✅ Acumular perda/rendimento ponderados para média
                         existing.weightedLoss = (existing.weightedLoss || 0) + (preparedQty * lossPercentage);
@@ -629,6 +631,7 @@ export class MenuManager {
                         const preparedQtyInGrams = qtyInGrams * lossMultiplier * yieldMultiplier;
                         const liquidQty = preparedQtyInGrams * portionFactor;
                         existing.totalQuantity += liquidQty;
+                        existing.totalGrossQty = (existing.totalGrossQty || 0) + qtyInGrams * portionFactor;
 
                         // ✅ Acumular perda/rendimento ponderados para média
                         existing.weightedLoss = (existing.weightedLoss || 0) + (preparedQtyInGrams * lossPercentage);
@@ -658,6 +661,7 @@ export class MenuManager {
                             ingredientName: dishIng.ingredientName || dishIng.name,
                             name: dishIng.ingredientName || dishIng.name,
                             totalQuantity: liquidQty,
+                            totalGrossQty: rawQty * portionFactor,
                             unit: 'un',
                             unitType: 'unit',
                             // ✅ Inicializar valores ponderados para média
@@ -691,6 +695,7 @@ export class MenuManager {
                             ingredientName: dishIng.ingredientName || dishIng.name,
                             name: dishIng.ingredientName || dishIng.name,
                             totalQuantity: liquidQty,
+                            totalGrossQty: qtyInGrams * portionFactor,
                             unit: 'g',
                             unitType: 'weight',
                             // ✅ Inicializar valores ponderados para média
@@ -726,10 +731,17 @@ export class MenuManager {
 
                 console.log(`📊 [MenuManager] ${ing.name}: Média ponderada - Perda: ${avgLoss.toFixed(2)}%, Rendimento: ${avgYield.toFixed(2)}x`);
 
+                // Perda/rendimento EFETIVOS: preparado ÷ bruto somados de todos os pratos.
+                // Assim a lista de compras volta exatamente à quantidade bruta das receitas
+                // (a média ponderada antiga comprava menos quando os pratos tinham perdas diferentes).
+                const eff = ing.totalGrossQty > 0 ? ing.totalQuantity / ing.totalGrossQty : (1 - avgLoss / 100) * avgYield;
+                const effLoss = (1 - eff) * 100;
+                const usarPerda = effLoss >= 1 && effLoss < 100;
                 return {
                     ...ing,
-                    lossPercentage: avgLoss,
-                    yieldMultiplier: avgYield,
+                    lossPercentage: usarPerda ? effLoss : 0,
+                    yieldMultiplier: usarPerda ? 1 : (eff > 0 ? eff : 1),
+                    totalGrossQty: undefined,
                     // Remover campos temporários de cálculo
                     weightedLoss: undefined,
                     weightedYield: undefined,

@@ -417,6 +417,7 @@ function ProposalBuilderSimple({
     }));
   };
   const handleSelectMenu = menu => {
+    legacySigRef.current = null; // escolheu o cardápio de novo: recalcula com as regras novas
     console.log('🔵 [handleSelectMenu] Menu selecionado:', menu);
     console.log('🔍 [handleSelectMenu] menu.menuData:', menu.menuData);
     console.log('🔍 [handleSelectMenu] menu.menuData?.dishes:', menu.menuData?.dishes);
@@ -429,6 +430,7 @@ function ProposalBuilderSimple({
     setShowMenuSelector(false);
   };
   const handleRemoveMenu = () => {
+    legacySigRef.current = null;
     setFormData(prev => ({
       ...prev,
       selectedMenuId: null,

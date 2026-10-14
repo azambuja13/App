@@ -180,7 +180,7 @@ const ItemsList = React.memo(function ItemsList({
 
     // ✅ Calcular total BRUTO por pessoa (aplicando perda e rendimento INVERSOS)
     const totalQtyPerPersonBruto = categoryItems.reduce((sum, item) => {
-      const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+      const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
       const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
 
       // Aplicar perda inversa: líquido / (1 - perda) = bruto
@@ -229,7 +229,7 @@ const ItemsList = React.memo(function ItemsList({
     }, formatCurrency(totalCost))))), categoryItems.map((item, idx) => {
       const isUnitType = item.unitType === 'unit' || item.unit === 'un';
       // Mesma conta da tabela: qtyPerPerson é LÍQUIDO (preparado); bruto (cru) = perda e rendimento inversos
-      const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+      const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
       const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
       const qtyWithLoss = lossDecimal > 0 && lossDecimal < 1 ? item.qtyPerPerson / (1 - lossDecimal) : item.qtyPerPerson;
       const qtyPerPersonBruto = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
@@ -334,7 +334,7 @@ const ItemsList = React.memo(function ItemsList({
 
       // ✅ qtyPerPerson agora é LÍQUIDO (vem do MenuPage)
       // Calcular BRUTO aplicando perda e rendimento INVERSOS
-      const lossDecimal = (item.loss || 0) > 1 ? (item.loss || 0) / 100 : (item.loss || 0);
+      const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
       const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
 
       // Aplicar perda inversa: líquido / (1 - perda) = bruto
