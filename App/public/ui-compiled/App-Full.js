@@ -859,6 +859,20 @@ window.AppFull = function AppFull() {
   // ====================================
   // Calcular total para itens de apoio
   // ====================================
+  // Apoio automático: base do cálculo (convidados, kg de carne da lista de compras, horas)
+  const supportBase = React.useMemo(() => window.SupportRules ? window.SupportRules.baseFrom({
+    guests: state.guests,
+    itemsCalculated: costs?.itemsCalculated,
+    labor: state.labor
+  }) : { guests: state.guests || 0, meatKg: 0, hours: 0 }, [state.guests, costs?.itemsCalculated, state.labor]);
+
+  // Recalcula as quantidades dos itens automáticos quando a base muda
+  React.useEffect(() => {
+    if (!window.SupportRules) return;
+    const novo = window.SupportRules.applyRules(state.support, supportBase);
+    if (novo !== state.support) state.setSupport(novo);
+  }, [supportBase, state.support]);
+
   const supportItemsWithTotal = React.useMemo(() => {
     return state.support.map(item => ({
       ...item,
@@ -1184,16 +1198,23 @@ window.AppFull = function AppFull() {
   const handleAddSupport = () => {
     if (!state.newSupport || !state.newSupport.name.trim()) {
       alert('Por favor, insira um nome para o item de apoio');
-      return;
+      return false;
     }
+    const ns = state.newSupport;
     const newItem = {
       id: Date.now(),
-      name: state.newSupport.name,
-      cost: state.newSupport.cost || 0,
-      quantity: state.newSupport.quantity || 1,
-      active: true
+      name: ns.name.trim(),
+      cost: ns.cost || 0,
+      quantity: ns.quantity || 1,
+      active: ns.active !== false,
+      rule: ns.rule || 'manual',
+      factor: ns.factor || 0,
+      unit: ns.unit || 'un',
+      packSize: ns.packSize || 0,
+      packLabel: ns.packLabel || '',
+      qtyOverride: !!ns.qtyOverride
     };
-    state.setSupport([...state.support, newItem]);
+    state.setSupport([...state.support, window.SupportRules ? window.SupportRules.applyRules([newItem], supportBase)[0] : newItem]);
     // Reset newSupport
     state.setNewSupport({
       name: '',
@@ -1207,11 +1228,32 @@ window.AppFull = function AppFull() {
     });
   };
   const handleSaveEditingSupport = () => {
-    state.setSupport(state.support.map(item => item.id === state.editingSupport.id ? state.editingSupport : item));
+    const editado = { ...state.editingSupport };
+    delete editado.priceCheck; // a pessoa conferiu o preço ao editar
+    state.setSupport(state.support.map(item => item.id === editado.id ? editado : item));
     state.setEditingSupport(null);
   };
   const handleCancelEditingSupport = () => {
     state.setEditingSupport(null);
+  };
+  // Kits de apoio
+  const handleApplySupportKit = kit => {
+    if (!window.SupportRules) return;
+    state.setEditingSupport(null);
+    state.setSupport(window.SupportRules.applyKit(kit, state.support, supportBase));
+  };
+  const handleSaveSupportKit = async nome => {
+    const R = window.SupportRules;
+    const kit = R.kitFromSupport(nome, state.support);
+    const outros = R.userKits().filter(k => String(k.name).trim().toLowerCase() !== kit.name.toLowerCase());
+    await R.saveUserKits([kit, ...outros]);
+  };
+  const handleDeleteSupportKit = async kitId => {
+    const R = window.SupportRules;
+    await R.saveUserKits(R.userKits().filter(k => k.id !== kitId));
+  };
+  const handleResetSupportAuto = id => {
+    state.setSupport(state.support.map(item => item.id === id ? { ...item, qtyOverride: false } : item));
   };
   const handleAddSupportToEvent = supportItem => {
     // O botão "+" não faz nada - os itens de apoio já fazem parte do evento
@@ -2987,6 +3029,11 @@ window.AppFull = function AppFull() {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement(SupportList, {
     supportItems: supportItemsWithTotal,
+    base: supportBase,
+    onApplyKit: handleApplySupportKit,
+    onSaveKit: handleSaveSupportKit,
+    onDeleteKit: handleDeleteSupportKit,
+    onResetAuto: handleResetSupportAuto,
     onUpdateItem: handleUpdateSupport,
     onDeleteItem: handleDeleteSupport,
     onAddToEvent: handleAddSupportToEvent,

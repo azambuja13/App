@@ -593,6 +593,7 @@ window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey)
             'company_photo1', 'company_photo2', 'company_photo3',
             'saved_events', 'ingredients_database', 'precificacao_pratos', 'precificacao_saved_menus',
             'precificacao_pricing_settings',
+            'precificacao_support_kits',
             'precificacao_clients', 'precificacao_propostas', 'custom_templates', 'backup_before_migration'
             // (as chaves da licença não são apagadas aqui: o salvamento da licença nova as sobrescreve,
             // e o armazenamento usado depende de 'licenseType' estar presente)

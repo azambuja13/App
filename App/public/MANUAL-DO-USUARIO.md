@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Apoio automático:** cada item de apoio pode ter uma regra (por convidado, por kg de carne, por hora ou fixo por evento) e a embalagem de compra. O app calcula quanto comprar e arredonda para pacotes inteiros. Também há **kits** prontos por tipo de evento.
 - **Preços mais precisos:**
   - **Custo dos pratos:** a perda dos ingredientes era contada duas vezes. Agora ela só reduz o peso final, e custos e preços sugeridos ficaram corretos (em geral, menores). O app recalcula seus pratos sozinho na primeira vez que você entrar depois da atualização.
   - **Propostas:** usam o cardápio e os convidados da própria proposta e mostram o lucro estimado. Elas vêm com o markup dos pratos e avisam quando estão sem lucro.
@@ -583,7 +584,7 @@ Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 
 Tudo fica na aba **Apoio** e entra no custo do evento.
 
-- **Apoio e logística:** toque em "Novo Item" e informe nome, custo e quantidade (por exemplo: carvão, gelo, louças, guardanapos). Desmarque a caixinha para tirar um item do evento sem apagá-lo.
+- **Apoio e logística:** a lista de itens do evento (carvão, gelo, guardanapos, pratos, copos…). Desmarque a caixinha para tirar um item do evento sem apagá-lo. Veja abaixo como deixar as quantidades automáticas.
 - **Transporte e pedágio:** marque "Ativo" e informe:
   - distância de ida (km);
   - consumo (km/l);
@@ -596,7 +597,47 @@ Tudo fica na aba **Apoio** e entra no custo do evento.
 
 > **Exemplo de equipe:** 4 garçons × 6 h × R$ 25 + 20% de encargos = R$ 720; 2 churrasqueiros × 8 h × R$ 40 = R$ 640. Total da mão de obra: **R$ 1.360**.
 
-> **Exemplo:** carvão em saco de 5 kg a R$ 32,00, 12 sacos: o sistema soma R$ 384,00 no custo do evento.
+### 17.1 Quantidade automática
+
+Toque no lápis de um item (ou em **"Novo item"**) e escolha **"Como calcular a quantidade"**:
+
+| Regra | Exemplo |
+|---|---|
+| Por convidado | 4 guardanapos por convidado |
+| Por kg de carne | 1 kg de carvão por kg de carne |
+| Por hora de evento | 2 kg de gelo por hora |
+| Fixo por evento | 2 rolos de papel alumínio |
+| Quantidade manual | você digita a quantidade (como antes) |
+
+O quadro verde no topo mostra a base do cálculo:
+
+- **Convidados:** os do evento.
+- **Kg de carne:** as proteínas por peso da lista de compras. Gere a lista pelo cardápio (aba Cardápio → Gerar lista de compras) para o carvão ser calculado.
+- **Horas:** a maior jornada da mão de obra.
+
+Mudou o número de convidados ou o cardápio? As quantidades se ajustam sozinhas.
+
+![Editar item de apoio](manual/31-apoio-item.jpg)
+
+**Embalagem:** marque **"Compro em embalagem"** e informe o nome (pacote, saco, caixa) e quantas unidades vêm em cada uma. O preço passa a ser o **da embalagem**, e o app arredonda para embalagens inteiras.
+
+**Ajustar à mão:** precisa de outra quantidade só neste evento? Preencha **"Ajustar à mão"**. O item fica marcado como **ajustado à mão** e não muda mais sozinho. Para voltar, toque em **↺ voltar ao automático**.
+
+Avisos na lista:
+
+- **sem preço:** o item está sem preço e não entra no custo.
+- **confira o preço:** o preço veio de um item antigo e pode ser da unidade, e não da embalagem. Abra o item e confira.
+
+> **Exemplo:** 120 convidados e 71,1 kg de carne. Guardanapos: 4 por convidado = 480 un → **10 pacotes de 50** a R$ 6,50 = R$ 65,00. Carvão: 1 kg por kg de carne = 71,1 kg → **15 sacos de 5 kg** a R$ 32,00 = R$ 480,00.
+
+### 17.2 Kits
+
+Toque em **🧰 Kits** para montar a lista de uma vez:
+
+- **Kits sugeridos:** Churrasco completo, Coquetel / finger food e Só serviço de churrasqueiro. As quantidades são sugestões; ajuste para a sua realidade.
+- **Seus kits:** monte a lista do seu jeito, escreva um nome em **"Salvar a lista atual como kit"** e toque em **Salvar kit**. Entram os itens marcados, com regra, embalagem e preço. O kit fica salvo na sua conta e aparece em todos os aparelhos.
+
+Ao aplicar um kit, os preços que você já tem são mantidos. Os itens que não estão no kit ficam na lista, desmarcados.
 
 ---
 
