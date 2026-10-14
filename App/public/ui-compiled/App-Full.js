@@ -186,6 +186,8 @@ window.AppFull = function AppFull() {
   // Estados de Autenticação
   // ====================================
   const [passwordSet, setPasswordSet] = React.useState(false);
+  // Troca de senha com código enviado por e-mail ("Esqueci minha senha")
+  const [pwCodeMode, setPwCodeMode] = React.useState(false);
   // Após trocar de conta a página recarrega para limpar a memória; a senha já foi
   // verificada nesse mesmo instante, então não pedimos de novo (flag de uso único).
   const [authenticated, setAuthenticated] = React.useState(() => {
@@ -675,13 +677,15 @@ window.AppFull = function AppFull() {
   React.useEffect(() => {
     if (!state.eventDate) return;
     try {
-      const eventDate = new Date(state.eventDate);
-      const today = new Date();
-
-      // Calcular diferença em meses
-      const yearsDiff = eventDate.getFullYear() - today.getFullYear();
-      const monthsDiff = eventDate.getMonth() - today.getMonth();
-      const totalMonths = yearsDiff * 12 + monthsDiff;
+      // Mesma regra da proposta (PricingRules.monthsUntil), para os valores baterem
+      let totalMonths;
+      if (window.PricingRules && typeof window.PricingRules.monthsUntil === 'function') {
+        totalMonths = window.PricingRules.monthsUntil(state.eventDate);
+      } else {
+        const eventDate = new Date(state.eventDate);
+        const today = new Date();
+        totalMonths = (eventDate.getFullYear() - today.getFullYear()) * 12 + (eventDate.getMonth() - today.getMonth());
+      }
 
       // Só atualizar se for diferente do valor atual e se for >= 0
       if (totalMonths >= 0 && totalMonths !== state.monthsUntilEvent) {
@@ -1819,7 +1823,26 @@ window.AppFull = function AppFull() {
   // ====================================
   // Handler Combinado - Licença + Senha
   // ====================================
-  const handleActivateLicenseWithPassword = async password => {
+  // Pede à API um código de 6 dígitos para o e-mail (criar/trocar senha)
+  const requestPasswordCode = async emailValue => {
+    const email = String(emailValue || state.email || '').trim();
+    if (!email) return { ok: false, message: 'Digite o seu e-mail primeiro.' };
+    try {
+      const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
+      const r = await fetch(`${API_URL}/api/auth/request-password-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return { ok: false, message: j.message || 'Não foi possível enviar o código agora.' };
+      return { ok: true, message: `Enviamos um código de 6 dígitos para ${email}. Confira também a caixa de spam.` };
+    } catch (e) {
+      return { ok: false, message: 'Sem conexão com a internet. Para trocar a senha é preciso estar on-line.' };
+    }
+  };
+
+  const handleActivateLicenseWithPassword = async (password, code) => {
     console.log('🔐 [handleActivateLicenseWithPassword] Iniciando...', {
       passwordSet,
       email: state.email
@@ -1853,23 +1876,35 @@ window.AppFull = function AppFull() {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
+          body: JSON.stringify(code ? {
+            email,
+            password: password,
+            code
+          } : {
             email,
             password: password
           })
         });
-        const result = await response.json();
-        console.log('📡 Resposta da API:', result);
+        const result = await response.json().catch(() => ({}));
+        console.log('📡 Resposta da API:', result.success, result.code || '');
         if (!response.ok || !result.success) {
           console.error('❌ Erro ao criar senha na API:', result.message);
+          if (result.code === 'CODE_REQUIRED') {
+            // Conta já tem senha: troca só com o código enviado por e-mail
+            setPwCodeMode(true);
+            const envio = await requestPasswordCode(email);
+            state.setLicenseError(envio.ok ? 'Esta conta já tem senha. ' + envio.message + ' Digite o código abaixo para criar a nova senha.' : envio.message);
+            return;
+          }
           state.setLicenseError(result.message || 'Erro ao criar senha');
           return;
         }
+        setPwCodeMode(false);
         console.log('✅ Senha criada com sucesso na API');
 
         // Salvar senha localmente também (para fallback offline)
         console.log('💾 Salvando senha no storage local...');
-        await window.PasswordManager.saveOfflineCredential(email, password); // hash para entrar sem internet (sem guardar a senha)
+        window.PasswordManager.saveOfflineCredential(email, password); // em segundo plano: hash para entrar sem internet (sem guardar a senha)
         await storage.set('passwordSet', 'true');
         setPasswordSet(true);
         console.log('✅ Estado React atualizado: passwordSet = true');
@@ -2074,14 +2109,25 @@ window.AppFull = function AppFull() {
     window.resetPasswordMode = () => {
       console.log('🔄 Modo de reset de senha ativado');
       setPasswordSet(false);
+      setPwCodeMode(true);
     };
     return /*#__PURE__*/React.createElement(LicenseActivation, {
       appVersion: APP_VERSION,
       email: state.email,
-      onEmailChange: state.setEmail,
+      onEmailChange: v => {
+        if (pwCodeMode) setPwCodeMode(false);
+        state.setEmail(v);
+      },
       licenseError: state.licenseError,
       onActivate: handleActivateLicenseWithPassword,
-      needsPassword: !passwordSet
+      needsPassword: !passwordSet,
+      codeMode: pwCodeMode,
+      onRequestCode: requestPasswordCode,
+      onCancelCode: () => {
+        setPwCodeMode(false);
+        setPasswordSet(true);
+        state.setLicenseError('');
+      }
     });
   }
 

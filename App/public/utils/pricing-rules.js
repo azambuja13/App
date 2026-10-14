@@ -52,7 +52,7 @@ async function save(partial) {
   return novo;
 }
 
-/** Meses inteiros (arredondados para cima) de hoje até a data do evento (YYYY-MM-DD). */
+/** Meses inteiros (arredondados) de hoje até a data do evento (YYYY-MM-DD). */
 function monthsUntil(dateStr, today) {
   if (!dateStr) return 0;
   const d = new Date(String(dateStr).slice(0, 10) + 'T12:00:00');

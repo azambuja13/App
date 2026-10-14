@@ -53,6 +53,7 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
 
       const result = await api.request('/api/recipes/parse', {
         method: 'POST',
+        timeoutMs: 120000,
         body: JSON.stringify({ recipeText })
       });
 

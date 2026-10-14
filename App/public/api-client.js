@@ -89,8 +89,12 @@ class PrecificacaoAPI {
         // Obter accessToken do localStorage
         const accessToken = localStorage.getItem('accessToken');
 
+        // Tempo limite: consultas 20 s; envios 60 s; operações longas passam options.timeoutMs
+        const { timeoutMs: optTimeout, ...fetchOptions } = options;
+        const timeoutMs = optTimeout || (method === 'GET' ? 20000 : 60000);
+
         const config = {
-            ...options,
+            ...fetchOptions,
             headers: {
                 'Content-Type': 'application/json',
                 'X-License-Key': this.licenseKey,
@@ -100,18 +104,29 @@ class PrecificacaoAPI {
         };
 
         try {
-            // Só erro do fetch conta como "sem internet" (tempo limite de 15 s; GET tenta 2 vezes)
+            // Só erro do fetch conta como "sem internet" (GET tenta 2 vezes).
+            // Tempo esgotado num envio (POST/PUT/DELETE) NÃO é "sem internet": o servidor
+            // pode ter recebido e ainda estar processando — não dá para afirmar que falhou.
+            const offlineNow = () => typeof navigator !== 'undefined' && navigator.onLine === false;
             const fetchOnce = async () => {
                 const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-                const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+                let timedOut = false;
+                const timer = ctrl ? setTimeout(() => { timedOut = true; ctrl.abort(); }, timeoutMs) : null;
                 try { return await fetch(url, ctrl ? { ...config, signal: ctrl.signal } : config); }
-                catch (e) { e.__network = true; throw e; }
+                catch (e) {
+                    if (timedOut && method !== 'GET' && !offlineNow()) {
+                        const t = new Error('O servidor demorou para responder. Confira se a ação foi concluída antes de tentar de novo.');
+                        t.__timeout = true;
+                        throw t;
+                    }
+                    e.__network = true; throw e;
+                }
                 finally { if (timer) clearTimeout(timer); }
             };
             let response;
             try { response = await fetchOnce(); }
             catch (e1) {
-                if (method !== 'GET' || !e1.__network || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw e1;
+                if (method !== 'GET' || !e1.__network || offlineNow()) throw e1;
                 await new Promise(r => setTimeout(r, 1200));
                 response = await fetchOnce();
             }
@@ -125,7 +140,12 @@ class PrecificacaoAPI {
             }
 
             // Verificar se é 403 (Token inválido/expirado)
-            if (response.status === 403 && !isRetry) {
+            // (402/PREMIUM_REQUIRED não é login vencido; versões antigas da API mandavam 403)
+            let premiumBlock = false;
+            if (response.status === 403) {
+                try { const peek = await response.clone().json(); premiumBlock = !!(peek && peek.code === 'PREMIUM_REQUIRED'); } catch (e) {}
+            }
+            if (response.status === 403 && !isRetry && !premiumBlock) {
                 console.warn('⚠️ Token expirado (403) - tentando renovar...');
                 try {
                     await this.refreshAccessToken();
@@ -142,6 +162,11 @@ class PrecificacaoAPI {
             try {
                 data = await response.json();
             } catch (jsonError) {
+                // Conexão caiu no meio da leitura (TypeError/AbortError) = sem internet
+                if (jsonError && (jsonError.name === 'TypeError' || jsonError.name === 'AbortError') && method === 'GET') {
+                    jsonError.__network = true;
+                    throw jsonError;
+                }
                 // Se falhar o parse, pode ser HTML (erro do servidor)
                 console.error('❌ Resposta não é JSON válido:', jsonError);
                 throw new Error(`Erro no servidor (status ${response.status})`);
@@ -151,6 +176,7 @@ class PrecificacaoAPI {
                 // ✅ Preservar informações adicionais do erro (ex: ingredientes similares)
                 const error = new Error(data.message || 'Erro na requisição');
                 error.statusCode = response.status;
+                if (data.code) error.code = data.code;
                 if (data.similar) {
                     error.similar = data.similar; // Lista de ingredientes similares (409)
                 }
@@ -303,7 +329,8 @@ class PrecificacaoAPI {
 
     async recalculateDishCosts() {
         return this.request('/api/dishes/recalculate-costs', {
-            method: 'POST'
+            method: 'POST',
+            timeoutMs: 180000
         });
     }
 

@@ -450,7 +450,7 @@ function ProposalPreview({
       let result;
       const apiCli = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
       if (apiCli && typeof apiCli.request === 'function') {
-        try { result = await apiCli.request(`/api/proposals/${proposal.id}/send-whatsapp`, { method: 'POST', body: JSON.stringify({ phone: clientPhone }) }); }
+        try { result = await apiCli.request(`/api/proposals/${proposal.id}/send-whatsapp`, { method: 'POST', timeoutMs: 120000, body: JSON.stringify({ phone: clientPhone }) }); }
         catch (e) { result = { success: false, message: e.message }; }
       } else {
         const response = await fetch(`${API_URL}/api/proposals/${proposal.id}/send-whatsapp`, {

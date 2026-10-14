@@ -34,7 +34,10 @@ function WhatsAppSettings() {
     const t = window.userSettings && window.userSettings.whatsappTemplate;
     return { name: (t && t.name) || '', language: (t && t.language) || 'pt_BR' };
   });
-  const [tplMexido, setTplMexido] = useState(false);
+  const [tplMexido, setTplMexidoState] = useState(false);
+  // ref: o carregamento assíncrono precisa ver o valor atual (não o do primeiro render)
+  const tplMexidoRef = React.useRef(false);
+  const setTplMexido = v => { tplMexidoRef.current = v; setTplMexidoState(v); };
   const [testInfo, setTestInfo] = useState(null);
   const api = () => window.PrecificacaoAPI && window.PrecificacaoAPI.api;
   const temToken = !!(settings.hasAccessToken || String(settings.whatsappAccessToken || '').trim());
@@ -67,7 +70,7 @@ function WhatsAppSettings() {
       try {
         const us = await a.request('/api/user-settings');
         const t = us && us.data && us.data.settingsData && us.data.settingsData.whatsappTemplate;
-        if (t && !tplMexido) setTpl({ name: t.name || '', language: t.language || 'pt_BR' });
+        if (t && !tplMexidoRef.current) setTpl({ name: t.name || '', language: t.language || 'pt_BR' });
       } catch (e) {}
     } catch (error) {
       console.error('❌ [WhatsApp] Erro ao carregar configurações:', error && error.message);
@@ -91,7 +94,8 @@ function WhatsAppSettings() {
       };
       const tokenOk = !!(novoToken || settings.hasAccessToken);
       // Preencheu tudo mas não marcou "Habilitar" (e não desmarcou de propósito): habilita
-      if (!toSave.whatsappEnabled && !mexeuHabilitar && tokenOk && toSave.whatsappPhoneNumberId) toSave.whatsappEnabled = true;
+      // (só na primeira configuração: token novo e nenhum token salvo antes)
+      if (!toSave.whatsappEnabled && !mexeuHabilitar && novoToken && !settings.hasAccessToken && toSave.whatsappPhoneNumberId) toSave.whatsappEnabled = true;
       if (toSave.whatsappEnabled && (!tokenOk || !toSave.whatsappPhoneNumberId)) {
         alert('Access Token e Phone Number ID são obrigatórios para habilitar WhatsApp');
         return;
@@ -122,6 +126,29 @@ function WhatsAppSettings() {
     }
   };
 
+  const handleClearToken = async () => {
+    if (!confirm('Remover o Access Token salvo?\n\nO envio pelo WhatsApp fica desligado até você colar um token novo.')) return;
+    try {
+      setSaving(true);
+      const a = api();
+      if (!a) throw new Error('Aguarde o app terminar de carregar e tente de novo.');
+      const data = await a.request('/api/company/whatsapp', { method: 'PUT', body: JSON.stringify({
+        whatsappEnabled: false,
+        clearAccessToken: true,
+        whatsappPhoneNumberId: String(settings.whatsappPhoneNumberId || '').trim(),
+        whatsappBusinessAccountId: String(settings.whatsappBusinessAccountId || '').trim(),
+        whatsappPhoneNumber: settings.whatsappPhoneNumber || ''
+      }) });
+      if (data && data.data) { window.whatsappSettings = data.data; aplicar(data.data); }
+      setTestInfo(null);
+      alert('✅ Token removido. O envio pelo WhatsApp está desligado.');
+    } catch (error) {
+      alert(`Erro ao remover: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleTest = async () => {
     try {
       setTesting(true);
@@ -130,7 +157,7 @@ function WhatsAppSettings() {
         return;
       }
       const a = api();
-      const data = await a.request('/api/company/whatsapp/test', { method: 'POST', body: JSON.stringify({ testPhoneNumber: settings.whatsappPhoneNumber }) });
+      const data = await a.request('/api/company/whatsapp/test', { method: 'POST', timeoutMs: 60000, body: JSON.stringify({ testPhoneNumber: settings.whatsappPhoneNumber }) });
       setTestInfo({ ok: true, ...(data.data || {}) });
     } catch (error) {
       console.error('Erro ao testar:', error);
@@ -202,7 +229,12 @@ function WhatsAppSettings() {
     disabled: !settings.whatsappEnabled
   }), settings.hasAccessToken && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "Token salvo (", settings.accessTokenHint || '…', "). Deixe em branco para manter; cole outro para trocar.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, "Token salvo (", settings.accessTokenHint || '…', "). Deixe em branco para manter; cole outro para trocar. ", /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: handleClearToken,
+    disabled: saving,
+    className: "text-red-600 underline ml-1 disabled:opacity-50"
+  }, "Remover token"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Phone Number ID *"), /*#__PURE__*/React.createElement("input", {
     type: "text",

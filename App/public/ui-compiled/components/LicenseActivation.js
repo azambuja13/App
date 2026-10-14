@@ -24,8 +24,25 @@ function LicenseActivation({
   onEmailChange,
   licenseError = '',
   onActivate,
-  needsPassword = true
+  needsPassword = true,
+  codeMode = false,
+  onRequestCode,
+  onCancelCode
 }) {
+  const [code, setCode] = React.useState('');
+  const [codeInfo, setCodeInfo] = React.useState('');
+  const [sendingCode, setSendingCode] = React.useState(false);
+  const enviarCodigo = async () => {
+    if (!onRequestCode || sendingCode) return;
+    setSendingCode(true);
+    setCodeInfo('Enviando código...');
+    try {
+      const r = await onRequestCode(email.trim());
+      setCodeInfo((r.ok ? '✅ ' : '⚠️ ') + r.message);
+    } finally {
+      setSendingCode(false);
+    }
+  };
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
@@ -38,14 +55,19 @@ function LicenseActivation({
       alert('Por favor, insira um e-mail válido');
       return;
     }
+    if (codeMode && code.replace(/\D/g, '').length !== 6) {
+      alert('Digite o código de 6 dígitos que enviamos para o seu e-mail');
+      return;
+    }
     if (needsPassword) {
       // Configurando senha pela primeira vez
       if (!password.trim()) {
         alert('Por favor, crie uma senha');
         return;
       }
-      if (password.length < 4) {
-        alert('A senha deve ter no mínimo 4 caracteres');
+      // Mesmas regras do servidor
+      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+        alert('A senha precisa ter pelo menos 8 caracteres, com uma letra MAIÚSCULA e um número.');
         return;
       }
       if (password !== confirmPassword) {
@@ -59,7 +81,7 @@ function LicenseActivation({
         return;
       }
     }
-    onActivate(password);
+    onActivate(password, codeMode ? code.replace(/\D/g, '') : undefined);
   };
   const handleKeyPress = e => {
     if (e.key === 'Enter') {
@@ -99,21 +121,57 @@ function LicenseActivation({
     placeholder: "seu@email.com",
     className: "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent",
     onKeyPress: handleKeyPress
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  })), codeMode && /*#__PURE__*/React.createElement("div", {
+    className: "bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-semibold text-gray-700"
+  }, "C\xF3digo enviado para o seu e-mail"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    inputMode: "numeric",
+    autoComplete: "one-time-code",
+    maxLength: 7,
+    value: code,
+    onChange: e => setCode(e.target.value.replace(/[^\d ]/g, '')),
+    placeholder: "000000",
+    className: "w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500",
+    onKeyPress: handleKeyPress
+  }), codeInfo && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-blue-900"
+  }, codeInfo), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between text-xs"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: enviarCodigo,
+    disabled: sendingCode,
+    className: "text-orange-600 font-medium disabled:opacity-50"
+  }, "Reenviar c\xF3digo"), onCancelCode && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => {
+      setCode('');
+      setCodeInfo('');
+      onCancelCode();
+    },
+    className: "text-gray-500 font-medium"
+  }, "Voltar para o login"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between mb-2"
   }, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-gray-700"
-  }, needsPassword ? 'Criar Senha' : 'Senha'), !needsPassword && /*#__PURE__*/React.createElement("button", {
+  }, codeMode ? 'Nova senha' : needsPassword ? 'Criar Senha' : 'Senha'), !needsPassword && /*#__PURE__*/React.createElement("button", {
     type: "button",
     onClick: () => {
-      if (confirm('Deseja resetar a senha desta licença?\n\nVocê precisará criar uma nova senha.')) {
-        // Força o modo de criação de senha
+      if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
+        alert('Digite primeiro o e-mail da sua conta');
+        return;
+      }
+      if (confirm('Vamos enviar um código de 6 dígitos para ' + email.trim() + '.\n\nCom ele você cria uma nova senha.')) {
         setPassword('');
         setConfirmPassword('');
-        // Notifica o componente pai para mudar needsPassword
+        setCode('');
+        // Notifica o componente pai para mudar para "criar senha com código"
         if (window.resetPasswordMode) {
           window.resetPasswordMode();
         }
+        enviarCodigo();
       }
     },
     className: "text-xs text-orange-600 hover:text-orange-700 font-medium"
@@ -123,7 +181,7 @@ function LicenseActivation({
     type: showPassword ? "text" : "password",
     value: password,
     onChange: e => setPassword(e.target.value),
-    placeholder: needsPassword ? "Crie uma senha (mín. 4 caracteres)" : "Digite sua senha",
+    placeholder: needsPassword ? "Mín. 8, com maiúscula e número" : "Digite sua senha",
     className: "w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent",
     onKeyPress: handleKeyPress
   }), /*#__PURE__*/React.createElement("button", {
@@ -147,7 +205,7 @@ function LicenseActivation({
     onClick: handleSubmit,
     disabled: !email.trim() || !password.trim(),
     className: "w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-  }, "\uD83D\uDD13 ", needsPassword ? 'Criar Senha e Entrar' : 'Entrar'), licenseError && !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD13 ", codeMode ? 'Trocar senha e entrar' : needsPassword ? 'Criar Senha e Entrar' : 'Entrar'), licenseError && !(window.isNativeApp && window.isNativeApp()) && /*#__PURE__*/React.createElement("div", {
     className: "relative"
   }, /*#__PURE__*/React.createElement("div", {
     className: "absolute inset-0 flex items-center"

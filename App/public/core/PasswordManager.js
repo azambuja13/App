@@ -266,7 +266,8 @@ class PasswordManager {
                 await this.storage.set('passwordSet', 'true');
 
                 console.log('✅ Senha validada com sucesso na API');
-                await this.saveOfflineCredential(currentLicenseKey, password, result.data?.user || null);
+                // Em segundo plano: o cálculo (PBKDF2) leva alguns segundos no celular
+                this.saveOfflineCredential(currentLicenseKey, password, result.data?.user || null);
 
                 // PASSO 2: Fazer login automático para obter accessToken (JWT)
                 // Isso permite sincronização multi-dispositivo via API REST

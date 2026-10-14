@@ -90,6 +90,7 @@ function MessageDialog({ ctx, onClose }) {
   }, [dados]);
   const modelo = templates.find(t => t.key === chave);
   React.useEffect(() => {
+    setErroEnvio('');
     if (!modelo) return;
     setTexto(C.fillTemplate(modelo.body, varsFor(cliente, proposta, dados && dados.reviewLink)));
   }, [chave, propostaId, cliente, dados]);
@@ -109,6 +110,7 @@ function MessageDialog({ ctx, onClose }) {
   const enviarDireto = async () => {
     const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
     if (!api || !telefone || !texto.trim()) return;
+    setErroEnvio('');
     setEnviando(true);
     try {
       await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
@@ -147,7 +149,7 @@ function MessageDialog({ ctx, onClose }) {
             templates.map(t => h('div', { key: t.key, role: 'button', onClick: () => setChave(t.key), style: chip(t.key === chave) }, t.title)))),
         h('textarea', { value: texto, onChange: e => setTexto(e.target.value), rows: 6, className: 'crm-input', style: { fontSize: 15, lineHeight: 1.45 } }),
         !wa && h('div', { style: { fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px' } }, 'Este cliente não tem telefone cadastrado. Copie o texto ou cadastre o telefone na aba Clientes.'),
-        erroEnvio && h('div', { style: { fontSize: 13, color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px' } }, '❌ ' + erroEnvio + ' Use "Abrir no app" para enviar pelo seu WhatsApp.'),
+        erroEnvio && h('div', { style: { fontSize: 13, color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px' } }, '❌ ' + erroEnvio + (/Abrir no/.test(erroEnvio) ? '' : ' Use "Abrir no app" para enviar pelo seu WhatsApp.')),
         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
           wa && apiPronta && h('button', { onClick: enviarDireto, disabled: enviando, className: 'crm-btn', style: { background: '#16a34a', color: '#fff', flex: '1 1 200px', opacity: enviando ? .6 : 1 } }, enviando ? 'Enviando...' : '📤 Enviar pelo WhatsApp'),
           href && h('a', { href, target: '_blank', rel: 'noopener', onClick: registrar, className: 'crm-btn', style: apiPronta ? { background: '#fff', color: '#15803d', border: '1px solid #86efac', flex: '1 1 160px' } : { background: '#16a34a', color: '#fff', flex: '1 1 200px' } }, apiPronta ? '💬 Abrir no app' : '💬 Abrir no WhatsApp'),

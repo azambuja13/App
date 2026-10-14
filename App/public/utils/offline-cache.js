@@ -16,7 +16,13 @@
       try {
         var r = idb.open(DB, 1);
         r.onupgradeneeded = function () { r.result.createObjectStore(STORE); };
-        r.onsuccess = function () { res(r.result); };
+        r.onsuccess = function () {
+          var db = r.result;
+          // Outra aba/versão precisa atualizar o banco: fecha esta conexão para não travar
+          db.onversionchange = function () { try { db.close(); } catch (e) {} dbp = null; };
+          db.onclose = function () { dbp = null; };
+          res(db);
+        };
         r.onerror = function () { rej(r.error); };
       } catch (e) { rej(e); }
     });
@@ -103,7 +109,13 @@
     if (offline === v) return;
     offline = v;
     window.__appOffline = v;
-    if (!v && servedFromCache) { if (document.body) avisoVoltou(); return; }
+    if (!v && servedFromCache) {
+      // Mostra "a internet voltou" uma vez e zera a marca (próxima queda começa do zero)
+      servedFromCache = false; cacheAt = null;
+      if (document.body) avisoVoltou();
+      try { window.dispatchEvent(new CustomEvent('app-offline-changed', { detail: v })); } catch (e) {}
+      return;
+    }
     if (document.body) banner(); else document.addEventListener('DOMContentLoaded', banner);
     try { window.dispatchEvent(new CustomEvent('app-offline-changed', { detail: v })); } catch (e) {}
   }
