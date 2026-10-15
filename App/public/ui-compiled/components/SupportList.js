@@ -51,6 +51,7 @@ function NumField({ value, onChange, placeholder, className, id, ariaLabel, mone
 
 const RULE_SUFFIX = {
   perGuest: 'por convidado',
+  perGroup: 'por grupo',
   perMeatKg: 'por kg de carne',
   perHour: 'por hora de evento',
   fixed: 'por evento'
@@ -78,10 +79,17 @@ function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel }) {
         onChange: e => set({ name: e.target.value }), className: 'w-full px-3 py-2 border border-gray-300 rounded-lg' })),
     h('div', null, lbl('Como calcular a quantidade'),
       h('select', { value: rule, 'aria-label': 'Regra', className: 'w-full px-3 py-2 border border-gray-300 rounded-lg bg-white',
-        onChange: e => set({ rule: e.target.value, qtyOverride: false }) },
+        onChange: e => set(e.target.value === 'perGroup' && !(num(item.factor, 0) > 0)
+          ? { rule: e.target.value, qtyOverride: false, factor: 1 }
+          : { rule: e.target.value, qtyOverride: false }) },
         Object.keys(rules).map(k => h('option', { key: k, value: k }, rules[k].label)))),
+    rule === 'perGroup' && h('div', grid2,
+      h('div', null, lbl('Quantidade'),
+        h(NumField, { value: num(item.factor, 0), onChange: v => set({ factor: v }), placeholder: '1', ariaLabel: 'Fator' })),
+      h('div', null, lbl('A cada quantos convidados'),
+        h(NumField, { value: num(item.groupSize, 0), onChange: v => set({ groupSize: v }), placeholder: 'Ex.: 30', ariaLabel: 'Convidados por grupo' }))),
     h('div', grid2,
-      auto
+      rule === 'perGroup' ? null : auto
         ? h('div', null, lbl(`Quantidade ${RULE_SUFFIX[rule]}`),
             h(NumField, { value: num(item.factor, 0), onChange: v => set({ factor: v }), placeholder: 'Ex.: 4', ariaLabel: 'Fator' }))
         : h('div', null, lbl(temPacote ? `Quantos ${packLabel}s` : `Quantidade (${unit})`),
@@ -108,7 +116,7 @@ function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel }) {
           onChange: v => set(v > 0 ? { quantity: v, qtyOverride: true } : { qtyOverride: false }) })) : h('div')),
     h('div', { className: 'rounded-lg px-3 py-2 text-sm', style: C.tealBg, 'data-support-preview': '1' },
       auto && h('div', null, d.ruleText),
-      h('div', null, 'Comprar: ', h('b', null, d.buyText), ' → ', h('b', null, brl(num(item.cost, 0) * qFinal)))),
+      h('div', null, 'Quantidade: ', h('b', null, d.buyText), ' → ', h('b', null, brl(num(item.cost, 0) * qFinal)))),
     h('label', { className: 'flex items-center gap-2 text-sm text-gray-700' },
       h('input', { type: 'checkbox', checked: item.active !== false, className: 'w-5 h-5',
         onChange: e => set({ active: e.target.checked }) }), 'Usar neste evento'),
@@ -179,7 +187,7 @@ const SupportList = React.memo(function SupportList({
             'Automático seria ', fmtN(R().computeQuantity(item, base)), '. ',
             h('button', { onClick: () => onResetAuto && onResetAuto(item.id), className: 'underline font-semibold' }, '↺ voltar ao automático')),
           h('div', { className: 'flex items-end justify-between gap-2' },
-            h('div', { className: 'text-sm text-gray-600 mt-1 min-w-0' }, 'Comprar ', h('b', null, d.buyText), ' · ', d.priceText),
+            h('div', { className: 'text-sm text-gray-600 mt-1 min-w-0' }, 'Quantidade: ', h('b', null, d.buyText), ' · ', d.priceText),
             h('div', { className: 'flex no-print', style: { flexShrink: 0 } },
               h('button', { onClick: () => onStartEditing(item), className: 'text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50', title: 'Editar' },
                 h(Icon, { type: 'edit', className: 'w-5 h-5' })),

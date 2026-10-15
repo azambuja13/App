@@ -604,6 +604,7 @@ Toque no lápis de um item (ou em **"Novo item"**) e escolha **"Como calcular a 
 | Regra | Exemplo |
 |---|---|
 | Por convidado | 4 guardanapos por convidado |
+| A cada X convidados | 1 churrasqueiro a cada 30 convidados (100 convidados = 4) |
 | Por kg de carne | 1 kg de carvão por kg de carne |
 | Por hora de evento | 2 kg de gelo por hora |
 | Fixo por evento | 2 rolos de papel alumínio |

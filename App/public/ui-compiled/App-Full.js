@@ -1209,6 +1209,7 @@ window.AppFull = function AppFull() {
       active: ns.active !== false,
       rule: ns.rule || 'manual',
       factor: ns.factor || 0,
+      groupSize: ns.groupSize || 0,
       unit: ns.unit || 'un',
       packSize: ns.packSize || 0,
       packLabel: ns.packLabel || '',

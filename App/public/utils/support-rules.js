@@ -6,6 +6,8 @@
  * Cada item de apoio pode ter uma REGRA de quantidade:
  *   manual    → a pessoa digita a quantidade (comportamento antigo)
  *   perGuest  → fator × convidados          (ex.: 4 guardanapos por convidado)
+ *   perGroup  → fator a cada N convidados   (ex.: 1 churrasqueiro a cada 30 convidados;
+ *               arredonda o grupo para cima: 100 convidados → 4 grupos de 30)
  *   perMeatKg → fator × kg de carne          (ex.: 1 kg de carvão por kg de carne)
  *   perHour   → fator × horas de evento      (ex.: 2 kg de gelo por hora)
  *   fixed     → fator por evento             (ex.: 2 rolos de papel alumínio)
@@ -29,6 +31,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 const RULES = {
   manual:    { label: 'Quantidade manual',    short: 'manual' },
   perGuest:  { label: 'Por convidado',        short: 'por convidado' },
+  perGroup:  { label: 'A cada X convidados',  short: 'a cada X convidados' },
   perMeatKg: { label: 'Por kg de carne',      short: 'por kg de carne' },
   perHour:   { label: 'Por hora de evento',   short: 'por hora' },
   fixed:     { label: 'Fixo por evento',      short: 'por evento' }
@@ -66,6 +69,10 @@ function neededUnits(item, base) {
   const b = base || {};
   switch (item.rule) {
     case 'perGuest': return f * num(b.guests, 0);
+    case 'perGroup': {
+      const g = num(item.groupSize, 0);
+      return g > 0 ? f * Math.max(0, Math.ceil(num(b.guests, 0) / g - 1e-9)) : 0;
+    }
     case 'perMeatKg': return f * num(b.meatKg, 0);
     case 'perHour': return f * num(b.hours, 0);
     case 'fixed': return f;
@@ -110,7 +117,11 @@ function describe(item, base) {
     const f = fmtN(num(item.factor, 0));
     const b = base || {};
     const fn = num(item.factor, 0);
-    out.ruleText = item.rule === 'perGuest' ? `${f} ${plural(unit, fn)} por convidado × ${fmtN(num(b.guests))} = ${fmtN(need)} ${plural(unit, need)}`
+    const g = num(item.groupSize, 0);
+    out.ruleText = item.rule === 'perGroup' ? (g > 0
+        ? `${f} ${plural(unit, fn)} a cada ${fmtN(g)} convidados (${fmtN(num(b.guests))} convidados) = ${fmtN(need)} ${plural(unit, need)}`
+        : 'Informe a cada quantos convidados')
+      : item.rule === 'perGuest' ? `${f} ${plural(unit, fn)} por convidado × ${fmtN(num(b.guests))} = ${fmtN(need)} ${plural(unit, need)}`
       : item.rule === 'perMeatKg' ? `${f} ${plural(unit, fn)} por kg de carne × ${fmtN(num(b.meatKg))} kg = ${fmtN(need)} ${plural(unit, need)}`
       : item.rule === 'perHour' ? `${f} ${plural(unit, fn)} por hora × ${fmtN(num(b.hours))} h = ${fmtN(need)} ${plural(unit, need)}`
       : `${f} ${plural(unit, fn)} por evento`;
@@ -203,6 +214,7 @@ function kitFromSupport(name, support) {
       name: i.name,
       rule: i.rule || 'manual',
       factor: isAuto(i) ? num(i.factor, 0) : 0,
+      groupSize: num(i.groupSize, 0),
       quantity: isAuto(i) ? 0 : num(i.quantity, 0),
       unit: i.unit || 'un',
       packSize: num(i.packSize, 0),
@@ -237,6 +249,7 @@ function applyKit(kit, support, base) {
       name: ex ? ex.name : k.name,
       rule: k.rule || 'manual',
       factor: num(k.factor, 0),
+      groupSize: num(k.groupSize, 0),
       unit: k.unit || (ex && ex.unit) || 'un',
       packSize: num(k.packSize, 0),
       packLabel: k.packLabel || '',
