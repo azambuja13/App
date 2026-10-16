@@ -1682,10 +1682,12 @@ window.AppFull = function AppFull() {
       const result = await manager.saveEvent(eventData);
       if (result.success) {
         alert(result.message);
-        // IMPORTANTE: Setar currentEventId para que próximos saves ATUALIZEM ao invés de criar duplicados
-        if (result.eventId) {
-          state.setCurrentEventId(result.eventId);
-          console.log('✅ currentEventId atualizado para:', result.eventId);
+        // IMPORTANTE: Setar currentEventId para que próximos saves ATUALIZEM ao invés de criar duplicados.
+        // O gerenciador da nuvem devolve { data: evento } (sem eventId); o local devolve eventId.
+        const novoId = result.eventId || (result.data && result.data.id) || result.id;
+        if (novoId) {
+          state.setCurrentEventId(novoId);
+          console.log('✅ currentEventId atualizado para:', novoId);
         }
       } else {
         if (result.isQuotaError) {
