@@ -174,7 +174,7 @@ class PrecificacaoAPI {
 
             if (!response.ok) {
                 // ✅ Preservar informações adicionais do erro (ex: ingredientes similares)
-                const error = new Error(data.message || 'Erro na requisição');
+                const error = new Error(data.message || data.error || 'Erro na requisição');
                 error.statusCode = response.status;
                 if (data.code) error.code = data.code;
                 if (data.similar) {

@@ -720,7 +720,7 @@ function MenuPage({
       setShowMenuGenerator(false);
       loadMenu(); // Recarregar cardápio
     },
-    event: state.event || { id: state.currentEventId, name: state.eventName || 'Evento', people: state.guests || 0 }
+    event: state.event || { id: state.currentEventId, name: state.eventName || 'Evento', people: state.guests || 0, date: state.eventDate, location: state.eventLocation }
   }));
 }
 

@@ -23,50 +23,46 @@ function MenuGenerator({ isOpen, onClose, onSuccess, event }) {
   }, [isOpen]);
 
   const handleGenerate = async () => {
-    console.log('🚀 [MenuGenerator] handleGenerate chamado');
-    console.log('📦 [MenuGenerator] event recebido:', event);
-    console.log('🔍 [MenuGenerator] event.id:', event?.id);
-    console.log('🔍 [MenuGenerator] event.name:', event?.name);
-    console.log('🔍 [MenuGenerator] event.people:', event?.people);
 
     setLoading(true);
     setError(null);
     setStep(2);
 
     try {
-      const token = localStorage.getItem('accessToken');
-
-      // Validar eventId
-      if (!event || !event.id) {
-        console.error('❌ [MenuGenerator] Validação falhou:', { hasEvent: !!event, hasId: !!event?.id, event });
-        throw new Error('Evento não encontrado. Por favor, recarregue a página.');
-      }
-
+      // O evento não precisa estar salvo: manda o id (se houver) e os dados da tela
       const requestBody = {
-        eventId: event.id,
+        eventId: event && event.id ? event.id : undefined,
+        event: {
+          name: (event && event.name) || 'Evento',
+          people: (event && event.people) || 0,
+          date: (event && event.date) || undefined,
+          location: (event && event.location) || undefined
+        },
         preferences: preferences.trim() || undefined
       };
 
-      console.log('🎯 Gerando cardápio para evento:', event);
-      console.log('📤 Request body:', requestBody);
-
-      const response = await fetch(`${API_URL}/api/savedMenus/generate-with-ai`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+      let result;
+      const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+      if (api && typeof api.request === 'function') {
+        // Pelo cliente da API: renova o login vencido; a IA pode levar até ~1 min
+        result = await api.request('/api/savedMenus/generate-with-ai', {
+          method: 'POST',
+          timeoutMs: 150000,
+          body: JSON.stringify(requestBody)
+        });
+      } else {
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch(`${API_URL}/api/savedMenus/generate-with-ai`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || result.message || `Erro ao gerar cardápio (HTTP ${response.status})`);
       }
 
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao gerar cardápio');
+      if (!result || !result.success) {
+        throw new Error((result && (result.error || result.message)) || 'Erro ao gerar cardápio');
       }
 
       console.log('✅ Cardápio gerado:', result.data);
