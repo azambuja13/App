@@ -4,7 +4,8 @@
  * Ficha técnica do prato (out/2026)
  * - Navegador: abre janela de impressão (ou iframe, se o pop-up for bloqueado)
  * - App do iPhone (WKWebView não imprime nem abre janela): gera PDF com jsPDF
- *   e abre a folha de compartilhamento do iOS (Imprimir / Salvar / WhatsApp)
+ *   e abre a folha de compartilhamento do iOS (Imprimir / Salvar / WhatsApp).
+ *   Compartilha só o arquivo: com "title" o iOS salva também um .txt
  * - Custo para N convidados (usado no card do prato)
  */
 
@@ -239,7 +240,7 @@ function overlayCompartilhar(file) {
     var a = e.target && e.target.getAttribute && e.target.getAttribute('data-a');
     if (e.target === ov || a === 'c') { ov.remove(); return; }
     if (a === 's') {
-      navigator.share({ files: [file], title: file.name }).then(function () { ov.remove(); }).catch(function (err) {
+      navigator.share({ files: [file] }).then(function () { ov.remove(); }).catch(function (err) {
         if (err && err.name === 'AbortError') { ov.remove(); return; }
         alert('Não foi possível abrir o compartilhamento: ' + (err && err.message || err));
       });
@@ -252,7 +253,7 @@ function compartilharPDF(dish) {
   var blob = pdf(dish);
   var file = new File([blob], 'ficha-' + slug(dish.name) + '.pdf', { type: 'application/pdf' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    return navigator.share({ files: [file], title: file.name }).catch(function (err) {
+    return navigator.share({ files: [file] }).catch(function (err) {
       if (err && err.name === 'AbortError') return;
       overlayCompartilhar(file); // gesto expirou → pede um toque novo
     });
