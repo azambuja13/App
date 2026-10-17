@@ -12,7 +12,7 @@
  * Página principal com FeatureGate integrado
  * ⚡ Performance: Memoizado para evitar re-renders desnecessários
  */
-const DishesPage = React.memo(function DishesPage() {
+const DishesPage = React.memo(function DishesPage({ guests = 0 } = {}) {
   // Referências aos componentes globais (acessados quando a função executa)
   const DishForm = window.DishForm;
   const DishList = window.DishList;
@@ -31,6 +31,7 @@ const DishesPage = React.memo(function DishesPage() {
 
   // Pratos em Uso no Cardápio
   const [dishesInUse, setDishesInUse] = React.useState(new Set());
+  const [menuPortions, setMenuPortions] = React.useState(null); // { dishId: porções por pessoa }
   React.useEffect(() => {
     const loadDishesInUse = async () => {
       try {
@@ -41,6 +42,9 @@ const DishesPage = React.memo(function DishesPage() {
         }
         const menu = await menuManager.getMenu();
         setDishesInUse(new Set(menu.map(item => item.dishId)));
+        const porcoes = {};
+        menu.forEach(item => { if (item.dishId) porcoes[item.dishId] = item.portionsPerPerson; });
+        setMenuPortions(porcoes);
       } catch (error) {
         console.error('Erro ao carregar pratos em uso:', error);
         setDishesInUse(new Set());
@@ -203,7 +207,9 @@ const DishesPage = React.memo(function DishesPage() {
     key: refreshKey,
     onEdit: handleEditDish,
     selectMode: false,
-    dishesInUse: dishesInUse
+    dishesInUse: dishesInUse,
+    guests: guests,
+    menuPortions: menuPortions
   }) : /*#__PURE__*/React.createElement(DishForm, {
     dish: editingDish,
     onSave: handleSaveDish,

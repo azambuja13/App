@@ -20,7 +20,9 @@ const DishList = React.memo(function DishList({
   onEdit,
   onSelect,
   selectMode = false,
-  dishesInUse = new Set()
+  dishesInUse = new Set(),
+  guests = 0,
+  menuPortions = null
 }) {
   // Referência ao componente global PDFButton
   const PDFButton = window.PDFButton;
@@ -322,240 +324,19 @@ const DishList = React.memo(function DishList({
   }, []);
 
   const handlePrintTechnicalSheet = React.useCallback((dish) => {
+    // utils/dish-sheet.js: navegador → janela de impressão; app do iPhone → PDF + compartilhar
+    if (!window.DishSheet) {
+      alert('Recarregue a página para imprimir a ficha técnica.');
+      return;
+    }
     try {
-      console.log('🖨️ Imprimindo ficha técnica:', dish.name);
-
-      // Criar janela de impressão
-      const printWindow = window.open('', '_blank');
-
-      // Montar HTML da ficha técnica
-      const html = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ficha Técnica - ${dish.name}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20mm;
-            line-height: 1.6;
-            color: #333;
-        }
-        .header {
-            text-align: center;
-            border-bottom: 3px solid #2563eb;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            font-size: 28px;
-            color: #1e40af;
-            margin-bottom: 5px;
-        }
-        .header .subtitle {
-            font-size: 14px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .section {
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-        }
-        .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1e40af;
-            background: #eff6ff;
-            padding: 8px 12px;
-            border-left: 4px solid #2563eb;
-            margin-bottom: 10px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .info-item {
-            padding: 10px;
-            background: #f8fafc;
-            border-radius: 4px;
-            border: 1px solid #e2e8f0;
-        }
-        .info-label {
-            font-size: 11px;
-            color: #64748b;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        .info-value {
-            font-size: 16px;
-            font-weight: bold;
-            color: #1e293b;
-        }
-        .ingredients-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .ingredients-table th {
-            background: #1e40af;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-size: 12px;
-        }
-        .ingredients-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 13px;
-        }
-        .ingredients-table tr:nth-child(even) {
-            background: #f8fafc;
-        }
-        .technical-box {
-            background: #fef3c7;
-            border: 2px solid #fbbf24;
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 10px;
-        }
-        .technical-box p {
-            margin: 0;
-            color: #78350f;
-            line-height: 1.8;
-            white-space: pre-wrap;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #e2e8f0;
-            text-align: center;
-            font-size: 11px;
-            color: #94a3b8;
-        }
-        @media print {
-            body {
-                padding: 10mm;
-            }
-            .section {
-                page-break-inside: avoid;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>📋 ${dish.name}</h1>
-        <div class="subtitle">Ficha Técnica de Produção</div>
-    </div>
-
-    <!-- Informações Gerais -->
-    <div class="section">
-        <div class="section-title">📊 Informações Gerais</div>
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Categoria</div>
-                <div class="info-value">${getCategoryIcon(dish.category)} ${dish.category || 'N/A'}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Ingredientes</div>
-                <div class="info-value">🧑‍🍳 ${dish.ingredients?.length || 0} ingredientes</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Custo Total</div>
-                <div class="info-value">💰 R$ ${(dish.totalCost || 0).toFixed(2)}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Peso Total</div>
-                <div class="info-value">⚖️ ${formatWeight(dish.totalWeight)}</div>
-            </div>
-        </div>
-        ${dish.description ? `<p style="color: #475569; font-style: italic; margin-top: 10px;">"${dish.description}"</p>` : ''}
-    </div>
-
-    <!-- Ingredientes -->
-    <div class="section">
-        <div class="section-title">🧑‍🍳 Lista de Ingredientes</div>
-        <table class="ingredients-table">
-            <thead>
-                <tr>
-                    <th style="width: 40%">Ingrediente</th>
-                    <th style="width: 20%; text-align: center">Quantidade</th>
-                    <th style="width: 20%; text-align: right">Custo Unit.</th>
-                    <th style="width: 20%; text-align: right">Custo Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${dish.ingredients && dish.ingredients.length > 0 ? dish.ingredients.map(ing => {
-                    // Calcular custo total do ingrediente com conversão de unidades
-                    const quantity = parseFloat(ing.quantity) || 0;
-                    const unit = ing.unit || 'g';
-                    const unitCost = parseFloat(ing.unitCost) || 0;
-                    const lossPercentage = parseFloat(ing.lossPercentage) || 0;
-
-                    // Converter para gramas
-                    const quantityInGrams = ['kg', 'l', 'litro', 'litros'].includes(String(unit || '').toLowerCase()) ? quantity * 1000 : quantity;
-
-                    // Custo = quantidade comprada (bruta) × custo/g (a perda só reduz o peso final)
-                    const totalIngredientCost = quantityInGrams * unitCost;
-
-                    return `
-                        <tr>
-                            <td><strong>${ing.ingredientName || ing.name || 'N/A'}</strong></td>
-                            <td style="text-align: center">${formatWeight(quantityInGrams)}</td>
-                            <td style="text-align: right">R$ ${unitCost.toFixed(4)}/g</td>
-                            <td style="text-align: right"><strong>R$ ${totalIngredientCost.toFixed(2)}</strong></td>
-                        </tr>
-                    `;
-                }).join('') : '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">Nenhum ingrediente cadastrado</td></tr>'}
-            </tbody>
-        </table>
-    </div>
-
-    ${dish.technicalSheet ? `
-    <!-- Ficha Técnica -->
-    <div class="section">
-        <div class="section-title">📋 Instruções Técnicas</div>
-        <div class="technical-box">
-            <p>${dish.technicalSheet}</p>
-        </div>
-    </div>
-    ` : ''}
-
-    ${dish.observations ? `
-    <!-- Observações -->
-    <div class="section">
-        <div class="section-title">📌 Observações</div>
-        <p style="padding: 10px; background: #f8fafc; border-radius: 4px; color: #475569;">${dish.observations}</p>
-    </div>
-    ` : ''}
-
-    <div class="footer">
-        Ficha Técnica gerada em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
-    </div>
-
-    <script>
-        window.onload = () => {
-            window.print();
-        };
-    </script>
-</body>
-</html>
-            `;
-      printWindow.document.write(html);
-      printWindow.document.close();
+      window.DishSheet.print(dish).catch(error => {
+        console.error('❌ Erro ao imprimir ficha técnica:', error);
+        alert('Erro ao gerar ficha técnica: ' + (error && error.message || error));
+      });
     } catch (error) {
       console.error('❌ Erro ao imprimir ficha técnica:', error);
-      alert('Erro ao gerar ficha técnica para impressão.');
+      alert('Erro ao gerar ficha técnica: ' + (error && error.message || error));
     }
   }, []);
 
@@ -702,6 +483,8 @@ const DishList = React.memo(function DishList({
     viewMode: viewMode,
     selectMode: selectMode,
     isInMenu: dishesInUse.has(dish.id),
+    guests: guests,
+    portionsPerPerson: menuPortions ? menuPortions[dish.id] : undefined,
     onEdit: onEdit,
     onSelect: onSelect,
     onToggleFavorite: handleToggleFavorite,
@@ -768,10 +551,23 @@ const DishCard = React.memo(function DishCard({
   onDuplicate,
   onDelete,
   onAddToMenu,
-  onPrintTechnicalSheet
+  onPrintTechnicalSheet,
+  guests,
+  portionsPerPerson
 }) {
   // Foto principal (primeira do array)
   const mainPhoto = dish.photos && dish.photos.length > 0 ? dish.photos[0] : null;
+  // Custo do prato para os convidados do evento aberto (porções do cardápio ou 1 por pessoa)
+  const evento = window.DishSheet ? window.DishSheet.paraConvidados(dish, guests, portionsPerPerson) : null;
+  const fmtBRL = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const receitasTxt = evento ? (() => {
+    const r = evento.receitas;
+    const n = r >= 10 ? Math.round(r) : Math.round(r * 10) / 10;
+    return `${n.toLocaleString('pt-BR')} ${n === 1 ? 'receita' : 'receitas'}`;
+  })() : '';
+  const porcoesTxt = evento ? (evento.porPorcao
+    ? `${evento.porcoes.toLocaleString('pt-BR')} ${evento.porcoes === 1 ? 'porção' : 'porções'}/pessoa`
+    : `${Math.round(evento.porcoes * 100)} g/pessoa`) : '';
   if (viewMode === 'list') {
     // Visualização em lista (compacta)
     return /*#__PURE__*/React.createElement("div", {
@@ -820,7 +616,13 @@ const DishCard = React.memo(function DishCard({
     }, "\uD83D\uDCB5 R$ ", dish.sellingPrice.toFixed(2)), !dish.sellingPrice && dish.suggestedPrice && /*#__PURE__*/React.createElement("span", {
       className: "text-green-500 font-semibold",
       title: "Pre\xE7o sugerido (informativo)"
-    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")))), /*#__PURE__*/React.createElement("div", {
+    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")), evento && /*#__PURE__*/React.createElement("div", {
+      className: "mt-1 text-sm",
+      style: { color: '#6b21a8' },
+      title: `${porcoesTxt} · ${receitasTxt}`
+    }, "\uD83D\uDC65 ", evento.guests, " convidados: ", /*#__PURE__*/React.createElement("strong", null, fmtBRL(evento.total)), /*#__PURE__*/React.createElement("span", {
+      className: "text-xs text-gray-500"
+    }, " (", porcoesTxt, " \xB7 ", receitasTxt, ")")))), /*#__PURE__*/React.createElement("div", {
       className: "flex flex-wrap items-center justify-end gap-2"
     }, selectMode ? /*#__PURE__*/React.createElement("button", {
       onClick: () => onSelect(dish),
@@ -923,7 +725,19 @@ const DishCard = React.memo(function DishCard({
     className: "text-gray-600"
   }, "\uD83D\uDCB0 Custo total:"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold"
-  }, "R$ ", dish.totalCost?.toFixed(2))), dish.sellingPrice && /*#__PURE__*/React.createElement("div", {
+  }, "R$ ", dish.totalCost?.toFixed(2))), evento && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-lg px-3 py-2 text-sm",
+    style: { background: '#faf5ff', border: '1px solid #e9d5ff' }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { color: '#6b21a8' }
+  }, "\uD83D\uDC65 ", evento.guests, " convidados"), /*#__PURE__*/React.createElement("span", {
+    className: "font-bold",
+    style: { color: '#6b21a8', whiteSpace: 'nowrap' }
+  }, fmtBRL(evento.total))), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-gray-500 mt-0.5"
+  }, porcoesTxt, " \xB7 ", receitasTxt, " \xB7 ", fmtBRL(evento.porPessoa), "/pessoa")), dish.sellingPrice && /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-600"
@@ -943,7 +757,7 @@ const DishCard = React.memo(function DishCard({
     className: "text-gray-600"
   }, "\u2696\uFE0F Peso total:"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold text-green-600"
-  }, formatWeight(dish.totalWeight))), dish.servings && dish.servings > 0 && /*#__PURE__*/React.createElement("div", {
+  }, formatWeight(dish.totalWeight))), dish.servings > 0 && /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-600"
@@ -999,7 +813,10 @@ const DishCard = React.memo(function DishCard({
     prevProps.dish?.ingredients?.length === nextProps.dish?.ingredients?.length &&
     prevProps.viewMode === nextProps.viewMode &&
     prevProps.selectMode === nextProps.selectMode &&
-    prevProps.isInMenu === nextProps.isInMenu
+    prevProps.isInMenu === nextProps.isInMenu &&
+    prevProps.guests === nextProps.guests &&
+    prevProps.portionsPerPerson === nextProps.portionsPerPerson &&
+    prevProps.dish?.servings === nextProps.dish?.servings
   );
 });
 

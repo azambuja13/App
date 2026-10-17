@@ -3070,7 +3070,7 @@ window.AppFull = function AppFull() {
     className: "space-y-6"
   }, window.FeatureGate ? /*#__PURE__*/React.createElement(window.FeatureGate, {
     featureName: "dishes"
-  }, window.DishesPage ? /*#__PURE__*/React.createElement(window.DishesPage, null) : /*#__PURE__*/React.createElement("div", {
+  }, window.DishesPage ? /*#__PURE__*/React.createElement(window.DishesPage, { guests: state.guests }) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600"
