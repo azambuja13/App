@@ -859,7 +859,9 @@ function ProposalPreview({
   }, dishes.map((dish, index) => /*#__PURE__*/React.createElement("div", {
     key: index,
     className: "pl-4 flex gap-4"
-  }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#ea580c', flexShrink: 0, marginTop: 9 }
+  }), dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
     alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
@@ -979,7 +981,9 @@ function ProposalPreview({
   }, dishes.map((dish, index) => /*#__PURE__*/React.createElement("div", {
     key: index,
     className: "pl-4 flex gap-4"
-  }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#ea580c', flexShrink: 0, marginTop: 9 }
+  }), dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
     alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
@@ -1080,7 +1084,9 @@ function ProposalPreview({
   }, dishes.map((dish, index) => /*#__PURE__*/React.createElement("div", {
     key: index,
     className: "pl-4 flex gap-4"
-  }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#ea580c', flexShrink: 0, marginTop: 9 }
+  }), dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
     alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
@@ -1209,7 +1215,9 @@ function ProposalPreview({
   }, dishes.map((dish, index) => /*#__PURE__*/React.createElement("div", {
     key: index,
     className: "pl-4 flex gap-4"
-  }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: '#ea580c', flexShrink: 0, marginTop: 9 }
+  }), dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
     alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
