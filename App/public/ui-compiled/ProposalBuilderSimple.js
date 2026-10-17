@@ -680,6 +680,8 @@ function ProposalBuilderSimple({
         status: proposal && proposal.id && ['sent', 'accepted', 'rejected'].includes(proposal.status) ? proposal.status : 'draft',
         proposalName: formData.proposalName,
         proposalType: formData.proposalType,
+        // Modelo visual (chef | moderno): mantém o escolhido na visualização
+        ...(proposal && proposal.pdfTemplate ? { pdfTemplate: proposal.pdfTemplate } : {}),
         selectedMenuId: formData.selectedMenuId,
         selectedMenuData: formData.selectedMenuData,
         totalType: formData.totalType || 'menu_cost', // ✅ Tipo de total escolhido

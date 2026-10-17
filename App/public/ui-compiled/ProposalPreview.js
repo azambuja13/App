@@ -16,6 +16,41 @@ function normalizeDishCategory(c) {
  * Componente limpo apenas com Template Chef Premium
  */
 
+// Modelo "Moderno": mesmo HTML do PDF do servidor (utils/proposal-modern.js)
+function pmFontCss() {
+  const u = f => { try { return new URL('fonts/' + f, document.baseURI).href; } catch (e) { return 'fonts/' + f; } };
+  const ff = (fam, w, st, f) => `@font-face{font-family:${fam};font-weight:${w};font-style:${st};font-display:swap;src:url('${u(f)}') format('woff2')}`;
+  return [ff('Inter', 400, 'normal', 'inter-400.woff2'), ff('Inter', 600, 'normal', 'inter-600.woff2'), ff('Inter', 700, 'normal', 'inter-700.woff2'),
+    ff('Lora', 600, 'normal', 'lora-600.woff2'), ff('Lora', 500, 'italic', 'lora-italic-500.woff2')].join('\n');
+}
+function pmImgOk(v) {
+  if (!v || typeof v !== 'string') return '';
+  const t = v.trim();
+  if (/^data:image\//i.test(t)) return t.replace(/["'()\s]/g, '');
+  if (/^https:\/\//i.test(t)) return t.replace(/['"()\s<>]/g, c => encodeURIComponent(c));
+  return '';
+}
+function ProposalModernView({ proposal, logo, clientName }) {
+  const ref = React.useRef(null);
+  const html = React.useMemo(() => window.ProposalModern
+    ? window.ProposalModern.render(proposal, { logo, clientName, img: pmImgOk, fontCss: pmFontCss() })
+    : '<p style="padding:24px">Carregando modelo…</p>', [proposal, logo, clientName]);
+  // Na tela: reduz as páginas A4 para caber na largura (celular); na impressão volta a 100%
+  React.useEffect(() => {
+    const ajustar = () => {
+      const el = ref.current; if (!el) return;
+      const doc = el.querySelector('.pm-doc'); if (!doc) return;
+      const largura = el.parentElement ? el.parentElement.clientWidth : window.innerWidth;
+      const z = Math.min(1, largura / 794);
+      doc.style.zoom = z < 0.999 ? String(z) : '';
+    };
+    ajustar();
+    window.addEventListener('resize', ajustar);
+    return () => window.removeEventListener('resize', ajustar);
+  }, [html]);
+  return /*#__PURE__*/React.createElement("div", { ref, className: "proposal-modern-view", dangerouslySetInnerHTML: { __html: html } });
+}
+
 function ProposalPreview({
   proposalId,
   isOpen,
@@ -86,7 +121,21 @@ function ProposalPreview({
   const [companyLogo, setCompanyLogo] = useState(null);
   const [clientData, setClientData] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('chef'); // chef, modern, classic, minimal
+  const [selectedTemplate, setSelectedTemplate] = useState('chef'); // chef | moderno (o mesmo vai para o PDF/WhatsApp)
+  const chooseTemplate = async t => {
+    setSelectedTemplate(t);
+    if (!proposal || !proposal.id || proposal.pdfTemplate === t) return;
+    try {
+      const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+      if (api && typeof api.request === 'function') {
+        await api.request(`/api/proposals/${proposal.id}/template`, { method: 'PATCH', body: JSON.stringify({ template: t }) });
+      }
+      setProposal(prev => prev ? { ...prev, pdfTemplate: t } : prev);
+      try { window.userSettings = { ...(window.userSettings || {}), proposalTemplateDefault: t }; } catch (e) {}
+    } catch (e) {
+      alert('Não foi possível salvar o modelo na proposta: ' + (e.message || 'erro') + '\nO PDF do WhatsApp pode sair no modelo anterior.');
+    }
+  };
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false); // Estado para envio WhatsApp
 
   // ===== CARREGAMENTO DE DADOS =====
@@ -131,6 +180,11 @@ function ProposalPreview({
         }
 
         setProposal(proposalData);
+        {
+          const padrao = window.userSettings && window.userSettings.proposalTemplateDefault;
+          const t = proposalData.pdfTemplate || padrao;
+          setSelectedTemplate(t === 'moderno' ? 'moderno' : 'chef');
+        }
 
         // Carregar dados do cliente
         if (proposalData.eventId) {
@@ -362,6 +416,8 @@ function ProposalPreview({
                         .page-break:last-child {
                             page-break-after: auto;
                         }
+                        .proposal-content-to-print { margin: 0 !important; box-shadow: none !important; max-width: none !important; }
+                        .pm-doc { zoom: 1 !important; }
                         .page-break h2, .page-break h3 { break-after: avoid; page-break-after: avoid; }
                         .page-break .space-y-3 > div { break-inside: avoid; page-break-inside: avoid; }
                     }
@@ -584,21 +640,15 @@ function ProposalPreview({
     className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-medium text-gray-600"
-  }, "Template:"), /*#__PURE__*/React.createElement("div", {
+  }, "Modelo:"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2"
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelectedTemplate('chef'),
+    onClick: () => chooseTemplate('chef'),
     className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'chef' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
   }, "\uD83D\uDC68\u200D\uD83C\uDF73 Chef"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelectedTemplate('modern'),
-    className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'modern' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-  }, "\uD83C\uDFA8 Modern"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelectedTemplate('classic'),
-    className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'classic' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-  }, "\uD83D\uDCDC Classic"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelectedTemplate('minimal'),
-    className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'minimal' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-  }, "\u2728 Minimal"))), /*#__PURE__*/React.createElement("div", {
+    onClick: () => chooseTemplate('moderno'),
+    className: `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTemplate === 'moderno' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
+  }, "\u2728 Moderno"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowDeleteConfirm(true),
@@ -658,8 +708,12 @@ function ProposalPreview({
     strokeWidth: 2,
     d: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
   })), "\uD83D\uDDA8\uFE0F Imprimir")))), /*#__PURE__*/React.createElement("div", {
-    className: "proposal-content-to-print max-w-5xl mx-auto bg-white shadow-2xl my-8"
-  }, selectedTemplate === 'chef' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: selectedTemplate === 'moderno' ? "proposal-content-to-print mx-auto my-4" : "proposal-content-to-print max-w-5xl mx-auto bg-white shadow-2xl my-8"
+  }, selectedTemplate === 'moderno' && /*#__PURE__*/React.createElement(ProposalModernView, {
+    proposal: proposal,
+    logo: companyLogo,
+    clientName: clientData && clientData.name
+  }), selectedTemplate === 'chef' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-black text-white p-12 flex flex-col justify-between relative overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-start text-sm text-gray-400 mb-8"
