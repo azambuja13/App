@@ -137,6 +137,8 @@ async function calculateEventCosts(data, ingredients) {
         supportCost: supportCost,
         laborCost: laborCost,
         transportCost: transportCost,
+        inflationMultiplier: inflationMultiplier,  // correção até o evento (comida e apoio)
+        inflationMonthlyPct: monthlyRate * 100,
         totalCost: totalCost,  // ✅ Total baseado nos ITENS DO EVENTO
         pricePerPerson: data.guests > 0 ? totalCost / data.guests : 0,
         monthsUntilEvent: monthsUntilEvent,

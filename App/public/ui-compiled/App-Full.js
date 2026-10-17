@@ -1622,14 +1622,18 @@ window.AppFull = function AppFull() {
           totalWithMargin: costs?.totalWithMargin || 0,  // ✅ FIX: Incluir total com margem
           pricePerPerson: costs?.pricePerPerson || 0,
           // ✅ 3 Totais separados (todos incluem apoio)
-          totalItens: (costs?.ingredientsCost || 0) + apoioCost,  // Total Itens + Apoio
-          totalPratos: (costs?.menuCostTotal || 0) + apoioCost,   // Total Pratos (sem margem) + Apoio
-          totalPratosComMargem: (costs?.menuPriceTotal || 0) + apoioCost,  // Total Pratos (com margem) + Apoio
+          // Com a correção até o evento (comida e apoio), igual ao Resumo e à proposta
+          totalItens: ((costs?.ingredientsCost || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
+          totalPratos: ((costs?.menuCostTotal || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
+          totalPratosComMargem: ((costs?.menuPriceTotal || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
           // ✅ Valores base (sem apoio) para referência
           ingredientsCost: costs?.ingredientsCost || 0,
           menuCostTotal: costs?.menuCostTotal || 0,
           menuPriceTotal: costs?.menuPriceTotal || 0,
           menuMarginAmount: costs?.menuMarginAmount || 0,
+    monthsUntilEvent: costs?.monthsUntilEvent || 0,
+    inflationMultiplier: costs?.inflationMultiplier || 1,
+    inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
           supportCost: costs?.supportCost || 0,
           laborCost: costs?.laborCost || 0,
           transportCost: costs?.transportCost || 0
@@ -2745,6 +2749,9 @@ window.AppFull = function AppFull() {
     menuCostWithoutMargin: costs?.menuCostWithoutMargin || 0,
     totalWithMargin: costs?.totalWithMargin || 0,
     menuMarginAmount: costs?.menuMarginAmount || 0,
+    monthsUntilEvent: costs?.monthsUntilEvent || 0,
+    inflationMultiplier: costs?.inflationMultiplier || 1,
+    inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
@@ -2819,6 +2826,9 @@ window.AppFull = function AppFull() {
     menuCostWithoutMargin: costs?.menuCostWithoutMargin || 0,
     totalWithMargin: costs?.totalWithMargin || 0,
     menuMarginAmount: costs?.menuMarginAmount || 0,
+    monthsUntilEvent: costs?.monthsUntilEvent || 0,
+    inflationMultiplier: costs?.inflationMultiplier || 1,
+    inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0

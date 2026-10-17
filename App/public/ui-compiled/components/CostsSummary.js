@@ -48,7 +48,10 @@ const CostsSummary = React.memo(function CostsSummary({
   menuMarginAmount = 0,  // ✅ Agora vem calculado do useCalculations
   hasActiveMenu = false,  // ✅ Flag para saber se tem cardápio
   additionalMarkupPercent = 0,
-  additionalMarkupAmount = 0
+  additionalMarkupAmount = 0,
+  monthsUntilEvent = 0,  // meses até o evento (correção de comida e apoio)
+  inflationMultiplier = 1,
+  inflationMonthlyPct = 1
 }) {
   // ✅ Verificar se tem margem do cardápio
   const hasMargin = menuMarginAmount > 0;
@@ -58,10 +61,15 @@ const CostsSummary = React.memo(function CostsSummary({
   // ✅ Calcular custos de apoio
   const apoioCost = supportCost + laborCost + transportCost;
 
-  // ✅ Totais com apoio incluído
-  const totalItensComApoio = ingredientsCost + apoioCost;  // Total Geral (baseado em itens)
-  const totalPratosComApoio = menuCostTotal + apoioCost;   // Total Pratos + Apoio
-  const totalMargemComApoio = menuPriceTotal + apoioCost;  // Total com Margem + Apoio
+  // ✅ Totais com apoio incluído + correção até o evento (mesma regra da proposta:
+  //    comida e apoio corrigidos pela taxa mensal; mão de obra e transporte não)
+  const mult = inflationMultiplier > 1 ? inflationMultiplier : 1;
+  const comCorrecao = comida => (comida + supportCost) * mult + laborCost + transportCost;
+  const totalItensComApoio = comCorrecao(ingredientsCost);  // Total Geral (baseado em itens)
+  const totalPratosComApoio = comCorrecao(menuCostTotal);   // Total Pratos + Apoio
+  const totalMargemComApoio = comCorrecao(menuPriceTotal);  // Total com Margem + Apoio
+  const baseCorrecao = hasActiveMenu && menuMarginAmount > 0 ? menuPriceTotal : hasActiveMenu ? menuCostTotal : ingredientsCost;
+  const valorCorrecao = (baseCorrecao + supportCost) * (mult - 1);
 
   // ✅ Por pessoa com os totais corretos
   const porPessoaItens = guests > 0 ? totalItensComApoio / guests : 0;
@@ -119,7 +127,14 @@ const CostsSummary = React.memo(function CostsSummary({
     className: "text-gray-600"
   }, "\uD83D\uDE97 Transporte"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold text-gray-800"
-  }, formatCurrency(transportCost)))), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(transportCost))), mult > 1 && /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center text-sm",
+    title: "Comida e apoio corrigidos até a data do evento (mesma regra da proposta)"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "📈 Correção até o evento (", monthsUntilEvent, " ", monthsUntilEvent === 1 ? 'mês' : 'meses', " × ", String(inflationMonthlyPct).replace('.', ','), "%)"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-gray-800"
+  }, "+", formatCurrency(valorCorrecao)))), /*#__PURE__*/React.createElement("div", {
     className: "border-t-2 border-gray-300 pt-4 space-y-2"
   },
   /* ✅ Total dos Itens do Evento (custo real) */
@@ -208,7 +223,10 @@ const CostsSummary = React.memo(function CostsSummary({
   },
     /*#__PURE__*/React.createElement("p", {
       className: "text-orange-200 text-sm"
-    }, "para ", guests, " convidados")
+    }, "para ", guests, " convidados"),
+    mult > 1 && /*#__PURE__*/React.createElement("p", {
+      className: "text-orange-200 text-xs mt-1"
+    }, "inclui correção de ", monthsUntilEvent, " ", monthsUntilEvent === 1 ? 'mês' : 'meses', " em comida e apoio")
   )))));
 });
 
