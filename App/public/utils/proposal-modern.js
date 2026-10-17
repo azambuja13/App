@@ -153,14 +153,25 @@ function pmRender(p, opts) {
   var vals = [['Missão', mostra('showCompanyMission', p.companyMission)], ['Visão', mostra('showCompanyVision', p.companyVision)], ['Valores', mostra('showCompanyValues', p.companyValues)]].filter(function (v) { return v[1]; });
   var frase = mostra('showCompanyMotivation', p.companyMotivation);
   var temSobre = hist || vals.length || frase || fotoSobre;
-  var paragrafos = function (t) { return String(t).split(/\n+/).filter(function (x) { return x.trim(); }).map(function (x) { return '<p>' + esc(x.trim()) + '</p>'; }).join(''); };
+  // Junta quebras de linha "manuais" (linha que não termina em . ! ? :) e mantém os parágrafos reais
+  var paragrafos = function (t) {
+    var out = [], atual = '';
+    String(t).split(/\r?\n/).forEach(function (l) {
+      l = l.trim();
+      if (!l) { if (atual) { out.push(atual); atual = ''; } return; }
+      atual = atual ? atual + ' ' + l : l;
+      if (/[.!?:;"”)]$/.test(l)) { out.push(atual); atual = ''; }
+    });
+    if (atual) out.push(atual);
+    return out.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('');
+  };
 
   var css = (opts.fontCss || '') + '\n' + PM_CSS;
   var html = '<div class="pm-doc">' + '<style>' + css + '</style>';
 
   // 1. Capa
   html += '<div class="pm-pg pm-cover' + (fotoCapa ? '' : ' pm-nophoto') + '">' +
-    (fotoCapa ? '<div class="pm-hero" style="background-image:url(\'' + fotoCapa + '\')"></div>' : '') +
+    (fotoCapa ? '<div class="pm-hero"><img src="' + fotoCapa + '" alt=""></div>' : '') +
     (logo ? '<div class="pm-logo"><img src="' + logo + '" alt=""></div>' : '') +
     '<div class="pm-cbody"><div class="pm-kicker">Proposta gastronômica</div>' +
     '<h1>Para ' + esc(cliente) + '</h1>' +
@@ -187,7 +198,7 @@ function pmRender(p, opts) {
   if (temSobre) {
     html += '<div class="pm-pg"><div class="pm-main"><div class="pm-kicker">Quem prepara</div><h2>Sobre mim</h2>' +
       '<div class="pm-about' + (fotoSobre ? '' : ' pm-nofoto') + '">' +
-      (fotoSobre ? '<div class="pm-ph" style="background-image:url(\'' + fotoSobre + '\')"></div>' : '') +
+      (fotoSobre ? '<div class="pm-ph"><img src="' + fotoSobre + '" alt=""></div>' : '') +
       '<div>' + (hist ? paragrafos(hist) : '') + '</div></div>' +
       (vals.length ? '<div class="pm-vals" style="grid-template-columns:repeat(' + vals.length + ',1fr)">' + vals.map(function (v) { return '<div class="pm-val"><h4>' + v[0] + '</h4>' + paragrafos(v[1]) + '</div>'; }).join('') + '</div>' : '') +
       (frase ? '<div class="pm-quote">“' + esc(String(frase).trim()) + '”</div>' : '') +
@@ -214,7 +225,7 @@ function pmRender(p, opts) {
       return '<div class="pm-step"><div class="pm-pct">' + String(e.pct).replace('.', ',') + '%</div><div class="pm-sv">' + pmBrl(e.valor) + '</div><div class="pm-sl">' + esc(e.desc) + '</div></div>';
     }).join('') + '</div>' : (p.paymentMethod ? '<div class="pm-box pm-mb"><h4>Forma de pagamento</h4><p class="pm-txt">' + esc(p.paymentMethod) + '</p></div>' : '')) +
     (formas.length ? '<div class="pm-pay">' + formas.map(function (f) { return '<span>' + f + '</span>'; }).join('') + '</div>' : '') +
-    '<div class="pm-two"><div class="pm-box"><h4>Próximos passos</h4><ol>' + passos.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></div>' +
+    '<div class="pm-two"><div class="pm-box"><h4>Próximos passos</h4><ul>' + passos.map(function (s, i) { return '<li><span class="pm-num">' + (i + 1) + '</span>' + esc(s) + '</li>'; }).join('') + '</ul></div>' +
     '<div class="pm-box"><h4>Validade</h4><ul>' + (p.validityDays ? '<li>Proposta válida por ' + esc(p.validityDays) + ' dias</li>' : '') + '<li>Emitida em ' + emitida + '</li>' + (p.minConfirmationDays ? '<li>Confirmação mínima: ' + esc(p.minConfirmationDays) + ' dias antes</li>' : '') + '</ul></div></div>' +
     (inc.obs ? '<div class="pm-box pm-mt"><h4>Observações</h4><p class="pm-txt">' + esc(inc.obs).replace(/\n/g, '<br>') + '</p></div>' : '') +
     '<div class="pm-signs"><div>' + esc(cliente) + '</div><div>' + esc(empresa) + '</div></div>' +
@@ -237,7 +248,8 @@ var PM_CSS = [
   '.pm-foot img{width:18px;height:18px;border-radius:50%;object-fit:cover}',
   '.pm-foot b{margin-left:auto;color:var(--ink)}',
   '.pm-cover{padding:0;background:#141210;color:#fff;display:block}',
-  '.pm-hero{height:168mm;background-size:cover;background-position:center;position:relative}',
+  '.pm-hero{height:168mm;position:relative;overflow:hidden}',
+  '.pm-hero img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}',
   '.pm-hero:after{content:"";position:absolute;left:0;right:0;top:0;bottom:0;background:linear-gradient(180deg,rgba(20,18,16,.15) 0%,rgba(20,18,16,.55) 60%,#141210 100%)}',
   '.pm-logo{position:absolute;top:16mm;left:18mm;width:64px;height:64px;border-radius:50%;background:#fff;padding:4px;z-index:2}',
   '.pm-logo img{width:100%;height:100%;border-radius:50%;object-fit:cover}',
@@ -267,13 +279,15 @@ var PM_CSS = [
   '.pm-box ul{list-style:none}',
   '.pm-box li{font-size:10.5pt;padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:8px}',
   '.pm-box li:last-child{border-bottom:none}',
-  '.pm-box ol{margin-left:18px;font-size:10.5pt;line-height:1.9;color:#44403c}',
+  '.pm-box ol{list-style:decimal outside;padding-left:0;margin-left:18px;font-size:10.5pt;line-height:1.9;color:#44403c}',
   '.pm-txt{font-size:10.5pt;line-height:1.6;color:#44403c}',
   '.pm-mt{margin-top:14px}.pm-mb{margin-bottom:14px}',
   '.pm-ck{color:var(--acc);font-weight:700}',
+  '.pm-num{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:var(--acc);color:#fff;font-size:8.5pt;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}',
   '.pm-about{display:grid;grid-template-columns:62mm 1fr;gap:14px;align-items:start}',
   '.pm-about.pm-nofoto{grid-template-columns:1fr}',
-  '.pm-ph{height:80mm;border-radius:16px;background-size:cover;background-position:center top}',
+  '.pm-ph{height:80mm;border-radius:16px;overflow:hidden}',
+  '.pm-ph img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}',
   '.pm-about p{font-size:10.5pt;line-height:1.6;color:#44403c;margin-bottom:8px}',
   '.pm-vals{display:grid;gap:10px;margin-top:14px}',
   '.pm-val{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;font-size:9.5pt;line-height:1.5;color:#44403c;break-inside:avoid}',
