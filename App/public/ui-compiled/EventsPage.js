@@ -360,7 +360,14 @@ function EventsPage({
     className: "w-full px-4 py-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
   }), eventData.monthsUntilEvent > 0 && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-600 mt-1"
-  }, "\uD83D\uDCB0 Corre\xE7\xE3o de infla\xE7\xE3o: +", ((Math.pow(1.01, eventData.monthsUntilEvent) - 1) * 100).toFixed(2), "% nos materiais"))), costs && /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCB0 Corre\xE7\xE3o de infla\xE7\xE3o: +", ((Math.pow(1 + ((costs && costs.inflationMonthlyPct != null ? costs.inflationMonthlyPct : (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1)) / 100), eventData.monthsUntilEvent) - 1) * 100).toFixed(2).replace('.', ','), "% na comida e no apoio"))), costs && (() => {
+    // Mesma conta do resumo e da proposta: (comida + apoio) × correção até o evento + mão de obra + transporte
+    const mult = Number(costs.inflationMultiplier) > 0 ? Number(costs.inflationMultiplier) : 1;
+    const fixo = (costs.laborCost || 0) + (costs.transportCost || 0);
+    const apoio = costs.supportCost || 0;
+    const comCorrecao = comida => ((comida || 0) + apoio) * mult + fixo;
+    const meses = eventData.monthsUntilEvent || 0;
+    return /*#__PURE__*/React.createElement("div", {
     className: "mt-4 pt-4 border-t border-orange-300"
   },
   // ✅ Linha 1: Detalhes dos custos
@@ -394,7 +401,7 @@ function EventsPage({
     className: "text-xs text-gray-600"
   }, "Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-orange-700"
-  }, formatCurrency((costs.ingredientsCost || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))),
+  }, formatCurrency(comCorrecao(costs.ingredientsCost)))),
   // Total Pratos + Apoio (só mostra se tiver cardápio)
   (costs.menuCostTotal > 0) && /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-100 rounded-lg px-3 py-2"
@@ -402,7 +409,7 @@ function EventsPage({
     className: "text-xs text-gray-600"
   }, "Total Pratos"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-blue-700"
-  }, formatCurrency((costs.menuCostTotal || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))),
+  }, formatCurrency(comCorrecao(costs.menuCostTotal)))),
   // Total com Margem + Apoio (só mostra se tiver margem)
   (costs.menuMarginAmount > 0) && /*#__PURE__*/React.createElement("div", {
     className: "bg-green-100 rounded-lg px-3 py-2"
@@ -410,7 +417,10 @@ function EventsPage({
     className: "text-xs text-gray-600"
   }, "Total com Margem"), /*#__PURE__*/React.createElement("p", {
     className: "text-lg font-bold text-green-700"
-  }, formatCurrency((costs.menuPriceTotal || 0) + (costs.supportCost || 0) + (costs.laborCost || 0) + (costs.transportCost || 0)))))))), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(comCorrecao(costs.menuPriceTotal))))), mult > 1.00001 && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-600 mt-3"
+  }, "\uD83D\uDCC8 Totais incluem a corre\xE7\xE3o at\xE9 o evento (", meses, meses === 1 ? ' mês' : ' meses', " \xD7 ", String(Math.round((costs.inflationMonthlyPct != null ? costs.inflationMonthlyPct : 1) * 100) / 100).replace('.', ','), "%) na comida e no apoio, igual ao resumo e \xE0 proposta"));
+  })())), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-purple-600 to-pink-600 p-6"
