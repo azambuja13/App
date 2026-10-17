@@ -26,19 +26,19 @@
 
     <!-- ===== INDEXEDDB BLOCKER (MUST BE ABSOLUTELY FIRST!) ===== -->
     <!-- CRITICAL: Este script DEVE ser o primeiro para interceptar todas as chamadas de IndexedDB -->
-    <script src="config/indexeddb-blocker.js?v=1762564421"></script>
+    <script src="config/indexeddb-blocker.js?v=1792000000"></script>
 
     <!-- React 18 (PRODUCTION BUILD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js?v=1762564421"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js?v=1762564421"></script>
+    <script src="vendor/react.production.min.js?v=18.3.1"></script>
+    <script src="vendor/react-dom.production.min.js?v=18.3.1"></script>
 
     <!-- jsPDF e html2canvas: SEMPRE CARREGADOS (necessário para WhatsApp) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js?v=1762564421"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js?v=1762564421"></script>
+    <script src="vendor/jspdf.umd.min.js?v=2.5.1b"></script>
+    <script src="vendor/html2canvas.min.js?v=1.4.1"></script>
     <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1762564421"></script> -->
 
     <!-- Socket.io para WebSocket -->
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js?v=1762564421"></script>
+    <script src="vendor/socket.io.min.js?v=4.8.1b"></script>
 
     <style>
         body {
@@ -54,7 +54,8 @@
     <div id="root"></div>
 
     <!-- ===== CORE MODULES ===== -->
-    <script src="config/app-config.js?v=1762564421"></script>
+    <script src="config/app-config.js?v=1792300000"></script>
+    <script src="utils/offline-cache.js?v=1792200000"></script>
 
     <!-- ===== CONDITIONAL LOADING - default-ingredients.js ===== -->
     <!-- Carregado APENAS em modo OFFLINE, após app-config.js estar pronto -->
@@ -84,7 +85,7 @@
     </script>
 
     <!-- API Client - Backend Integration (CLOUD only) -->
-    <script src="api-client.js?v=1791730000"></script>
+    <script src="api-client.js?v=1792500000"></script>
 
     <!-- Storage Adapters - Sistema de storage por plano -->
     <script src="adapters/StorageAdapter.js?v=1762564421"></script>
@@ -127,7 +128,7 @@
     <script type="module" src="utils/phone-mask.js?v=1762564421"></script>
 
     <!-- IMPORTANTE: PasswordManager e LicenseValidator devem ser carregados ANTES de session-auth.js -->
-    <script src="core/PasswordManager.js?v=1762564421"></script>
+    <script src="core/PasswordManager.js?v=1792200000"></script>
     <script src="core/LicenseValidator.js?v=1762564421"></script>
 
     <script src="machine-fingerprint.js?v=1762564421"></script>
@@ -173,46 +174,51 @@
     <script src="core/CustomTemplateManager.js?v=1762564421"></script>
 
     <!-- ===== UI COMPONENTS - PREMIUM ===== -->
+    <script src="utils/pricing-rules.js?v=1792200000"></script>
+    <script src="utils/support-rules.js?v=1792400000"></script>
     <script src="ui-compiled/FeatureGate.js?v=1762564421"></script>
+    <script src="ui-compiled/PricingSettings.js?v=1791940000"></script>
     <script src="ui-compiled/UpgradeModal.js?v=1762564421"></script>
-    <script src="ui-compiled/DishForm.js?v=1762564421"></script>
-    <script src="ui-compiled/DishList.js?v=1762564421"></script>
-    <script src="ui-compiled/DishesPage.js?v=1771192200"></script>
+    <script src="ui-compiled/DishForm.js?v=1792100000"></script>
+    <script src="utils/dish-sheet.js?v=1793300000"></script>
+    <script src="ui-compiled/DishList.js?v=1793100000"></script>
+    <script src="ui-compiled/DishesPage.js?v=1793100000"></script>
     <script src="ui-compiled/SaveMenuModal.js?v=1762564421"></script>
     <script src="ui-compiled/MenuPreview.js?v=1762564421"></script>
-    <script src="ui-compiled/MenuPage.js?v=1762700166"></script>
-    <script src="ui-compiled/SavedMenusList.js?v=1762564421"></script>
+    <script src="ui-compiled/MenuPage.js?v=1792500000"></script>
+    <script src="ui-compiled/SavedMenusList.js?v=1791900000"></script>
     <script src="ui-compiled/ProposalBuilder.js?v=1762564421"></script>
     <script src="ui-compiled/ClientsPage.js?v=1762564421"></script>
-    <script src="ui-compiled/EventsPage.js?v=1762710749"></script>
-    <script src="ui-compiled/ProposalBuilderSimple.js?v=1762706366"></script>
-    <script src="ui-compiled/ProposalPreview.js?v=1762564421"></script>
-    <script src="ui-compiled/ProposalList-v2.js?v=1791730000"></script>
+    <script src="ui-compiled/EventsPage.js?v=1793200000"></script>
+    <script src="ui-compiled/ProposalBuilderSimple.js?v=1792900000"></script>
+    <script src="utils/proposal-modern.js?v=1793000000"></script>
+    <script src="ui-compiled/ProposalPreview.js?v=1792900000"></script>
+    <script src="ui-compiled/ProposalList-v2.js?v=1791900000"></script>
     <script src="ui-compiled/CalendarPage.js?v=1791640000"></script>
     <script src="ui-compiled/CrmShared.js?v=1791730000"></script>
     <script src="ui-compiled/CrmTasks.js?v=1791730000"></script>
-    <script src="ui-compiled/CrmMessages.js?v=1791730000"></script>
+    <script src="ui-compiled/CrmMessages.js?v=1792200000"></script>
     <script src="ui-compiled/ReportsPage.js?v=1791730000"></script>
     <script src="ui-compiled/PipelinePage.js?v=1791730000"></script>
     <script src="ui-compiled/ClientDetail.js?v=1791730000"></script>
-    <script src="ui-compiled/WhatsAppSettings.js?v=1762564421"></script>
+    <script src="ui-compiled/WhatsAppSettings.js?v=1792200000"></script>
     <script src="ui-compiled/UnitConverter.js?v=1762564421"></script>
 
     <!-- ===== UI COMPONENTS - MAIN ===== -->
     <script src="ui-compiled/components/Icon.js?v=1762564421"></script>
     <script src="ui-compiled/components/PDFButton.js?v=1762564421"></script>
-    <script src="ui-compiled/components/EventForm.js?v=1762564421"></script>
-    <script src="ui-compiled/components/CostsSummary.js?v=1762706366"></script>
-    <script src="ui-compiled/components/ItemsList.js?v=1762564421"></script>
+    <script src="ui-compiled/components/EventForm.js?v=1791900000"></script>
+    <script src="ui-compiled/components/CostsSummary.js?v=1792800000"></script>
+    <script src="ui-compiled/components/ItemsList.js?v=1792100000"></script>
     <script src="ui-compiled/components/IngredientTemplates.js?v=1762564421"></script>
-    <script src="ui-compiled/components/RecipeImporter.js?v=1762564421"></script>
-    <script src="ui-compiled/components/MenuGenerator.js?v=1762564421"></script>
-    <script src="ui-compiled/components/IngredientsDatabase.js?v=1762564421"></script>
-    <script src="ui-compiled/components/SupportList.js?v=1762564421"></script>
-    <script src="ui-compiled/components/TransportForm.js?v=1762564421"></script>
-    <script src="ui-compiled/components/LaborForm.js?v=1762564421"></script>
+    <script src="ui-compiled/components/RecipeImporter.js?v=1792200000"></script>
+    <script src="ui-compiled/components/MenuGenerator.js?v=1792500000"></script>
+    <script src="ui-compiled/components/IngredientsDatabase.js?v=1792200000"></script>
+    <script src="ui-compiled/components/SupportList.js?v=1792400000"></script>
+    <script src="ui-compiled/components/TransportForm.js?v=1791900000"></script>
+    <script src="ui-compiled/components/LaborForm.js?v=1791900000"></script>
     <script src="ui-compiled/components/SavedEventsList.js?v=1762564421"></script>
-    <script src="ui-compiled/components/LicenseActivation.js?v=1762564421"></script>
+    <script src="ui-compiled/components/LicenseActivation.js?v=1792200000"></script>
     <script src="ui-compiled/components/PasswordLock.js?v=1762564421"></script>
     <script src="ui-compiled/components/PasswordSetup.js?v=1762564421"></script>
     <script src="ui-compiled/components/PasswordLogin.js?v=1762564421"></script>
@@ -220,11 +226,11 @@
 
     <!-- ===== HOOKS ===== -->
     <script src="ui/hooks/usePlanContext.js?v=1762564421"></script>
-    <script src="ui/hooks/useEventState.js?v=1762564421"></script>
-    <script src="ui/hooks/useCalculations.js?v=1762564421"></script>
+    <script src="ui/hooks/useEventState.js?v=1791900000"></script>
+    <script src="ui/hooks/useCalculations.js?v=1792800000"></script>
 
     <!-- ===== APP FULL ===== -->
-    <script src="ui-compiled/App-Full.js?v=1791641500"></script>
+    <script src="ui-compiled/App-Full.js?v=1793100000"></script>
 
     <!-- Renderizar App -->
     <script>
