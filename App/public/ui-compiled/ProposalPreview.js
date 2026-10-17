@@ -1,4 +1,14 @@
 (function() {
+// "Pratos Principais", "Principal" e "principal" viram a mesma seção
+function normalizeDishCategory(c) {
+  const k = String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/entrad|petisc|aperitiv|finger/.test(k)) return 'entrada';
+  if (/acompanh|guarni/.test(k)) return 'acompanhamento';
+  if (/sobremes|doce/.test(k)) return 'sobremesa';
+  if (/princip/.test(k)) return 'principal';
+  return c || 'Outro';
+}
+
 /**
  * ===================================================================
  * PROPOSAL PREVIEW - Visualização e Impressão de Proposta
@@ -38,7 +48,7 @@ function ProposalPreview({
     return dishes.reduce((acc, dish) => {
       // ✅ Usar dishType (tipo fixo) atribuído ao prato na criação
       // Fallback para dishCategory (pratos antigos) e depois type
-      const category = dish.dishType || dish.dishCategory || dish.type || 'Outro';
+      const category = normalizeDishCategory(dish.dishType || dish.dishCategory || dish.type);
       if (!acc[category]) {
         acc[category] = [];
       }
@@ -62,6 +72,15 @@ function ProposalPreview({
       return orderA - orderB;
     });
   };
+  // Pratos do cardápio da proposta: usa a lista mais completa entre menuData.dishes e dishes
+  const menuDishes = p => {
+    const m = p && p.selectedMenuData;
+    if (!m) return [];
+    const a = Array.isArray(m.dishes) ? m.dishes : [];
+    const b = m.menuData && Array.isArray(m.menuData.dishes) ? m.menuData.dishes : [];
+    return b.length > a.length ? b : a;
+  };
+  const dishLabel = d => d.dishName || d.name || (d.dish && d.dish.name) || 'Prato';
   const [proposal, setProposal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [companyLogo, setCompanyLogo] = useState(null);
@@ -99,22 +118,16 @@ function ProposalPreview({
 
         // ✅ Enriquecer pratos com dados completos do DishManager (photos e description)
         const dishManager = window.PrecificacaoAPI?.dishManager || window.dishManager;
-        if (dishManager && proposalData.selectedMenuData?.dishes) {
+        const md = proposalData.selectedMenuData;
+        if (dishManager && md && (Array.isArray(md.dishes) || Array.isArray(md.menuData?.dishes))) {
           console.log('🔍 [ProposalPreview] Enriquecendo pratos com dados do DishManager...');
           const allDishes = await dishManager.getAll();
-
-          proposalData.selectedMenuData.dishes = proposalData.selectedMenuData.dishes.map(dish => {
+          const enriquecer = lista => (Array.isArray(lista) ? lista.map(dish => {
             const fullDish = allDishes.find(d => d.id === dish.dishId);
-            if (fullDish) {
-              return {
-                ...dish,
-                dishDescription: fullDish.description,
-                photos: fullDish.photos
-              };
-            }
-            return dish;
-          });
-          console.log('✅ [ProposalPreview] Pratos enriquecidos:', proposalData.selectedMenuData.dishes[0]);
+            return fullDish ? { ...dish, dishName: dish.dishName || fullDish.name, dishDescription: fullDish.description, photos: fullDish.photos } : dish;
+          }) : lista);
+          md.dishes = enriquecer(md.dishes);
+          if (md.menuData && Array.isArray(md.menuData.dishes)) md.menuData = { ...md.menuData, dishes: enriquecer(md.menuData.dishes) };
         }
 
         setProposal(proposalData);
@@ -349,6 +362,8 @@ function ProposalPreview({
                         .page-break:last-child {
                             page-break-after: auto;
                         }
+                        .page-break h2, .page-break h3 { break-after: avoid; page-break-after: avoid; }
+                        .page-break .space-y-3 > div { break-inside: avoid; page-break-inside: avoid; }
                     }
                 </style>
             </head>
@@ -540,6 +555,8 @@ function ProposalPreview({
                     .page-break:last-child {
                         page-break-after: auto;
                     }
+                    .page-break h2, .page-break h3 { break-after: avoid; page-break-after: avoid; }
+                    .page-break .space-y-3 > div { break-inside: avoid; page-break-inside: avoid; }
                 }
             `
     }
@@ -641,7 +658,7 @@ function ProposalPreview({
     strokeWidth: 2,
     d: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
   })), "\uD83D\uDDA8\uFE0F Imprimir")))), /*#__PURE__*/React.createElement("div", {
-    className: "proposal-content-to-print max-w-5xl mx-auto bg-black shadow-2xl my-8"
+    className: "proposal-content-to-print max-w-5xl mx-auto bg-white shadow-2xl my-8"
   }, selectedTemplate === 'chef' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-black text-white p-12 flex flex-col justify-between relative overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
@@ -830,9 +847,9 @@ function ProposalPreview({
     className: "text-2xl font-bold text-orange-900"
   }, proposal.selectedMenuData.name), proposal.selectedMenuData.description && /*#__PURE__*/React.createElement("p", {
     className: "text-gray-700 mt-2"
-  }, proposal.selectedMenuData.description)), proposal.selectedMenuData.dishes && /*#__PURE__*/React.createElement("div", {
+  }, proposal.selectedMenuData.description)), menuDishes(proposal).length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
-  }, sortCategoriesOrder(groupDishesByCategory(proposal.selectedMenuData.dishes)).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
+  }, sortCategoriesOrder(groupDishesByCategory(menuDishes(proposal))).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
     key: category,
     className: "mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -844,13 +861,13 @@ function ProposalPreview({
     className: "pl-4 flex gap-4"
   }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
-    alt: dish.dishName,
+    alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "font-bold text-gray-800 text-lg"
-  }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
+  }, dishLabel(dish)), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
@@ -950,9 +967,9 @@ function ProposalPreview({
     className: "text-2xl font-bold text-gray-800 mb-4"
   }, proposal.selectedMenuData.name), proposal.selectedMenuData.description && /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600 mb-6"
-  }, proposal.selectedMenuData.description), proposal.selectedMenuData.dishes && /*#__PURE__*/React.createElement("div", {
+  }, proposal.selectedMenuData.description), menuDishes(proposal).length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
-  }, sortCategoriesOrder(groupDishesByCategory(proposal.selectedMenuData.dishes)).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
+  }, sortCategoriesOrder(groupDishesByCategory(menuDishes(proposal))).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
     key: category,
     className: "mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -964,13 +981,13 @@ function ProposalPreview({
     className: "pl-4 flex gap-4"
   }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
-    alt: dish.dishName,
+    alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "font-bold text-lg"
-  }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
+  }, dishLabel(dish)), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
@@ -1051,9 +1068,9 @@ function ProposalPreview({
     className: "text-2xl font-serif font-bold mb-4 pl-6"
   }, proposal.selectedMenuData.name), proposal.selectedMenuData.description && /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600 mb-6 pl-6 italic"
-  }, proposal.selectedMenuData.description), proposal.selectedMenuData.dishes && /*#__PURE__*/React.createElement("div", {
+  }, proposal.selectedMenuData.description), menuDishes(proposal).length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6 pl-6"
-  }, sortCategoriesOrder(groupDishesByCategory(proposal.selectedMenuData.dishes)).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
+  }, sortCategoriesOrder(groupDishesByCategory(menuDishes(proposal))).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
     key: category,
     className: "mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -1065,13 +1082,13 @@ function ProposalPreview({
     className: "pl-4 flex gap-4"
   }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
-    alt: dish.dishName,
+    alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "font-semibold text-lg"
-  }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
+  }, dishLabel(dish)), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
@@ -1180,9 +1197,9 @@ function ProposalPreview({
     className: "text-2xl font-light mb-3"
   }, proposal.selectedMenuData.name), proposal.selectedMenuData.description && /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600 mb-8 font-light"
-  }, proposal.selectedMenuData.description), proposal.selectedMenuData.dishes && /*#__PURE__*/React.createElement("div", {
+  }, proposal.selectedMenuData.description), menuDishes(proposal).length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "space-y-8"
-  }, sortCategoriesOrder(groupDishesByCategory(proposal.selectedMenuData.dishes)).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
+  }, sortCategoriesOrder(groupDishesByCategory(menuDishes(proposal))).map(([category, dishes]) => /*#__PURE__*/React.createElement("div", {
     key: category,
     className: "mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
@@ -1194,13 +1211,13 @@ function ProposalPreview({
     className: "pl-4 flex gap-4"
   }, dish.photos && dish.photos.length > 0 && dish.photos[0] && /*#__PURE__*/React.createElement("img", {
     src: dish.photos[0].photoData || dish.photos[0].data,
-    alt: dish.dishName,
+    alt: dishLabel(dish),
     className: "w-24 h-24 object-cover rounded-lg shadow-md flex-shrink-0"
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("h4", {
     className: "text-lg font-light"
-  }, dish.dishName), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
+  }, dishLabel(dish)), dish.dishDescription && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mt-1 font-light"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
