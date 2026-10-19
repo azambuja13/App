@@ -11,6 +11,11 @@ function ClientsPage() {
   } = React;
   const [clients, setClients] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  // A atualização automática (a cada 1 min / ao voltar para a aba) usa a busca atual:
+  // antes ela trocava a lista filtrada pela lista completa e a busca "sumia"
+  const searchRef = React.useRef('');
+  const savingRef = React.useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [stats, setStats] = useState({
@@ -53,7 +58,7 @@ function ClientsPage() {
     const handleTabChange = async e => {
       if (e.detail === 'clients') {
         console.log('🔄 [ClientsPage] Tab "clients" ativada - recarregando...');
-        await loadClients();
+        await loadClients(true);
         await loadStats();
       }
     };
@@ -62,7 +67,7 @@ function ClientsPage() {
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
         console.log('👁️ [ClientsPage] Aba visível - recarregando dados...');
-        await loadClients();
+        await loadClients(true);
         await loadStats();
       }
     };
@@ -73,7 +78,7 @@ function ClientsPage() {
     // Atualizar lista de clientes a cada 60 segundos quando a tela está visível
     const intervalId = setInterval(async () => {
       if (document.visibilityState === 'visible') {
-        await loadClients();
+        await loadClients(true);
         await loadStats();
       }
     }, 60000); // 60 segundos (1 minuto)
@@ -103,13 +108,19 @@ function ClientsPage() {
       console.error('Erro ao carregar estatísticas:', error);
     }
   };
-  const loadClients = async () => {
+  const loadClients = async (force = false) => {
     try {
       console.log('🔄 [ClientsPage] Carregando clientes...');
       const clientManager = getClientManager();
       console.log('📦 [ClientsPage] clientManager:', clientManager ? clientManager.constructor.name : 'não encontrado');
       if (clientManager) {
-        const allClients = await clientManager.getAllClients();
+        if (force && typeof clientManager.loadClients === 'function') {
+          try { await clientManager.loadClients(true); } catch (e) { console.warn('[ClientsPage] recarga falhou, usando cache:', e && e.message); }
+        }
+        const q = searchRef.current;
+        const allClients = q && typeof clientManager.searchClients === 'function'
+          ? await clientManager.searchClients(q)
+          : await clientManager.getAllClients();
         console.log('👥 [ClientsPage] Clientes carregados do manager:', allClients.length, allClients);
         setClients(Array.isArray(allClients) ? allClients : []);
       } else {
@@ -123,6 +134,7 @@ function ClientsPage() {
   };
   const handleSearch = async query => {
     setSearchQuery(query);
+    searchRef.current = query || '';
     try {
       const clientManager = getClientManager();
       if (clientManager) {
@@ -157,10 +169,22 @@ function ClientsPage() {
     setShowForm(true);
   };
   const handleSaveClient = async () => {
+    // Trava contra clique duplo (criava o cliente repetido)
+    if (savingRef.current) return;
     if (!formData.name.trim()) {
       alert('❌ Nome do cliente é obrigatório');
       return;
     }
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await saveClientInner();
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+  const saveClientInner = async () => {
     const clientData = {
       ...formData,
       id: editingClient?.id
@@ -348,8 +372,10 @@ function ClientsPage() {
     className: "flex gap-3 mt-6"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: handleSaveClient,
+    disabled: isSaving,
+    style: isSaving ? { opacity: 0.6, cursor: 'wait' } : undefined,
     className: "flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:shadow-lg transition"
-  }, "\u2705 Salvar"), /*#__PURE__*/React.createElement("button", {
+  }, isSaving ? "\u23F3 Salvando..." : "\u2705 Salvar"), /*#__PURE__*/React.createElement("button", {
     onClick: handleCancel,
     className: "flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
   }, "\u274C Cancelar"))), /*#__PURE__*/React.createElement("div", {

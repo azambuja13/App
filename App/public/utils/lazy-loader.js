@@ -28,7 +28,7 @@ const LazyLoader = {
 
         this._loadingPromises.jspdf = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.src = 'vendor/jspdf.umd.min.js?v=2.5.1b';
             script.onload = () => {
                 console.log('✅ [Lazy Loader] jsPDF carregado');
                 resolve(window.jspdf.jsPDF);
@@ -64,7 +64,8 @@ const LazyLoader = {
 
         this._loadingPromises.xlsx = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+            // Arquivo local (o CDN não carregava e no app do iPhone só funcionam arquivos do pacote)
+            script.src = 'vendor/xlsx.full.min.js?v=0.18.5';
             script.onload = () => {
                 console.log('✅ [Lazy Loader] XLSX carregado');
                 resolve(window.XLSX);

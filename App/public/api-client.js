@@ -81,6 +81,37 @@ class PrecificacaoAPI {
         }
     }
 
+    /**
+     * fetch "cru" com o login do usuário (para PDF/arquivos que não são JSON).
+     * Renova o accessToken sozinho quando vence (401/403) e tenta de novo uma vez —
+     * antes, imprimir a proposta no iPhone depois de ~15 min dava erro.
+     */
+    async authFetch(endpointOrUrl, init = {}) {
+        const url = /^https?:\/\//i.test(endpointOrUrl) ? endpointOrUrl : `${this.baseURL}${endpointOrUrl}`;
+        const doFetch = () => {
+            const token = localStorage.getItem('accessToken');
+            return fetch(url, {
+                ...init,
+                headers: {
+                    'X-License-Key': this.licenseKey,
+                    ...(init.headers || {}),
+                    // sempre o token atual (depois da renovação), mesmo se quem chamou passou um antigo
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
+        };
+        let response = await doFetch();
+        if (response.status === 401 || response.status === 403) {
+            let premium = false;
+            try { const peek = await response.clone().json(); premium = !!(peek && peek.code === 'PREMIUM_REQUIRED'); } catch (e) {}
+            if (!premium) {
+                await this.refreshAccessToken();
+                response = await doFetch();
+            }
+        }
+        return response;
+    }
+
     async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
         const method = String(options.method || 'GET').toUpperCase();
@@ -1287,6 +1318,8 @@ class IngredientManager {
             name: ingredientData.name || ingredientData.nome || 'Ingrediente',
             unitCost: parseFloat(ingredientData.unitCost || ingredientData.costPerUnit || ingredientData.price || ingredientData.preco || 0),
             lossPercentage: parseFloat(ingredientData.lossPercentage || ingredientData.loss || ingredientData.perdaPercentual || 0),
+            // Rendimento (x): antes não era enviado na criação e voltava para 1
+            yieldMultiplier: parseFloat(ingredientData.yieldMultiplier ?? ingredientData.rendimento ?? 1) || 1,
             unit: ingredientData.unit || ingredientData.unidade || 'g',
             unitType: ingredientData.unitType || ingredientData.tipoUnidade || 'weight',
             category: ingredientData.category || ingredientData.categoria || 'Outros',
@@ -1305,7 +1338,8 @@ class IngredientManager {
                 preco: parseFloat(result.data.unitCost || result.data.preco || 0),
                 unitSize: result.data.unitSize ? parseFloat(result.data.unitSize) : 0,
                 loss: result.data.lossPercentage ? parseFloat(result.data.lossPercentage) : 0,
-                lossPercentage: result.data.lossPercentage ? parseFloat(result.data.lossPercentage) : 0
+                lossPercentage: result.data.lossPercentage ? parseFloat(result.data.lossPercentage) : 0,
+                yieldMultiplier: result.data.yieldMultiplier ? parseFloat(result.data.yieldMultiplier) : 1
             };
             this.ingredients.push(mappedIngredient);
         }
@@ -1618,7 +1652,7 @@ class SavedMenuManager {
         this.loading = true;
         try {
             const result = await this.api.getSavedMenus();
-            this.menus = result.data || result.menus || [];
+            this.menus = (result.data || result.menus || []).map(m => this._normalizeMenu(m));
             // ⚡ Performance: Log removido (executava após carregar cardápios)
             return this.menus;
         } finally {
@@ -1626,10 +1660,17 @@ class SavedMenuManager {
         }
     }
 
+    // "Favorito" não tem coluna própria no banco: fica dentro de menuData (JSON)
+    _normalizeMenu(m) {
+        if (!m || typeof m !== 'object') return m;
+        const fav = m.menuData && typeof m.menuData === 'object' ? !!m.menuData.isFavorite : !!m.isFavorite;
+        return { ...m, isFavorite: fav };
+    }
+
     async saveMenu(menuData) {
         const result = await this.api.createSavedMenu(menuData);
         if (result.success && result.data) {
-            this.menus.push(result.data);
+            this.menus.push(this._normalizeMenu(result.data));
         }
         return result;
     }
@@ -1638,8 +1679,11 @@ class SavedMenuManager {
         const result = await this.api.updateSavedMenu(menuId, menuData);
         if (result.success && result.data) {
             const index = this.menus.findIndex(m => m.id === menuId);
+            const atualizado = this._normalizeMenu(result.data);
             if (index !== -1) {
-                this.menus[index] = result.data;
+                this.menus[index] = atualizado;
+            } else {
+                this.menus.push(atualizado);
             }
         }
         return result;
@@ -1655,6 +1699,16 @@ class SavedMenuManager {
 
     // Métodos compatíveis com SavedMenusManager local
     async saveItem(menuData) {
+        // "Sobrescrever" manda o id do cardápio existente → atualizar em vez de criar uma cópia
+        if (menuData && menuData.id) {
+            const { id, ...dados } = menuData;
+            const atual = this.menus.find(m => m.id === id);
+            const fav = !!(atual && atual.isFavorite);
+            const body = dados.dishes
+                ? { name: dados.name, description: dados.description, menuData: { eventType: dados.eventType, dishes: dados.dishes, ...(fav && { isFavorite: true }) } }
+                : dados;
+            return this.updateMenu(id, body);
+        }
         return this.saveMenu(menuData);
     }
 
@@ -1803,14 +1857,24 @@ class SavedMenuManager {
     }
 
     async toggleFavorite(menuId) {
-        const menu = this.menus.find(m => m.id === menuId);
+        let menu = this.menus.find(m => m.id === menuId);
         if (!menu) {
             return { success: false, message: 'Cardápio não encontrado' };
         }
-
+        // Busca a versão atual no servidor (o cache pode estar velho — editado em outro aparelho)
+        try {
+            const fresh = await this.api.request(`/api/savedMenus/${menuId}`);
+            if (fresh && fresh.success && fresh.data) menu = this._normalizeMenu(fresh.data);
+        } catch (e) {
+            console.warn('[SavedMenuManager] toggleFavorite: usando cache', e && e.message);
+        }
+        const base = menu.menuData && typeof menu.menuData === 'object'
+            ? menu.menuData
+            : { eventType: menu.eventType || null, dishes: menu.dishes || [] };
         return this.updateMenu(menuId, {
-            ...menu,
-            isFavorite: !menu.isFavorite
+            name: menu.name,
+            description: menu.description,
+            menuData: { ...base, isFavorite: !menu.isFavorite }
         });
     }
 
@@ -1858,6 +1922,17 @@ class SavedMenuManager {
     }
 }
 
+// Listas de clientes/propostas: cache curto + marcar como velho quando o app volta ao primeiro plano
+const CACHE_LISTAS_MS = 60 * 1000;
+function __marcarVelhoAoVoltar(manager) {
+    try {
+        if (typeof document === 'undefined') return;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') manager.loadedAt = 0;
+        });
+    } catch (e) { /* ignore */ }
+}
+
 // ============================================================================
 // GERENCIADOR DE CLIENTES
 // ============================================================================
@@ -1867,22 +1942,32 @@ class ClientManager {
         this.api = api;
         this.clients = [];
         this.loading = false;
+        this.loadedAt = 0;
+        this._loadPromise = null;
+        __marcarVelhoAoVoltar(this);
     }
 
-    async loadClients() {
+    async loadClients(force = false) {
         console.log(`🔄 [ClientManager.loadClients] CHAMADO! Cache: ${this.clients.length} clientes`);
 
-        // ⚡ Cache: Se já carregou, retorna sem fazer nova requisição
-        if (this.clients.length > 0) {
+        // ⚡ Cache por pouco tempo: leads novos (WhatsApp/site) e clientes de outro aparelho aparecem sem recarregar a página
+        if (!force && this.clients.length > 0 && (Date.now() - this.loadedAt) < CACHE_LISTAS_MS) {
             console.log(`💾 [ClientManager.loadClients] Usando CACHE - retornando ${this.clients.length} clientes`);
             return this.clients;
         }
+        if (this._loadPromise) return this._loadPromise;
+        this._loadPromise = this._fetchClients().finally(() => { this._loadPromise = null; });
+        return this._loadPromise;
+    }
+
+    async _fetchClients() {
 
         console.log('🌐 [ClientManager.loadClients] Cache vazio - fazendo requisição HTTP...');
         this.loading = true;
         try {
             const result = await this.api.getClients();
             this.clients = result.data || result.clients || [];
+            this.loadedAt = Date.now();
             console.log(`📦 [ClientManager.loadClients] ${this.clients.length} clientes carregados da API`);
             if (this.clients.length > 0) {
                 console.log('📋 [ClientManager.loadClients] Primeiro cliente da API:', this.clients[0]);
@@ -1897,10 +1982,7 @@ class ClientManager {
     async getAllClients() {
         console.log(`🔄 [ClientManager.getAllClients] CHAMADO! Cache atual: ${this.clients.length} clientes`);
 
-        if (this.clients.length === 0) {
-            console.log('📥 [ClientManager.getAllClients] Cache vazio - chamando loadClients()...');
-            await this.loadClients();
-        }
+        await this.loadClients(); // usa o cache se for recente
 
         console.log(`📤 [ClientManager.getAllClients] Retornando ${this.clients.length} clientes`);
         return this.clients;
@@ -1953,7 +2035,7 @@ class ClientManager {
         // Se não encontrou no cache, tentar buscar da API diretamente
         // (caso o cliente tenha sido criado recentemente por outro processo)
         console.log(`⚠️ [ClientManager] Cliente ${clientId} não encontrado no cache, recarregando...`);
-        await this.loadClients();
+        await this.loadClients(true);
         return this.clients.find(c => c.id === clientId) || null;
     }
 
@@ -2104,6 +2186,9 @@ class ProposalManager {
         this.api = api;
         this.proposals = [];
         this.loading = false;
+        this.loadedAt = 0;
+        this._loadPromise = null;
+        __marcarVelhoAoVoltar(this);
     }
 
     /**
@@ -2122,15 +2207,20 @@ class ProposalManager {
         });
     }
 
-    async loadProposals() {
+    async loadProposals(force = false) {
         console.log('🚀 [ProposalManager.loadProposals] CHAMADO! Cache:', this.proposals.length, 'propostas');
 
-        // ⚡ Cache: Se já carregou, retorna sem fazer nova requisição
-        if (this.proposals.length > 0) {
+        // ⚡ Cache por pouco tempo (propostas criadas/alteradas em outro aparelho aparecem)
+        if (!force && this.proposals.length > 0 && (Date.now() - this.loadedAt) < CACHE_LISTAS_MS) {
             console.log('💾 [ProposalManager.loadProposals] Usando CACHE - retornando', this.proposals.length, 'propostas');
-            console.log('📋 [ProposalManager.loadProposals] Proposta do cache:', this.proposals[0]);
             return this.proposals;
         }
+        if (this._loadPromise) return this._loadPromise;
+        this._loadPromise = this._fetchProposals().finally(() => { this._loadPromise = null; });
+        return this._loadPromise;
+    }
+
+    async _fetchProposals() {
 
         console.log('🌐 [ProposalManager.loadProposals] Cache vazio - fazendo requisição HTTP...');
         this.loading = true;
@@ -2149,6 +2239,7 @@ class ProposalManager {
 
             proposals = proposals.filter(p => p.id && p.id !== null && p.id !== '');
             this.proposals = proposals;
+            this.loadedAt = Date.now();
 
             console.log(`📦 [ProposalManager.loadProposals] ${this.proposals.length} propostas VÁLIDAS carregadas da API`);
             if (this.proposals.length > 0) {
@@ -2230,25 +2321,26 @@ class ProposalManager {
     async updateStatus(proposalId, newStatus) {
         console.log(`📤 [ProposalManager] Atualizando status da proposta ${proposalId} para "${newStatus}"`);
 
-        // Buscar proposta atual do cache
-        let proposal = this.proposals.find(p => p.id === proposalId);
-
-        // Se não encontrou no cache, recarregar do backend
-        if (!proposal) {
-            console.warn(`⚠️ [ProposalManager] Proposta ${proposalId} não encontrada no cache, recarregando do backend...`);
-            await this.loadProposals();
-            proposal = this.proposals.find(p => p.id === proposalId);
-
-            if (!proposal) {
-                throw new Error(`Proposta ${proposalId} não encontrada no backend`);
+        // Só o status (PATCH /api/proposals/:id/status). Antes fazia PUT da proposta
+        // inteira que estava no cache — se ela tinha sido editada em outro aparelho,
+        // aprovar/enviar aqui voltava preço, convidados etc. para os valores antigos.
+        const result = await this.api.request(`/api/proposals/${proposalId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: newStatus })
+        });
+        if (result && result.success) {
+            const index = this.proposals.findIndex(p => p.id === proposalId);
+            if (index !== -1) {
+                const d = result.data || {};
+                this.proposals[index] = {
+                    ...this.proposals[index],
+                    status: newStatus,
+                    ...(d.sentAt !== undefined && { sentAt: d.sentAt }),
+                    ...(d.stage !== undefined && { stage: d.stage }),
+                    ...(d.updatedAt !== undefined && { updatedAt: d.updatedAt })
+                };
             }
         }
-
-        // Atualizar apenas o status
-        const result = await this.updateProposal(proposalId, {
-            ...proposal,
-            status: newStatus
-        });
 
         console.log(`✅ [ProposalManager] Status atualizado com sucesso`);
         return result;
@@ -2265,15 +2357,17 @@ class ProposalManager {
     async duplicateProposal(proposalId) {
         console.log(`📋 [ProposalManager] Duplicando proposta ${proposalId}`);
 
-        // Buscar proposta original do cache
+        // Buscar a versão atual no servidor (o cache pode estar velho — editada em outro aparelho)
+        await this.loadProposals(true);
         const original = this.proposals.find(p => p.id === proposalId);
         if (!original) {
-            throw new Error(`Proposta ${proposalId} não encontrada no cache`);
+            throw new Error(`Proposta ${proposalId} não encontrada`);
         }
 
-        // Criar cópia com novo título e status "draft"
+        // Criar cópia com novo título e status "draft" (sem dados de envio/funil da original)
+        const { sentAt, acceptedAt, rejectedAt, stage, stageChangedAt, lostReason, proposalNumber, updatedAt, ...base } = original;
         const duplicate = {
-            ...original,
+            ...base,
             id: undefined, // Remover ID para criar nova proposta
             title: `${original.title || original.proposalName} (Cópia)`,
             proposalName: `${original.title || original.proposalName} (Cópia)`,
@@ -2292,9 +2386,7 @@ class ProposalManager {
     async getAll(useCache = true) {
         console.log(`🔄 [ProposalManager.getAll] useCache=${useCache}, cache.length=${this.proposals.length}`);
 
-        if (!useCache || this.proposals.length === 0) {
-            await this.loadProposals();
-        }
+        await this.loadProposals(!useCache);
 
         console.log(`📤 [ProposalManager.getAll] Retornando ${this.proposals.length} propostas`);
         if (this.proposals.length > 0) {
@@ -2305,21 +2397,29 @@ class ProposalManager {
     }
 
     async getByFilter(filterFn) {
-        if (this.proposals.length === 0) {
-            await this.loadProposals();
-        }
+        await this.loadProposals();
         return this.proposals.filter(filterFn);
     }
 
     clearCache() {
         console.log('🧹 [ProposalManager] Limpando cache de propostas');
         this.proposals = [];
+        this.loadedAt = 0;
+    }
+
+    /** Busca uma proposta pelo id; se não estiver no cache, recarrega do servidor */
+    async getById(proposalId) {
+        await this.loadProposals();
+        let p = this.proposals.find(x => x.id === proposalId);
+        if (!p) {
+            await this.loadProposals(true);
+            p = this.proposals.find(x => x.id === proposalId);
+        }
+        return p || null;
     }
 
     async getDetailedStatistics() {
-        if (this.proposals.length === 0) {
-            await this.loadProposals();
-        }
+        await this.loadProposals();
 
         const proposals = this.proposals;
 

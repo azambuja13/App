@@ -64,17 +64,24 @@ const CostsSummary = React.memo(function CostsSummary({
   // ✅ Totais com apoio incluído + correção até o evento (mesma regra da proposta:
   //    comida e apoio corrigidos pela taxa mensal; mão de obra e transporte não)
   const mult = inflationMultiplier > 1 ? inflationMultiplier : 1;
-  const comCorrecao = comida => (comida + supportCost) * mult + laborCost + transportCost;
+  // Markup de serviços (Custos da empresa) entra como na proposta: só no modo markup
+  const regras = window.PricingRules ? window.PricingRules.get() : null;
+  const serviceMarkupPct = regras && regras.defaultPricingMode !== 'divisor' ? (Number(regras.serviceMarkupPct) || 0) : 0;
+  // Arredondado para cima em reais, como o total da proposta
+  const comCorrecao = comida => window.PricingRules && window.PricingRules.eventTotal
+    ? window.PricingRules.eventTotal(comida, supportCost, laborCost, transportCost, mult, regras)
+    : Math.ceil(((comida + supportCost) * mult + laborCost + transportCost) - 1e-9);
   const totalItensComApoio = comCorrecao(ingredientsCost);  // Total Geral (baseado em itens)
   const totalPratosComApoio = comCorrecao(menuCostTotal);   // Total Pratos + Apoio
   const totalMargemComApoio = comCorrecao(menuPriceTotal);  // Total com Margem + Apoio
   const baseCorrecao = hasActiveMenu && menuMarginAmount > 0 ? menuPriceTotal : hasActiveMenu ? menuCostTotal : ingredientsCost;
-  const valorCorrecao = (baseCorrecao + supportCost) * (mult - 1);
+  const valorCorrecao = (baseCorrecao + supportCost * (1 + serviceMarkupPct / 100)) * (mult - 1);
 
-  // ✅ Por pessoa com os totais corretos
-  const porPessoaItens = guests > 0 ? totalItensComApoio / guests : 0;
-  const porPessoaPratos = guests > 0 ? totalPratosComApoio / guests : 0;
-  const porPessoaMargem = guests > 0 ? totalMargemComApoio / guests : 0;
+  // ✅ Por pessoa como no PDF da proposta (centavos arredondados)
+  const pp = t => window.PricingRules && window.PricingRules.perPerson ? window.PricingRules.perPerson(t, guests) : (guests > 0 ? Math.round(t * 100 / guests) / 100 : 0);
+  const porPessoaItens = pp(totalItensComApoio);
+  const porPessoaPratos = pp(totalPratosComApoio);
+  const porPessoaMargem = pp(totalMargemComApoio);
 
   // ✅ Verificar se tem margem adicional (markup da proposta)
   const hasAdditionalMarkup = additionalMarkupPercent > 0 && additionalMarkupAmount > 0;
@@ -226,7 +233,10 @@ const CostsSummary = React.memo(function CostsSummary({
     }, "para ", guests, " convidados"),
     mult > 1 && /*#__PURE__*/React.createElement("p", {
       className: "text-orange-200 text-xs mt-1"
-    }, "inclui correção de ", monthsUntilEvent, " ", monthsUntilEvent === 1 ? 'mês' : 'meses', " em comida e apoio")
+    }, "inclui correção de ", monthsUntilEvent, " ", monthsUntilEvent === 1 ? 'mês' : 'meses', " em comida e apoio"),
+    serviceMarkupPct > 0 && /*#__PURE__*/React.createElement("p", {
+      className: "text-orange-200 text-xs mt-1"
+    }, "inclui markup de serviços de ", String(serviceMarkupPct).replace('.', ','), "% (apoio, mão de obra e transporte)")
   )))));
 });
 

@@ -223,7 +223,9 @@ function useCalculations(eventData, ingredients = []) {
     // ✅ OTIMIZAÇÃO: Criar hashes estáveis das dependências complexas
     const itemsHash = useMemo(() => {
         const items = eventData.items || [];
-        return items.map(item => `${item.id || item.name}_${item.quantity}_${item.unit}`).join('|');
+        // Todos os campos que entram na conta (qtyPerPerson, perda, rendimento, unidade, ativo, ingrediente)
+        return items.map(item => [item.id || item.name, item.ingredientId, item.qtyPerPerson, item.quantity, item.unit, item.unitType,
+            item.loss, item.yieldMultiplier, item.active].join('_')).join('|');
     }, [eventData.items]);
 
     const supportHash = useMemo(() => {
@@ -233,7 +235,9 @@ function useCalculations(eventData, ingredients = []) {
 
     const ingredientsHash = useMemo(() => {
         if (!ingredients || !Array.isArray(ingredients)) return '';
-        return ingredients.map(ing => `${ing.id}_${ing.price}_${ing.unit}`).join('|');
+        // Preço do ingrediente fica em costPerUnit/unitSize (cost/price em dados antigos)
+        return ingredients.map(ing => [ing.id, ing.name || ing.ingredientName, ing.costPerUnit, ing.cost, ing.price, ing.unitSize,
+            ing.unit, ing.unitType, ing.category || ing.categoria].join('_')).join('|');
     }, [ingredients]);
 
     const [costs, setCosts] = useState({

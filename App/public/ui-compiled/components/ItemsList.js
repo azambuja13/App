@@ -34,7 +34,6 @@ const ItemsList = React.memo(function ItemsList({
 }) {
   // Função para imprimir lista de compras
   const printShoppingList = () => {
-    const printWindow = window.open('', '', 'width=800,height=600');
 
     let html = `
       <!DOCTYPE html>
@@ -152,6 +151,20 @@ const ItemsList = React.memo(function ItemsList({
       </html>
     `;
 
+    // ShareFile: navegador → janela de impressão (iframe se o pop-up for bloqueado);
+    // app do iPhone → PDF + compartilhar (antes dava erro: window.open retorna null no app)
+    if (window.ShareFile) {
+      window.ShareFile.printHtml(html, { fileName: 'lista-de-compras.pdf' }).catch(err => {
+        console.error('❌ Erro ao gerar lista de compras:', err);
+        alert('Erro ao gerar a lista de compras: ' + (err && err.message || err));
+      });
+      return;
+    }
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (!printWindow) {
+      alert('Permita pop-ups para imprimir a lista de compras.');
+      return;
+    }
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();

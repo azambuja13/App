@@ -52,6 +52,14 @@ function IngredientsDatabase({
   // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
   const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
 
+  // App do iPhone: deixa o gerador de Excel pronto (o compartilhamento precisa acontecer logo após o toque)
+  React.useEffect(() => {
+    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    if (!isNative || window.XLSX || !window.LazyLoader || !window.LazyLoader.loadXLSX) return;
+    const t = setTimeout(() => { window.LazyLoader.loadXLSX().catch(() => {}); }, 1500);
+    return () => clearTimeout(t);
+  }, []);
+
   // Usar função centralizada do módulo calculations
   const calculateCostPerGramMl = window.calculateCostPerGramMl || (ingredient => {
     console.warn('⚠️ calculateCostPerGramMl não carregado, usando fallback');
@@ -66,12 +74,18 @@ function IngredientsDatabase({
   };
 
   // Função para exportar ingredientes para Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     console.log('🔵 handleExportExcel chamado');
-    console.log('📦 groupedIngredients:', groupedIngredients);
-    console.log('📚 window.XLSX:', !!window.XLSX);
+    // XLSX é carregado só quando precisa (vendor/xlsx.full.min.js via LazyLoader)
     if (!window.XLSX) {
-      alert('❌ Biblioteca XLSX não carregada. Recarregue a página.');
+      try {
+        if (window.LazyLoader && window.LazyLoader.loadXLSX) await window.LazyLoader.loadXLSX();
+      } catch (e) {
+        console.error('❌ Erro ao carregar XLSX:', e);
+      }
+    }
+    if (!window.XLSX) {
+      alert('❌ Não foi possível carregar o gerador de Excel. Verifique a conexão e tente de novo.');
       return;
     }
     try {
@@ -114,6 +128,24 @@ function IngredientsDatabase({
 
       // Download
       const fileName = `ingredientes_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+      if (isNative) {
+        // App do iPhone: não há download; usa a folha de compartilhamento (Salvar em Arquivos, WhatsApp...).
+        // Só o arquivo, sem "title" (com título o iOS salva também um .txt)
+        const data = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const file = new File([data], fileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file] });
+          } catch (err) {
+            if (!err || err.name !== 'AbortError') {
+              console.error('❌ Erro ao compartilhar Excel:', err);
+              alert('❌ Não foi possível abrir o compartilhamento: ' + (err && err.message || err));
+            }
+          }
+          return;
+        }
+      }
       console.log('📥 Iniciando download:', fileName);
       window.XLSX.writeFile(wb, fileName);
       console.log('✅ Ingredientes exportados com sucesso:', ingredientsData.length);
@@ -290,16 +322,19 @@ function IngredientsDatabase({
         continue;
       }
 
-      // Adicionar ingrediente
-      onNewIngredientChange(templateIngredient);
-      await onAddIngredient();
+      // Adicionar ingrediente: passa os dados direto (o estado do formulário só muda no próximo render)
+      const ok = await onAddIngredient({ ...templateIngredient });
+      if (ok === false) {
+        skipped++;
+        continue;
+      }
       added++;
 
       // Pequeno delay para não sobrecarregar
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    alert(`✅ Template aplicado!\n\n✓ ${added} ingredientes adicionados\n⏭️ ${skipped} ingredientes já existiam`);
+    alert(`✅ Template aplicado!\n\n✓ ${added} ingredientes adicionados\n⏭️ ${skipped} ingredientes já existiam ou não foram salvos`);
   };
 
   // Polling fallback para quando WebSocket não está disponível

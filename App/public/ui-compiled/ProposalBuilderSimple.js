@@ -609,7 +609,21 @@ function ProposalBuilderSimple({
   };
   const calculateTotalCost = () => computeProposal().directCost;
   const calculateFinalTotal = () => computeProposal().finalTotal;
+  // Trava contra clique duplo: o 2º clique durante o salvamento criava uma proposta repetida
+  const savingRef = React.useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const handleSave = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await handleSaveInner();
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+  const handleSaveInner = async () => {
     // Validação básica
     if (!formData.proposalName.trim()) {
       alert('❌ Por favor, digite um nome para a proposta');
@@ -782,7 +796,7 @@ function ProposalBuilderSimple({
               companyPhoto2: null,
               companyPhoto3: null
             };
-            const retryResult = proposalManager.saveProposal(dataWithoutPhotos);
+            const retryResult = await proposalManager.saveProposal(dataWithoutPhotos);
             if (retryResult.success) {
               alert('✅ Proposta salva sem fotos!');
               onSave(retryResult.proposal);
@@ -1335,8 +1349,10 @@ function ProposalBuilderSimple({
     className: "px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
   }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
     onClick: handleSave,
+    disabled: isSaving,
+    style: isSaving ? { opacity: 0.6, cursor: 'wait' } : undefined,
     className: "px-8 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 transition-colors font-bold shadow-lg"
-  }, "\uD83D\uDCBE Salvar Proposta")));
+  }, isSaving ? "\u23F3 Salvando..." : "\uD83D\uDCBE Salvar Proposta")));
 }
 
 // Expor para window

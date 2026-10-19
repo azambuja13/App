@@ -88,7 +88,11 @@ function calcProposal(p) {
   const labor = num(p.laborCost);
   const transport = num(p.transportCost);
   const services = support + labor + transport;
-  const inflationAmount = (perCost * g + num(p.supportCost)) * (infl - 1);
+  // Correção mostrada = o que ela realmente somou no preço. No markup com preço do cardápio a correção
+  // incide sobre o PREÇO dos pratos (e o apoio também leva o markup de serviços); antes mostrava só sobre o custo.
+  const foodBaseNoInfl = (mode === 'markup' && type === 'menu_price') ? num(p.perPersonPrice) * g : perCost * g;
+  const supportFactor = mode === 'markup' ? (1 + num(s.serviceMarkupPct) / 100) : 1;
+  const inflationAmount = (foodBaseNoInfl + num(p.supportCost) * supportFactor) * (infl - 1);
 
   const directCost = foodCost + services;
   const pctSum = num(s.taxesPct) + num(s.cardFeesPct) + num(s.fixedCostsPct);
@@ -126,6 +130,27 @@ function calcProposal(p) {
   };
 }
 
+/**
+ * Total do evento como o Resumo/Dados do evento mostram, com as mesmas regras da proposta:
+ * comida e apoio corrigidos até o evento; no modo markup os serviços (apoio, mão de obra,
+ * transporte) levam o markup de serviços; arredondado para cima em reais (igual à proposta).
+ * food = comida (itens, custo do cardápio ou preço do cardápio) para todos os convidados.
+ */
+function eventTotal(food, support, labor, transport, mult, settings) {
+  const s = settings || get();
+  const m = num(mult, 1) > 0 ? num(mult, 1) : 1;
+  const smk = s.defaultPricingMode === 'divisor' ? 0 : num(s.serviceMarkupPct);
+  const services = (num(support) * m + num(labor) + num(transport)) * (1 + smk / 100);
+  const total = num(food) * m + services;
+  return Math.ceil(Math.round(total * 100) / 100 - 1e-9);
+}
+
+/** Valor por pessoa como no PDF da proposta (centavos arredondados). */
+function perPerson(total, guests) {
+  const g = Math.max(0, num(guests));
+  return g > 0 ? Math.round(num(total) * 100 / g) / 100 : 0;
+}
+
 /** Indicadores de um preço a partir do custo (para a tela do prato). */
 function indicators(cost, price) {
   cost = num(cost); price = num(price);
@@ -133,7 +158,7 @@ function indicators(cost, price) {
   return { markupPct: (price / cost - 1) * 100, marginPct: (price - cost) / price * 100, cmvPct: cost / price * 100 };
 }
 
-const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators };
+const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

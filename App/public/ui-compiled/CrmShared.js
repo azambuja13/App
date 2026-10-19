@@ -85,9 +85,12 @@ const fmtDateTime = v => {
 };
 const daysSince = v => { if (!v) return null; const d = new Date(v); if (isNaN(d)) return null; return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000)); };
 const waLink = phone => {
-  const digits = String(phone || '').replace(/\D/g, '');
+  // Normaliza telefone do Brasil: só dígitos, sem zeros iniciais (034…), sem código de operadora (0 15 34…), com 55
+  let digits = String(phone || '').replace(/\D/g, '').replace(/^0+/, '');
   if (!digits) return null;
-  return 'https://wa.me/' + (digits.length <= 11 ? '55' + digits : digits);
+  if (!digits.startsWith('55') && digits.length === 13) digits = digits.slice(2); // 15 34 9xxxx-xxxx (operadora)
+  if (digits.length === 10 || digits.length === 11) digits = '55' + digits;
+  return 'https://wa.me/' + digits;
 };
 const api = () => window.PrecificacaoAPI && window.PrecificacaoAPI.api;
 

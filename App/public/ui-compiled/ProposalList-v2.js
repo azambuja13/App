@@ -94,12 +94,16 @@ function ProposalList({
         console.log('🗑️ [ProposalList.loadProposals] Carregando propostas DELETADAS...');
         const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
         const token = localStorage.getItem('accessToken');
-        const response = await fetch(`${API_URL}/api/proposals?onlyDeleted=true`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const apiCli = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+        // authFetch renova o login vencido
+        const response = apiCli && typeof apiCli.authFetch === 'function'
+          ? await apiCli.authFetch(`${API_URL}/api/proposals?onlyDeleted=true`, { headers: { 'Content-Type': 'application/json' } })
+          : await fetch(`${API_URL}/api/proposals?onlyDeleted=true`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
         const data = await response.json();
         allProposals = data.success ? data.data : [];
       } else if (eventId) {
@@ -286,9 +290,14 @@ function ProposalList({
       let successCount = 0;
       let failCount = 0;
       for (const proposalId of selectedProposals) {
-        // Hard delete (exclusão permanente)
-        const result = await proposalManager.deleteProposal(proposalId);
-        if (result.success) {
+        // Hard delete (exclusão permanente). Um erro (rede/servidor) não interrompe as demais
+        let result;
+        try {
+          result = await proposalManager.deleteProposal(proposalId);
+        } catch (e) {
+          result = { success: false, message: e && e.message };
+        }
+        if (result && result.success) {
           successCount++;
           // ⚡ Performance: Log removido (executava para CADA proposta excluída)
         } else {

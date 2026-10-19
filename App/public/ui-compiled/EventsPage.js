@@ -365,7 +365,10 @@ function EventsPage({
     const mult = Number(costs.inflationMultiplier) > 0 ? Number(costs.inflationMultiplier) : 1;
     const fixo = (costs.laborCost || 0) + (costs.transportCost || 0);
     const apoio = costs.supportCost || 0;
-    const comCorrecao = comida => ((comida || 0) + apoio) * mult + fixo;
+    // Mesmas regras do Resumo/proposta: correção, markup de serviços (modo markup) e arredondado para cima
+    const comCorrecao = comida => window.PricingRules && window.PricingRules.eventTotal
+      ? window.PricingRules.eventTotal(comida || 0, apoio, costs.laborCost || 0, costs.transportCost || 0, mult)
+      : Math.ceil(((comida || 0) + apoio) * mult + fixo - 1e-9);
     const meses = eventData.monthsUntilEvent || 0;
     return /*#__PURE__*/React.createElement("div", {
     className: "mt-4 pt-4 border-t border-orange-300"
@@ -505,14 +508,14 @@ function EventsPage({
   }, "Total"), /*#__PURE__*/React.createElement("p", {
     className: "font-semibold text-orange-600 text-sm"
   }, formatCurrency((event.results || event.stateData?.results || {}).totalItens || event.totalWithInflation || event.results?.totalWithInflation || event.stateData?.results?.totalWithInflation || event.totalCost || 0))),
-  // Total Pratos (só mostra se tiver valor)
-  ((event.results || event.stateData?.results || {}).totalPratos || 0) > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  // Total Pratos (só mostra se o evento tinha cardápio; eventos antigos salvavam apoio aqui mesmo sem pratos)
+  (() => { const R = event.results || event.stateData?.results || {}; return !(R.menuCostTotal !== undefined && !(R.menuCostTotal > 0)) && (R.totalPratos || 0) > 0; })() && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-gray-500 text-xs"
   }, "Total Pratos"), /*#__PURE__*/React.createElement("p", {
     className: "font-semibold text-blue-600 text-sm"
   }, formatCurrency((event.results || event.stateData?.results || {}).totalPratos))),
-  // Total com Margem (só mostra se tiver valor)
-  ((event.results || event.stateData?.results || {}).totalPratosComMargem || (event.results || event.stateData?.results || {}).totalWithMargin || event.totalWithMargin || 0) > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  // Total com Margem (só mostra se o evento tinha cardápio com margem)
+  (() => { const R = event.results || event.stateData?.results || {}; if (R.menuCostTotal !== undefined && !(R.menuCostTotal > 0)) return false; if (R.menuMarginAmount !== undefined && !(R.menuMarginAmount > 0)) return false; return (R.totalPratosComMargem || R.totalWithMargin || event.totalWithMargin || 0) > 0; })() && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-gray-500 text-xs"
   }, "c/ Margem"), /*#__PURE__*/React.createElement("p", {
     className: "font-semibold text-green-600 text-sm"

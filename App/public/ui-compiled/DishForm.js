@@ -63,9 +63,14 @@ const DishForm = React.memo(function DishForm({
     }
   }, [dish?.id]);
 
-  // Carregar dados do prato para edição
+  // Carregar dados do prato para edição — só uma vez por prato (id). Antes rodava de novo a cada
+  // recarga de ingredientes/sincronização e apagava o que o usuário estava digitando.
+  const loadedDishRef = React.useRef(null);
   React.useEffect(() => {
-    if (dish && availableIngredients.length > 0) {
+    if (!dish) { loadedDishRef.current = null; return; }
+    const dishKey = dish.id || '__novo__';
+    if (availableIngredients.length > 0 && loadedDishRef.current !== dishKey) {
+      loadedDishRef.current = dishKey;
       console.log('📝 Carregando prato para edição:', dish);
       console.log('📝 useWeightCalculation do backend:', dish.useWeightCalculation);
       console.log('💰 profitMargin do backend:', dish.profitMargin);
@@ -289,8 +294,9 @@ const DishForm = React.memo(function DishForm({
     let baseCost = 0;
 
     if (formData.useWeightCalculation) {
-      // Modo PORÇÃO: aplicar margem sobre o custo por porção
-      baseCost = calculateCostPerServing;
+      // Modo PORÇÃO: aplicar margem sobre o custo por porção (sem arredondar)
+      const s = parseFloat(formData.servings) || 0;
+      baseCost = s > 0 ? calculateTotalCost / s : 0;
     } else {
       // Modo PESO (100g): aplicar margem sobre o custo por 100g
       if (calculateTotalWeight > 0) {
@@ -305,7 +311,7 @@ const DishForm = React.memo(function DishForm({
     // Fórmula: Preço = Custo + (Custo * Margem / 100)
     // Ex: Custo R$ 10, Margem 300% = R$ 10 + (10 * 3) = R$ 40
     return baseCost + (baseCost * margin / 100);
-  }, [formData.profitMargin, formData.useWeightCalculation, calculateCostPerServing, calculateTotalCost, calculateTotalWeight]);
+  }, [formData.profitMargin, formData.useWeightCalculation, formData.servings, calculateTotalCost, calculateTotalWeight]);
 
   // Usar função de formatação do módulo utilitário
   const formatWeight = grams => {
@@ -332,10 +338,12 @@ const DishForm = React.memo(function DishForm({
   };
 
   // Calcular custo base para precificação (reutilizável)
+  // Usa o custo por porção SEM arredondar: o markup derivado do custo arredondado gerava centavos de diferença
   const getBaseCost = React.useCallback(() => {
     if (formData.useWeightCalculation) {
       // Modo PORÇÃO: custo por porção
-      return calculateCostPerServing;
+      const s = parseFloat(formData.servings) || 0;
+      return s > 0 ? calculateTotalCost / s : 0;
     } else {
       // Modo PESO (100g): custo por 100g
       if (calculateTotalWeight > 0) {
@@ -343,10 +351,17 @@ const DishForm = React.memo(function DishForm({
       }
     }
     return 0;
-  }, [formData.useWeightCalculation, calculateCostPerServing, calculateTotalCost, calculateTotalWeight]);
+  }, [formData.useWeightCalculation, formData.servings, calculateTotalCost, calculateTotalWeight]);
+
+  // Markup máximo: a coluna do banco é DECIMAL(5,2) → até 999,99%
+  const MAX_MARKUP = 999.99;
 
   // Handler bidirecional: quando margem muda → calcular preço
   const handleMarginChange = (value) => {
+    if ((parseFloat(value) || 0) > MAX_MARKUP) {
+      alert('O markup máximo é 999,99%. Para vender acima disso, informe o preço sugerido diretamente.');
+      value = String(MAX_MARKUP);
+    }
     const margin = parseFloat(value) || 0;
     const baseCost = getBaseCost();
 
@@ -370,9 +385,11 @@ const DishForm = React.memo(function DishForm({
 
     // Calcular margem reversa baseada no preço
     // Fórmula reversa: Margem = ((Preço - Custo) / Custo) × 100
-    const newMargin = baseCost > 0 && price > baseCost
+    let newMargin = baseCost > 0 && price > baseCost
       ? ((price - baseCost) / baseCost) * 100
       : '';
+    // Preço acima de 11× o custo daria markup > 999,99% (limite do banco): guarda o limite
+    if (newMargin && newMargin > MAX_MARKUP) newMargin = MAX_MARKUP;
 
     setFormData(prev => ({
       ...prev,
@@ -758,7 +775,7 @@ const DishForm = React.memo(function DishForm({
         totalCost: calculateTotalCost,
         costPerServing: calculateCostPerServing,
         totalWeight: calculateTotalWeight, // Peso total em gramas
-        profitMargin: formData.profitMargin ? parseFloat(formData.profitMargin) : null, // Margem de lucro (informativo)
+        profitMargin: formData.profitMargin ? Math.min(parseFloat(formData.profitMargin) || 0, MAX_MARKUP) : null, // Margem de lucro (informativo; máx. 999,99% = DECIMAL(5,2))
         suggestedPrice: calculateSuggestedPrice > 0 ? calculateSuggestedPrice : null // Preço sugerido (informativo)
       };
       console.log('💾 [DishForm] Salvando prato com useWeightCalculation:', dishData.useWeightCalculation);
@@ -974,6 +991,7 @@ const DishForm = React.memo(function DishForm({
     value: formData.profitMargin,
     onChange: e => handleMarginChange(e.target.value),
     min: "0",
+    max: "999.99",
     step: "1",
     placeholder: "Ex: 300 (para 300%)",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -991,7 +1009,7 @@ const DishForm = React.memo(function DishForm({
     className: "w-full px-4 py-2 border border-green-300 rounded-lg text-lg font-bold text-green-600 focus:ring-2 focus:ring-green-500 focus:border-transparent"
   }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "\uD83D\uDCCA Custo base: R$ ", formData.useWeightCalculation ? calculateCostPerServing.toFixed(2) : (calculateTotalCost / calculateTotalWeight * 100).toFixed(2)), (() => {
+  }, "\uD83D\uDCCA Custo base: R$ ", formData.useWeightCalculation ? calculateCostPerServing.toFixed(2) : (calculateTotalWeight > 0 ? (calculateTotalCost / calculateTotalWeight * 100).toFixed(2) : '0.00'), !formData.useWeightCalculation && calculateTotalWeight <= 0 && formData.ingredients.length > 0 ? " (sem peso: ingredientes s\xF3 por unidade — use o c\xE1lculo por por\xE7\xE3o)" : ""), (() => {
     // Indicadores (out/2026): margem real sobre o preço e CMV (custo ÷ preço)
     const ind = window.PricingRules && window.PricingRules.indicators(getBaseCost(), parseFloat(formData.suggestedPrice) || 0);
     if (!ind) return null;

@@ -12,6 +12,28 @@ const rowCost = r => num(r.people) * num(r.hours) * num(r.rate) * (1 + num(r.cha
 const brl = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg';
 
+// Campo numérico que aceita vírgula e não apaga o "0" enquanto digita (ex.: 0,80)
+const parseDec = v => {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let s = String(v == null ? '' : v).trim().replace(/\s/g, '');
+  if (!s) return 0;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+};
+function DecInput({ value, onValue, className, placeholder, ariaLabel }) {
+  const show = v => (v === 0 || v === '' || v == null ? '' : String(v).replace('.', ','));
+  const [txt, setTxt] = React.useState(show(value));
+  const foco = React.useRef(false);
+  React.useEffect(() => { if (!foco.current) setTxt(show(value)); }, [value]);
+  return React.createElement('input', {
+    type: 'text', inputMode: 'decimal', value: txt, placeholder, className, 'aria-label': ariaLabel,
+    onFocus: () => { foco.current = true; },
+    onBlur: () => { foco.current = false; setTxt(show(value)); },
+    onChange: e => { setTxt(e.target.value); onValue(parseDec(e.target.value)); }
+  });
+}
+
 const LaborForm = React.memo(function LaborForm({ labor = { hours: 0, rate: 0 }, onLaborChange, laborCost = 0 }) {
   const team = Array.isArray(labor.team) ? labor.team : [];
   const setTeam = t => onLaborChange({ ...labor, team: t });
@@ -28,20 +50,18 @@ const LaborForm = React.memo(function LaborForm({ labor = { hours: 0, rate: 0 },
     team.length === 0
       ? h('div', null,
           h('div', { className: 'grid grid-cols-2 gap-4' },
-            field('Horas trabalhadas', h('input', { type: 'number', min: 0, step: 0.5, placeholder: '10', className: inp,
-              value: labor.hours === 0 ? '' : labor.hours, onChange: e => onLaborChange({ ...labor, hours: e.target.value === '' ? 0 : parseFloat(e.target.value) }) })),
-            field('Valor/hora (R$)', h('input', { type: 'number', min: 0, step: 0.01, placeholder: '50', className: inp,
-              value: labor.rate === 0 ? '' : labor.rate, onChange: e => onLaborChange({ ...labor, rate: e.target.value === '' ? 0 : parseFloat(e.target.value) }) }))),
+            field('Horas trabalhadas', h(DecInput, { placeholder: '10', className: inp, value: labor.hours, onValue: v => onLaborChange({ ...labor, hours: v }) })),
+            field('Valor/hora (R$)', h(DecInput, { placeholder: '50', className: inp, value: labor.rate, onValue: v => onLaborChange({ ...labor, rate: v }) }))),
           h('p', { className: 'text-xs text-gray-500 mt-3' }, 'C\xE1lculo simples: horas \xD7 valor/hora. Para v\xE1rias pessoas e fun\xE7\xF5es (churrasqueiro, gar\xE7om, copeira), monte a equipe.'),
           h('div', { role: 'button', onClick: montarEquipe, className: 'mt-3 inline-block px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold cursor-pointer' }, '👥 Montar equipe'))
       : h('div', null,
           team.map(r => h('div', { key: r.id, className: 'border border-gray-200 rounded-lg p-3 mb-3' },
             h('div', { className: 'grid grid-cols-2 md:grid-cols-6 gap-2 items-end' },
               h('div', { className: 'col-span-2' }, field('Fun\xE7\xE3o', h('input', { type: 'text', placeholder: 'Ex.: Gar\xE7om', className: inp, value: r.role, onChange: e => upd(r.id, 'role', e.target.value) }))),
-              field('Pessoas', h('input', { type: 'number', min: 0, step: 1, className: inp, value: r.people, onChange: e => upd(r.id, 'people', e.target.value) })),
-              field('Horas', h('input', { type: 'number', min: 0, step: 0.5, className: inp, value: r.hours, onChange: e => upd(r.id, 'hours', e.target.value) })),
-              field('R$/hora', h('input', { type: 'number', min: 0, step: 0.01, className: inp, value: r.rate, onChange: e => upd(r.id, 'rate', e.target.value) })),
-              field('Encargos %', h('input', { type: 'number', min: 0, step: 1, className: inp, value: r.chargesPct, onChange: e => upd(r.id, 'chargesPct', e.target.value) }))),
+              field('Pessoas', h(DecInput, { className: inp, value: r.people, onValue: v => upd(r.id, 'people', v) })),
+              field('Horas', h(DecInput, { className: inp, value: r.hours, onValue: v => upd(r.id, 'hours', v) })),
+              field('R$/hora', h(DecInput, { className: inp, value: r.rate, onValue: v => upd(r.id, 'rate', v) })),
+              field('Encargos %', h(DecInput, { className: inp, value: r.chargesPct, onValue: v => upd(r.id, 'chargesPct', v) }))),
             h('div', { className: 'flex justify-between items-center mt-2 text-sm' },
               h('span', { className: 'text-gray-600' }, `${num(r.people)} \xD7 ${num(r.hours)}h \xD7 ${brl(num(r.rate))}` + (num(r.chargesPct) ? ` + ${num(r.chargesPct)}%` : '') + ' = ', h('b', null, brl(rowCost(r)))),
               h('span', { role: 'button', onClick: () => del(r.id), className: 'text-red-600 cursor-pointer font-semibold' }, 'Remover')))),

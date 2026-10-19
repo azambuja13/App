@@ -341,30 +341,65 @@ const DishList = React.memo(function DishList({
   }, []);
 
   const handleExport = React.useCallback(async () => {
+    // Exporta os pratos COMPLETOS (com ingredientes). A lista em memória vem do /summary, sem ingredientes.
+    // No app do iPhone não existe download: usa a folha de compartilhamento (ShareFile).
     try {
-      // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
       const dishManager = window.ManagerHelper?.getDishManager() || window.PrecificacaoAPI?.dishManager || window.dishManager;
-      if (!dishManager) {
-        console.error('❌ dishManager não disponível');
-        alert('Erro: Sistema não inicializado. Recarregue a página.');
+      const api = window.PrecificacaoAPI?.api;
+      const base = (dishManager && Array.isArray(dishManager.dishes) && dishManager.dishes.length ? dishManager.dishes : dishes) || [];
+      if (!base.length) {
+        alert('Nenhum prato para exportar.');
         return;
       }
-      const jsonData = dishManager.exportToJSON();
-
-      // Download do arquivo
-      const blob = new Blob([jsonData], {
-        type: 'application/json'
+      const completos = [];
+      const fila = base.slice();
+      const carregar = async d => {
+        if (d && Array.isArray(d.ingredients) && d.ingredients.length) return d;
+        try {
+          if (api && d && d.id) {
+            const r = await api.getDish(d.id);
+            const full = r && (r.data || r);
+            if (full && full.id) return full;
+          }
+          if (dishManager && typeof dishManager.getById === 'function' && d && d.id) {
+            const full = await dishManager.getById(d.id);
+            if (full) return full;
+          }
+        } catch (e) {
+          console.warn('⚠️ Exportar: não carregou ingredientes de', d && d.name, e && e.message);
+        }
+        return d;
+      };
+      // até 4 pratos em paralelo
+      const workers = Array.from({ length: Math.min(4, fila.length) }, async () => {
+        while (fila.length) {
+          const d = fila.shift();
+          completos.push(await carregar(d));
+        }
       });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `pratos-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await Promise.all(workers);
+      const ordem = new Map(base.map((d, i) => [d.id, i]));
+      completos.sort((a, b) => (ordem.get(a.id) ?? 0) - (ordem.get(b.id) ?? 0));
+      const jsonData = JSON.stringify(completos, null, 2);
+      const nome = `pratos-${new Date().toISOString().split('T')[0]}.json`;
+      const file = new File([jsonData], nome, { type: 'application/json' });
+      if (window.ShareFile) {
+        await window.ShareFile.saveFile(file);
+      } else {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nome;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
     } catch (error) {
       console.error('Erro ao exportar:', error);
+      alert('Erro ao exportar pratos: ' + (error && error.message || error));
     }
-  }, []);
+  }, [dishes]);
 
   // Categorias
   const categories = [{
@@ -616,7 +651,7 @@ const DishCard = React.memo(function DishCard({
     }, "\uD83D\uDCB5 R$ ", dish.sellingPrice.toFixed(2)), !dish.sellingPrice && dish.suggestedPrice && /*#__PURE__*/React.createElement("span", {
       className: "text-green-500 font-semibold",
       title: "Pre\xE7o sugerido (informativo)"
-    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredients?.length || 0, " ingred.")), evento && /*#__PURE__*/React.createElement("div", {
+    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredientsCount || dish.ingredients?.length || 0, " ingred.")), evento && /*#__PURE__*/React.createElement("div", {
       className: "mt-1 text-sm",
       style: { color: '#6b21a8' },
       title: `${porcoesTxt} · ${receitasTxt}`

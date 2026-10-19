@@ -153,8 +153,10 @@ function PipelinePage() {
 
   const abertos = items.filter(it => ['quoting', 'sent'].includes(it.stage));
   const valorAberto = abertos.reduce((s, it) => s + it.value, 0);
-  const mesAtual = new Date().toISOString().slice(0, 7);
-  const fechadosMes = items.filter(it => it.stage === 'won' && String(it.since || '').slice(0, 7) === mesAtual);
+  // Mês no horário local (toISOString é UTC: no último dia do mês, depois das 21h, já contava o mês seguinte)
+  const mesLocal = d => (d && !isNaN(d)) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : '';
+  const mesAtual = mesLocal(new Date());
+  const fechadosMes = items.filter(it => it.stage === 'won' && it.since && mesLocal(/^\d{4}-\d{2}-\d{2}$/.test(String(it.since)) ? new Date(it.since + 'T12:00:00') : new Date(it.since)) === mesAtual);
   const valorFechadoMes = fechadosMes.reduce((s, it) => s + it.value, 0);
 
   const card = it => {

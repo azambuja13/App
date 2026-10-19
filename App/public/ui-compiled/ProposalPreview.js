@@ -140,10 +140,18 @@ function ProposalPreview({
 
   // ===== CARREGAMENTO DE DADOS =====
 
+  // Evita que uma carga antiga (proposta aberta antes) sobrescreva a atual
+  const loadSeq = React.useRef(0);
   const loadProposal = async () => {
+    const seq = ++loadSeq.current;
+    const atual = () => seq === loadSeq.current;
     try {
       console.log('🔄 [ProposalPreview] Carregando proposta ID:', proposalId);
       setLoading(true);
+      // Zera os dados da proposta anterior: sem isso o "Enviar WhatsApp" podia usar
+      // o telefone do cliente da última proposta aberta
+      setProposal(null);
+      setClientData(null);
 
       // Usar ManagerHelper para pegar o manager correto (backend PostgreSQL > local)
       const proposalManager = window.ManagerHelper?.getProposalManager() || window.PrecificacaoAPI?.proposalManager || window.proposalManager;
@@ -155,11 +163,14 @@ function ProposalPreview({
       console.log('✅ [ProposalPreview.loadProposal] Usando proposalManager:', proposalManager?.constructor?.name);
 
       // ProposalManager não tem getById() - usa getAll() e busca do cache
-      const allProposals = await proposalManager.getAll(true); // useCache=true
-      console.log('📊 [ProposalPreview] Total de propostas carregadas:', allProposals?.length);
-      console.log('📊 [ProposalPreview] IDs disponíveis:', allProposals?.map(p => p.id));
-      console.log('📊 [ProposalPreview] Buscando ID:', proposalId);
-      const proposalData = allProposals.find(p => p.id === proposalId);
+      let proposalData = null;
+      if (typeof proposalManager.getById === 'function') {
+        proposalData = await proposalManager.getById(proposalId); // recarrega do servidor se não estiver no cache
+      } else {
+        const allProposals = await proposalManager.getAll(true); // useCache=true
+        proposalData = (allProposals || []).find(p => p.id === proposalId);
+      }
+      if (!atual()) return;
       console.log('📋 [ProposalPreview] Dados recebidos:', proposalData);
       console.log('📋 [ProposalPreview] Proposta encontrada?', !!proposalData);
       if (proposalData) {
@@ -179,6 +190,7 @@ function ProposalPreview({
           if (md.menuData && Array.isArray(md.menuData.dishes)) md.menuData = { ...md.menuData, dishes: enriquecer(md.menuData.dishes) };
         }
 
+        if (!atual()) return;
         setProposal(proposalData);
         {
           const padrao = window.userSettings && window.userSettings.proposalTemplateDefault;
@@ -186,28 +198,32 @@ function ProposalPreview({
           setSelectedTemplate(t === 'moderno' ? 'moderno' : 'chef');
         }
 
-        // Carregar dados do cliente
-        if (proposalData.eventId) {
-          await loadClientData(proposalData.eventId);
-        }
+        // Carregar dados do cliente (prioridade: cliente cadastrado > evento > dados gravados na proposta)
+        let cliente = null;
         if (proposalData.clientId) {
           // Usar ManagerHelper para pegar o clientManager correto
           const clientManager = window.ManagerHelper?.getClientManager() || window.PrecificacaoAPI?.clientManager || window.clientManager;
           if (clientManager) {
-            const client = await clientManager.getById(proposalData.clientId);
-            if (client) {
-              setClientData(client);
+            try {
+              cliente = await clientManager.getById(proposalData.clientId);
+            } catch (e) {
+              console.warn('[ProposalPreview] cliente não carregado:', e && e.message);
             }
           }
         }
-        if (proposalData.clientName && !proposalData.eventId && !proposalData.clientId) {
-          setClientData({
+        if (!cliente && proposalData.eventId) {
+          cliente = await loadClientData(proposalData.eventId);
+        }
+        if (!cliente && proposalData.clientName) {
+          cliente = {
             name: proposalData.clientName,
             phone: proposalData.clientPhone || '',
             email: proposalData.clientEmail || '',
             address: proposalData.clientAddress || ''
-          });
+          };
         }
+        if (!atual()) return;
+        setClientData(cliente || null);
       } else {
         console.warn('⚠️ [ProposalPreview] Proposta não encontrada (pode ter sido excluída)');
         // Fechar o preview se a proposta não existir
@@ -215,24 +231,26 @@ function ProposalPreview({
           onClose();
         }
       }
-      setLoading(false);
+      if (atual()) setLoading(false);
     } catch (error) {
       console.error('❌ [ProposalPreview] Erro ao carregar proposta:', error);
-      setLoading(false);
+      if (atual()) setLoading(false);
     }
   };
-  const loadClientData = eventId => {
+  // Devolve os dados do cliente gravados no evento (ou null)
+  const loadClientData = async eventId => {
     try {
       const savedEventsManager = window.savedEventsManager;
-      if (savedEventsManager) {
-        const event = savedEventsManager.getEventById(eventId);
+      if (savedEventsManager && typeof savedEventsManager.getEventById === 'function') {
+        const event = await savedEventsManager.getEventById(eventId);
         if (event && event.clientData) {
-          setClientData(event.clientData);
+          return event.clientData;
         }
       }
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
     }
+    return null;
   };
   const loadCompanyLogo = () => {
     const logo = localStorage.getItem('company_logo');
@@ -279,7 +297,11 @@ function ProposalPreview({
       const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
       const pdfUrl = `${API_URL}/api/proposals/${proposalId}/pdf`;
       console.log('📄 [handlePrint] v7 - compartilhamento nativo direto - Baixando PDF (app nativo):', pdfUrl);
-      fetch(pdfUrl, { headers: { 'Authorization': `Bearer ${token}` } })
+      // authFetch renova o login vencido (antes dava erro depois de ~15 min com o app aberto)
+      const apiCli = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+      (apiCli && typeof apiCli.authFetch === 'function'
+        ? apiCli.authFetch(pdfUrl)
+        : fetch(pdfUrl, { headers: { 'Authorization': `Bearer ${token}` } }))
         .then(response => {
           if (!response.ok) {
             throw new Error('Erro ao baixar PDF: ' + response.status);
@@ -383,10 +405,20 @@ function ProposalPreview({
       return;
     }
 
-    // Criar nova janela
-    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    // Criar nova janela (se o navegador bloquear o pop-up, imprime por um iframe escondido)
+    let printWindow = null;
+    try { printWindow = window.open('', '_blank', 'width=1200,height=800'); } catch (e) { printWindow = null; }
+    let printFrame = null;
+    if (!printWindow) {
+      printFrame = document.createElement('iframe');
+      printFrame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+      document.body.appendChild(printFrame);
+      printWindow = printFrame.contentWindow;
+      setTimeout(() => { try { printFrame.remove(); } catch (e) {} }, 120000);
+    }
 
     // Escrever HTML na nova janela
+    printWindow.document.open();
     printWindow.document.write(`
             <!DOCTYPE html>
             <html>

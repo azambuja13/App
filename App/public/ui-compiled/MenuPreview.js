@@ -15,6 +15,8 @@ function MenuPreview({
   const [menu, setMenu] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [companyLogo, setCompanyLogo] = React.useState(null);
+  const docRef = React.useRef(null);
+  const [printing, setPrinting] = React.useState(false);
   React.useEffect(() => {
     if (isOpen && menuId) {
       loadMenu();
@@ -155,6 +157,20 @@ function MenuPreview({
     return `${grams.toFixed(0)} g`;
   };
   const handlePrint = () => {
+    // App do iPhone: WKWebView não tem window.print() → gera PDF do cardápio e abre o compartilhar do iOS
+    if (window.ShareFile && window.ShareFile.isNative()) {
+      if (!docRef.current || printing) return;
+      setPrinting(true);
+      const slug = String(menu && menu.name || 'cardapio').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 50) || 'cardapio';
+      window.ShareFile.elementToPdfFile(docRef.current, `cardapio-${slug}.pdf`)
+        .then(window.ShareFile.shareFile)
+        .catch(err => {
+          console.error('❌ Erro ao gerar PDF do cardápio:', err);
+          alert('Erro ao gerar o PDF do cardápio: ' + (err && err.message || err));
+        })
+        .finally(() => setPrinting(false));
+      return;
+    }
     window.print();
   };
   if (!isOpen) return null;
@@ -212,6 +228,7 @@ function MenuPreview({
     className: "flex gap-3"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: handlePrint,
+    disabled: printing,
     className: "flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-colors font-medium shadow-md"
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-5 h-5",
@@ -223,7 +240,8 @@ function MenuPreview({
     strokeLinejoin: "round",
     strokeWidth: 2,
     d: "M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-  })), "\uD83D\uDDA8\uFE0F Imprimir")))), /*#__PURE__*/React.createElement("div", {
+  })), printing ? "Gerando PDF…" : "\uD83D\uDDA8\uFE0F Imprimir")))), /*#__PURE__*/React.createElement("div", {
+    ref: docRef,
     className: "max-w-5xl mx-auto bg-white shadow-2xl my-8 print:my-0 print:shadow-none"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-8 print:p-6"

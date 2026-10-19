@@ -8,6 +8,27 @@
  * @param {number} props.transportCost - Custo total calculado do transporte
  * @returns {JSX.Element}
  */
+// Campo numérico que aceita vírgula e não apaga o "0" enquanto digita (ex.: 0,80)
+const parseDec = v => {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let s = String(v == null ? '' : v).trim().replace(/\s/g, '');
+  if (!s) return 0;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+};
+function DecInput({ value, onValue, className, placeholder, ariaLabel }) {
+  const show = v => (v === 0 || v === '' || v == null ? '' : String(v).replace('.', ','));
+  const [txt, setTxt] = React.useState(show(value));
+  const foco = React.useRef(false);
+  React.useEffect(() => { if (!foco.current) setTxt(show(value)); }, [value]);
+  return React.createElement('input', {
+    type: 'text', inputMode: 'decimal', value: txt, placeholder, className, 'aria-label': ariaLabel,
+    onFocus: () => { foco.current = true; },
+    onBlur: () => { foco.current = false; setTxt(show(value)); },
+    onChange: e => { setTxt(e.target.value); onValue(parseDec(e.target.value)); }
+  });
+}
 const TransportForm = React.memo(function TransportForm({
   transport = {
     active: false,
@@ -21,9 +42,11 @@ const TransportForm = React.memo(function TransportForm({
   onTransportChange,
   transportCost = 0
 }) {
-  // Cálculos detalhados
-  const totalDistance = (parseFloat(transport.distance) || 0) * 2; // Ida e volta
-  const litersNeeded = totalDistance / (parseFloat(transport.consumption) || 1);
+  // Cálculos detalhados — mesma conta de core/calculations.calculateTransportCost
+  // (consumo vazio = 10 km/l; distância, litros e rodagem multiplicados pelas viagens)
+  const trips = parseFloat(transport.quantity) || 1;
+  const totalDistance = (parseFloat(transport.distance) || 0) * 2 * trips; // Ida e volta × viagens
+  const litersNeeded = totalDistance / (parseFloat(transport.consumption) || 10);
   const fuelCost = litersNeeded * (parseFloat(transport.fuelPrice) || 0);
   const roadCost = totalDistance * (parseFloat(transport.costPerKm) || 0);
   return /*#__PURE__*/React.createElement("div", {
@@ -48,72 +71,61 @@ const TransportForm = React.memo(function TransportForm({
     className: "grid grid-cols-1 md:grid-cols-3 gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Dist\xE2ncia (km)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.distance === 0 ? '' : transport.distance,
-    onChange: e => onTransportChange({
+  }, "Dist\xE2ncia (km)"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.distance,
+    onValue: v => onTransportChange({
       ...transport,
-      distance: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      distance: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
-    step: "0.1",
     placeholder: "0"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Consumo (km/l)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.consumption === 0 ? '' : transport.consumption,
-    onChange: e => onTransportChange({
+  }, "Consumo (km/l)"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.consumption,
+    onValue: v => onTransportChange({
       ...transport,
-      consumption: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      consumption: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
-    step: "0.1",
     placeholder: "10"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Pre\xE7o Combust\xEDvel (R$/l)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.fuelPrice === 0 ? '' : transport.fuelPrice,
-    onChange: e => onTransportChange({
+  }, "Pre\xE7o Combust\xEDvel (R$/l)"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.fuelPrice,
+    onValue: v => onTransportChange({
       ...transport,
-      fuelPrice: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      fuelPrice: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
-    step: "0.01",
-    placeholder: "6.00"
+    placeholder: "6,00"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Custo por Km (R$/km)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.costPerKm === 0 ? '' : transport.costPerKm,
-    onChange: e => onTransportChange({
+  }, "Custo por Km (R$/km)"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.costPerKm,
+    onValue: v => onTransportChange({
       ...transport,
-      costPerKm: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      costPerKm: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
-    step: "0.01",
-    placeholder: "0.50"
+    placeholder: "0,50"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Ped\xE1gio por viagem, ida + volta (R$)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.toll === 0 ? '' : transport.toll,
-    onChange: e => onTransportChange({
+  }, "Ped\xE1gio por viagem, ida + volta (R$)"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.toll,
+    onValue: v => onTransportChange({
       ...transport,
-      toll: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      toll: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
-    step: "0.01",
     placeholder: "0"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
-  }, "Viagens"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: transport.quantity === 0 ? '' : transport.quantity,
-    onChange: e => onTransportChange({
+  }, "Viagens"), /*#__PURE__*/React.createElement(DecInput, {
+    value: transport.quantity,
+    onValue: v => onTransportChange({
       ...transport,
-      quantity: e.target.value === '' ? 0 : parseFloat(e.target.value)
+      quantity: v
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
     placeholder: "1"
@@ -127,7 +139,7 @@ const TransportForm = React.memo(function TransportForm({
     className: "text-sm text-blue-900"
   }, /*#__PURE__*/React.createElement("p", {
     className: "font-semibold mb-2"
-  }, "\uD83D\uDCCA Detalhes do C\xE1lculo:"), /*#__PURE__*/React.createElement("p", null, "\u2022 Dist\xE2ncia total (ida e volta): ", totalDistance.toFixed(1), " km"), /*#__PURE__*/React.createElement("p", null, "\u2022 Litros necess\xE1rios: ", litersNeeded.toFixed(2), " L"), /*#__PURE__*/React.createElement("p", null, "\u2022 Custo combust\xEDvel: R$ ", fuelCost.toFixed(2)), transport.costPerKm > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Custo rodagem: R$ ", roadCost.toFixed(2)), transport.toll > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Ped\xE1gio (ida + volta \xD7 ", transport.quantity || 1, " viagem(ns)): R$ ", (transport.toll * (transport.quantity || 1)).toFixed(2)), transport.quantity > 1 && /*#__PURE__*/React.createElement("p", {
+  }, "\uD83D\uDCCA Detalhes do C\xE1lculo:"), /*#__PURE__*/React.createElement("p", null, "\u2022 Dist\xE2ncia total (ida e volta", trips > 1 ? ` \xD7 ${trips} viagens` : '', "): ", totalDistance.toFixed(1), " km"), /*#__PURE__*/React.createElement("p", null, "\u2022 Litros necess\xE1rios: ", litersNeeded.toFixed(2), " L"), /*#__PURE__*/React.createElement("p", null, "\u2022 Custo combust\xEDvel: R$ ", fuelCost.toFixed(2)), transport.costPerKm > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Custo rodagem: R$ ", roadCost.toFixed(2)), transport.toll > 0 && /*#__PURE__*/React.createElement("p", null, "\u2022 Ped\xE1gio (ida + volta \xD7 ", transport.quantity || 1, " viagem(ns)): R$ ", ((parseFloat(transport.toll) || 0) * trips).toFixed(2)), transport.quantity > 1 && /*#__PURE__*/React.createElement("p", {
     className: "font-semibold mt-1"
   }, "\u2022 Total para ", transport.quantity, " viagem(ns): R$ ", transportCost.toFixed(2)))));
 });

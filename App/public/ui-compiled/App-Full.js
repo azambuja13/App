@@ -981,22 +981,39 @@ window.AppFull = function AppFull() {
   // ====================================
   // Handlers - Ingredientes
   // ====================================
-  const handleAddIngredient = async () => {
-    if (!state.newIngredient.name.trim()) {
+  // override: dados do ingrediente passados direto (templates). Sem ele usa o formulário (state.newIngredient).
+  // Retorna true quando o ingrediente foi criado.
+  const handleAddIngredient = async override => {
+    const fromOverride = override && typeof override === 'object' && !override.nativeEvent && typeof override.name === 'string';
+    const src = fromOverride ? {
+      ...state.newIngredient,
+      unit: undefined,
+      lossPercentage: undefined,
+      yieldMultiplier: undefined,
+      ...override
+    } : state.newIngredient;
+    // Templates usam perda em decimal (0.10 = 10%); o formulário já usa porcentagem
+    if (fromOverride && src.lossPercentage === undefined) {
+      const l = parseFloat(src.loss) || 0;
+      src.lossPercentage = l > 0 && l < 1 ? Math.round(l * 1000) / 10 : l;
+    }
+    if (!String(src.name || '').trim()) {
       alert('Por favor, insira um nome para o ingrediente');
-      return;
+      return false;
     }
 
     // Preparar dados do ingrediente
+    const unitType = src.unitType || 'weight';
     const ingredientData = {
-      name: state.newIngredient.name,
-      category: state.newIngredient.category || 'Outros',
-      unitType: state.newIngredient.unitType || 'weight',
-      costPerUnit: state.newIngredient.costPerUnit || 0,
-      unitSize: state.newIngredient.unitSize || 0,
-      loss: state.newIngredient.loss || 0,
-      lossPercentage: state.newIngredient.lossPercentage || state.newIngredient.loss || 0,
-      unit: state.newIngredient.unit || 'kg'
+      name: String(src.name).trim(),
+      category: src.category || 'Outros',
+      unitType,
+      costPerUnit: src.costPerUnit || 0,
+      unitSize: src.unitSize || 0,
+      loss: src.loss || 0,
+      lossPercentage: src.lossPercentage || src.loss || 0,
+      yieldMultiplier: parseFloat(src.yieldMultiplier) > 0 ? parseFloat(src.yieldMultiplier) : 1,
+      unit: src.unit || (unitType === 'unit' ? 'un' : unitType === 'volume' ? 'L' : 'kg')
     };
 
     // Salvar no PostgreSQL se estiver em modo cloud
@@ -1017,7 +1034,7 @@ window.AppFull = function AppFull() {
         } else {
           console.error('❌ API retornou success=false:', result);
           alert('Erro ao salvar ingrediente: ' + (result.message || 'Falha desconhecida'));
-          return;
+          return false;
         }
       } catch (error) {
         console.error('❌ Erro ao criar ingrediente no PostgreSQL:', error);
@@ -1039,21 +1056,21 @@ window.AppFull = function AppFull() {
                 // Continuar para adicionar ao estado (não return aqui)
               } else {
                 alert('Erro ao salvar ingrediente: ' + (result.message || 'Falha desconhecida'));
-                return;
+                return false;
               }
             } catch (forceError) {
               console.error('❌ Erro ao forçar criação:', forceError);
               alert('Erro ao salvar ingrediente: ' + forceError.message);
-              return;
+              return false;
             }
           } else {
             // Usuário cancelou, não criar
-            return;
+            return false;
           }
         } else {
           // Outro tipo de erro
           alert('Erro ao salvar ingrediente no banco de dados: ' + error.message);
-          return;
+          return false;
         }
       }
     } else {
@@ -1066,7 +1083,8 @@ window.AppFull = function AppFull() {
       id: Date.now(),
       ...ingredientData
     };
-    state.setIngredientsDatabase([...state.ingredientsDatabase, newIng]);
+    // Atualização funcional: vários ingredientes seguidos (templates) não se sobrescrevem
+    state.setIngredientsDatabase(prev => [...(Array.isArray(prev) ? prev : []), newIng]);
     state.setNewIngredient({
       name: '',
       cost: 0,
@@ -1077,8 +1095,10 @@ window.AppFull = function AppFull() {
       unitSize: 1000,
       loss: 0,
       lossPercentage: 0,
+      yieldMultiplier: 1,
       unitCost: 0
     });
+    return true;
   };
   const handleStartEditingIngredient = ingredient => {
     state.setEditingIngredient({
@@ -1308,10 +1328,25 @@ window.AppFull = function AppFull() {
           state.setGuests(guests);
         }
 
+        // Meses até o evento: recalculados pela data logo abaixo (o valor salvo fica velho com o tempo)
         if (eventData.monthsUntilEvent !== undefined) state.setMonthsUntilEvent(eventData.monthsUntilEvent);
-        if (eventData.ingredientsDatabase) {
-          console.log('  - ingredientes:', eventData.ingredientsDatabase.length);
-          state.setIngredientsDatabase(eventData.ingredientsDatabase);
+        // ✅ FIX: NÃO trocar a base de ingredientes pela cópia salva no evento (os preços antigos
+        // substituíam os atuais e o auto-save gravava isso na conta). A base atual continua valendo;
+        // só entram ingredientes que os itens do evento usam e que não existem mais na base.
+        if (Array.isArray(eventData.ingredientsDatabase) && Array.isArray(eventData.items) && eventData.items.length > 0) {
+          const nomeIng = x => String(x && (x.name || x.ingredientName) || '').trim().toLowerCase();
+          state.setIngredientsDatabase(prev => {
+            const atual = Array.isArray(prev) ? prev : [];
+            const ids = new Set(atual.map(i => String(i.id)));
+            const nomes = new Set(atual.map(nomeIng));
+            const faltando = eventData.ingredientsDatabase.filter(ing => {
+              if (!ing || ids.has(String(ing.id)) || nomes.has(nomeIng(ing))) return false;
+              return eventData.items.some(it => String(it.ingredientId) === String(ing.id) || (nomeIng(it) && nomeIng(it) === nomeIng(ing)));
+            });
+            if (faltando.length === 0) return atual;
+            console.log('  - ingredientes do evento que não estavam na base (adicionados):', faltando.map(nomeIng));
+            return [...atual, ...faltando];
+          });
         }
         if (eventData.items) {
           console.log('  - items:', eventData.items.length);
@@ -1388,6 +1423,15 @@ window.AppFull = function AppFull() {
         }
 
         state.setEventDate(dateForInput);
+        // ✅ FIX: meses até o evento contados a partir de HOJE (mesma regra da proposta)
+        try {
+          if (window.PricingRules && typeof window.PricingRules.monthsUntil === 'function') {
+            const meses = window.PricingRules.monthsUntil(dateForInput);
+            if (typeof meses === 'number' && isFinite(meses)) state.setMonthsUntilEvent(Math.max(0, meses));
+          }
+        } catch (e) {
+          console.warn('⚠️ [handleLoadEvent] Não consegui recalcular os meses até o evento:', e);
+        }
       } else {
         console.warn('⚠️ [handleLoadEvent] Nenhuma data encontrada no evento!');
       }
@@ -1499,10 +1543,9 @@ window.AppFull = function AppFull() {
       return;
     }
 
-    // Validar tamanho (máximo 2MB)
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    if (file.size > maxSize) {
-      alert('❌ A imagem é muito grande. O tamanho máximo é 2MB.');
+    // Sem limite de tamanho: a imagem é redesenhada em 200x200 (fotos do iPhone passam de 2 MB)
+    if (file.size > 25 * 1024 * 1024) {
+      alert('❌ A imagem é muito grande (máximo 25 MB).');
       return;
     }
 
@@ -1601,6 +1644,13 @@ window.AppFull = function AppFull() {
         menuDishes = state.items || [];
       }
 
+      const totalEventoSalvo = comida => {
+        const mult = costs?.inflationMultiplier || 1;
+        if (window.PricingRules && window.PricingRules.eventTotal) {
+          return window.PricingRules.eventTotal(comida || 0, costs?.supportCost || 0, costs?.laborCost || 0, costs?.transportCost || 0, mult);
+        }
+        return ((comida || 0) + (costs?.supportCost || 0)) * mult + (costs?.laborCost || 0) + (costs?.transportCost || 0);
+      };
       const stateData = {
         data: {
           guests: state.guests,
@@ -1623,9 +1673,11 @@ window.AppFull = function AppFull() {
           pricePerPerson: costs?.pricePerPerson || 0,
           // ✅ 3 Totais separados (todos incluem apoio)
           // Com a correção até o evento (comida e apoio), igual ao Resumo e à proposta
-          totalItens: ((costs?.ingredientsCost || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
-          totalPratos: ((costs?.menuCostTotal || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
-          totalPratosComMargem: ((costs?.menuPriceTotal || 0) + (costs?.supportCost || 0)) * (costs?.inflationMultiplier || 1) + (costs?.laborCost || 0) + (costs?.transportCost || 0),
+          // Mesma regra do Resumo (PricingRules.eventTotal: correção, markup de serviços, arredondado).
+          // Sem cardápio, Total Pratos e c/ Margem ficam 0 (antes saía apoio + mão de obra como "Total Pratos").
+          totalItens: totalEventoSalvo(costs?.ingredientsCost),
+          totalPratos: costs?.hasActiveMenu && (costs?.menuCostTotal || 0) > 0 ? totalEventoSalvo(costs?.menuCostTotal) : 0,
+          totalPratosComMargem: costs?.hasActiveMenu && (costs?.menuMarginAmount || 0) > 0 ? totalEventoSalvo(costs?.menuPriceTotal) : 0,
           // ✅ Valores base (sem apoio) para referência
           ingredientsCost: costs?.ingredientsCost || 0,
           menuCostTotal: costs?.menuCostTotal || 0,
@@ -2572,10 +2624,11 @@ window.AppFull = function AppFull() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             const compressed = canvas.toDataURL('image/jpeg', 0.7);
-            state.setProposalData({
-              ...state.proposalData,
+            // Atualização funcional: duas fotos enviadas em seguida não se sobrescrevem
+            state.setProposalData(prev => ({
+              ...prev,
               companyPhoto1: compressed
-            });
+            }));
           };
         };
         reader.readAsDataURL(file);
@@ -2622,10 +2675,11 @@ window.AppFull = function AppFull() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             const compressed = canvas.toDataURL('image/jpeg', 0.7);
-            state.setProposalData({
-              ...state.proposalData,
+            // Atualização funcional: duas fotos enviadas em seguida não se sobrescrevem
+            state.setProposalData(prev => ({
+              ...prev,
               companyPhoto2: compressed
-            });
+            }));
           };
         };
         reader.readAsDataURL(file);
@@ -2672,10 +2726,11 @@ window.AppFull = function AppFull() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
             const compressed = canvas.toDataURL('image/jpeg', 0.7);
-            state.setProposalData({
-              ...state.proposalData,
+            // Atualização funcional: duas fotos enviadas em seguida não se sobrescrevem
+            state.setProposalData(prev => ({
+              ...prev,
               companyPhoto3: compressed
-            });
+            }));
           };
         };
         reader.readAsDataURL(file);

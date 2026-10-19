@@ -24,11 +24,45 @@ class CloudStorageAdapter extends StorageAdapter {
     }
 
     /**
+     * Dono da cópia local (id do usuário logado, lido do accessToken).
+     * A cópia "eventos-salvos-backup" não era limpa ao trocar de conta: sem internet
+     * a outra conta via os eventos da anterior (e a migração podia enviá-los para ela).
+     */
+    _ownerId() {
+        try {
+            const t = localStorage.getItem('accessToken');
+            if (!t || t.split('.').length < 2) return null;
+            const b = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const json = JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))));
+            return json && (json.id || json.userId || json.sub) ? String(json.id || json.userId || json.sub) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /** Lê a cópia local só se for do usuário atual (se for de outra conta, descarta) */
+    _readBackup() {
+        const ownerKey = this.storageKey + '-owner';
+        const atual = this._ownerId();
+        const dono = localStorage.getItem(ownerKey);
+        if (atual && dono && dono !== atual) {
+            console.warn('🧹 Cópia local de eventos era de outra conta — descartada');
+            localStorage.removeItem(this.storageKey);
+            localStorage.removeItem(ownerKey);
+            return [];
+        }
+        const data = localStorage.getItem(this.storageKey);
+        return data ? JSON.parse(data) : [];
+    }
+
+    /**
      * Sincroniza cache com localStorage para backup offline
      */
     syncToLocalStorage() {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.cache));
+            const atual = this._ownerId();
+            if (atual) localStorage.setItem(this.storageKey + '-owner', atual);
             console.log(`💾 Cache sincronizado com localStorage (${this.cache.length} eventos)`);
         } catch (error) {
             console.warn('⚠️ Erro ao sincronizar cache com localStorage:', error);
@@ -40,8 +74,7 @@ class CloudStorageAdapter extends StorageAdapter {
      */
     loadFromLocalStorage() {
         try {
-            const data = localStorage.getItem(this.storageKey);
-            this.cache = data ? JSON.parse(data) : [];
+            this.cache = this._readBackup();
             console.log(`📦 ${this.cache.length} eventos carregados do cache local`);
             return this.cache;
         } catch (error) {
@@ -57,8 +90,7 @@ class CloudStorageAdapter extends StorageAdapter {
      */
     async getLocalEventsForMigration() {
         try {
-            const data = localStorage.getItem(this.storageKey);
-            const localEvents = data ? JSON.parse(data) : [];
+            const localEvents = this._readBackup();
             console.log(`📦 [Migration] ${localEvents.length} eventos no IndexedDB local`);
             return localEvents;
         } catch (error) {
@@ -302,8 +334,22 @@ class CloudStorageAdapter extends StorageAdapter {
                     await this.api.eventManager.deleteEvent(id);
                     console.log('   ✅ Evento deletado do backend:', id);
                 } catch (backendError) {
+                    // Só remove do cache se o servidor disse que o evento não existe.
+                    // Sem internet / erro do servidor → avisa a falha (antes mostrava "excluído"
+                    // e o evento voltava na próxima sincronização).
+                    const msg = String((backendError && backendError.message) || '');
+                    const naoExiste = (backendError && backendError.statusCode === 404) || /n[aã]o encontrad|not found/i.test(msg);
+                    if (!naoExiste) {
+                        console.warn('   ❌ Falha ao excluir no servidor:', msg);
+                        const semRede = !!(backendError && (backendError.__network || backendError.offline)) || (typeof navigator !== 'undefined' && navigator.onLine === false);
+                        return {
+                            success: false,
+                            message: semRede
+                                ? 'Sem conexão com a internet. O evento não foi excluído — tente de novo quando estiver online.'
+                                : 'Não foi possível excluir o evento: ' + (msg || 'erro no servidor')
+                        };
+                    }
                     console.warn('   ⚠️ Evento não encontrado no backend (será removido do cache):', id);
-                    console.warn('   Erro:', backendError.message);
                 }
 
                 // Remover do cache

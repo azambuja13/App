@@ -87,7 +87,12 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
 
       console.log('🍽️ Criando prato...');
 
-      const response = await fetch(`${API_URL}/api/recipes/create-dish`, {
+      // authFetch renova o login vencido (iPhone parado > 15 min) e tenta de novo
+      const apiObj = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+      const doFetch = apiObj && typeof apiObj.authFetch === 'function'
+        ? (url, init) => apiObj.authFetch(url, init)
+        : fetch;
+      const response = await doFetch(`${API_URL}/api/recipes/create-dish`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

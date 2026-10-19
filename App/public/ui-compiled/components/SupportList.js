@@ -15,7 +15,16 @@
  * @param {Function} props.onResetAuto - (id) volta o item para o automático
  */
 const R = () => window.SupportRules;
-const num = (v, d = 0) => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : d; };
+const num = (v, d = 0) => {
+  // Aceita número ou texto pt-BR: "1.250,00" → 1250; "1,5" → 1.5; "1.250" (milhar) → 1250; "1.5" → 1.5
+  if (typeof v === 'number') return isFinite(v) ? v : d;
+  let s = String(v == null ? '' : v).trim().replace(/\s|R\$/g, '');
+  if (!s) return d;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : d;
+};
 const brl = n => 'R$ ' + num(n, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // Cores inline (o CSS pré-compilado não tem as classes teal/amber)
 const C = {

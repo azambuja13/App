@@ -106,14 +106,27 @@ class MigrationService {
 
             await api.eventManager.loadEvents();
             const backendEvents = api.eventManager.events || [];
-            const backendEventIds = new Set(backendEvents.map(e => e.event_id));
+            // Os eventos do servidor vêm com "id" (event_id não existe) — antes todo evento
+            // local parecia "novo" e era enviado de novo, duplicando no servidor.
+            const backendEventIds = new Set();
+            const backendKeys = new Set();
+            const chave = e => [
+                String(e.name || e.eventName || '').trim().toLowerCase(),
+                String(e.eventDate || e.date || '').slice(0, 10)
+            ].join('|');
+            backendEvents.forEach(e => {
+                if (e.id) backendEventIds.add(String(e.id));
+                if (e.event_id) backendEventIds.add(String(e.event_id));
+                backendKeys.add(chave(e));
+            });
 
             console.log(`☁️ [Migration] ${backendEvents.length} eventos no backend`);
 
-            // Encontrar eventos que existem no IndexedDB mas não no backend
+            // Encontrar eventos que existem no IndexedDB mas não no backend (por id ou por nome+data)
             const eventsToMigrate = localEvents.filter(event => {
-                const eventId = event.id || event.event_id;
-                return !backendEventIds.has(eventId);
+                const eventId = String(event.id || event.event_id || '');
+                if (eventId && backendEventIds.has(eventId)) return false;
+                return !backendKeys.has(chave(event));
             });
 
             console.log(`📤 [Migration] ${eventsToMigrate.length} eventos precisam ser migrados`);
