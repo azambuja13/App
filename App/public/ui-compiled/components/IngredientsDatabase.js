@@ -95,16 +95,15 @@ function IngredientsDatabase({
         const costPerUnit = parseFloat(ing.costPerUnit) || 0;
         const unitSize = parseFloat(ing.unitSize) || 0;
         // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
-        let lossValue = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
-        // Se loss está entre 0 e 1 (sem incluir 1), é decimal, converter para %
-        const lossPercentage = lossValue > 0 && lossValue < 1 ? lossValue * 100 : lossValue;
+        // lossPercentage já é %; "loss" (decimal) só quando não há lossPercentage
+        const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
         const yieldMultiplier = parseFloat(ing.yieldMultiplier) || 1.0;
         return {
           'ID': ing.id || '',
           'Nome': ing.name || '',
           'Categoria': ing.category || 'Outros',
           'Tipo': ing.unitType === 'unit' ? 'Unidade' : 'Peso',
-          'Perda (%)': lossPercentage.toFixed(0),
+          'Perda (%)': Math.round(lossPercentage * 100) / 100,
           'Rendimento (x)': yieldMultiplier.toFixed(1),
           'Custo/Un (R$)': costPerUnit.toFixed(2),
           'Tam. Un.': unitSize,
@@ -970,10 +969,8 @@ function IngredientsDatabase({
     className: "px-4 py-3 text-gray-700"
   }, (() => {
     // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
-    const loss = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
-    // Se loss está entre 0 e 1 (sem incluir 1), é decimal, converter para %
-    const lossPercent = loss > 0 && loss < 1 ? loss * 100 : loss;
-    return lossPercent.toFixed(0) + "%";
+    const lossPercent = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
+    return (lossPercent > 0 && lossPercent < 1 ? lossPercent.toFixed(1).replace('.', ',') : lossPercent.toFixed(0)) + "%";
   })()), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
   }, (parseFloat(ing.yieldMultiplier) || 1.0).toFixed(1), "x"), /*#__PURE__*/React.createElement("td", {
@@ -1116,9 +1113,8 @@ function IngredientsDatabase({
     className: "ingredient-card-field-value"
   }, (() => {
     // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
-    const loss = parseFloat(ing.lossPercentage) || parseFloat(ing.loss) || 0;
-    const lossPercent = loss > 0 && loss < 1 ? loss * 100 : loss;
-    return lossPercent.toFixed(0) + "%";
+    const lossPercent = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
+    return (lossPercent > 0 && lossPercent < 1 ? lossPercent.toFixed(1).replace('.', ',') : lossPercent.toFixed(0)) + "%";
   })())), /*#__PURE__*/React.createElement("div", {
     className: "ingredient-card-field"
   }, /*#__PURE__*/React.createElement("span", {

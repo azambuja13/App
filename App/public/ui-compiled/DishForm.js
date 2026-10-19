@@ -97,9 +97,8 @@ const DishForm = React.memo(function DishForm({
         const unitCost = parseFloat(ing.unitCost) || 0;
 
         // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
-        let lossValue = parseFloat(ing.lossPercentage) || lossFromDB || 0;
-        // Se loss está entre 0-1, é decimal, converter para %
-        const lossPercentage = lossValue > 0 && lossValue < 1 ? lossValue * 100 : lossValue;
+        // lossPercentage já é % (0,5 = 0,5%); lossFromDB é o campo decimal "loss" (0,2 = 20%)
+        const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, lossFromDB);
 
         // ✅ FIX: Converter quantidade para gramas antes de calcular custo
         let quantityInGrams = quantity;
@@ -572,11 +571,8 @@ const DishForm = React.memo(function DishForm({
     console.log('📝 [handleAddIngredient] isUnitType:', isUnitType, 'quantity:', initialQuantity, 'unit:', initialUnit);
     console.log('📝 [handleAddIngredient] totalCost:', totalCost);
     // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
-    let lossPercentage = parseFloat(ingredient.lossPercentage) || parseFloat(ingredient.loss) || 0;
-    // Se loss está entre 0-1, é decimal, converter para %
-    if (lossPercentage > 0 && lossPercentage < 1) {
-      lossPercentage = lossPercentage * 100;
-    }
+    // lossPercentage do ingrediente já é %; "loss" (decimal) só quando não há lossPercentage
+    const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ingredient.lossPercentage, ingredient.loss);
 
     const newIngredient = {
       id: `ing_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -959,7 +955,7 @@ const DishForm = React.memo(function DishForm({
     className: "flex gap-3"
   }, ing.lossPercentage > 0 && /*#__PURE__*/React.createElement("span", {
     className: "text-orange-600 font-medium"
-  }, "\uD83D\uDD25 Perda: ", (parseFloat(ing.lossPercentage) || 0).toFixed(0), "%"), ing.yieldMultiplier && parseFloat(ing.yieldMultiplier) !== 1 && /*#__PURE__*/React.createElement("span", {
+  }, "\uD83D\uDD25 Perda: ", (v => v < 1 ? v.toFixed(1).replace('.', ',') : v.toFixed(0))(parseFloat(ing.lossPercentage) || 0), "%"), ing.yieldMultiplier && parseFloat(ing.yieldMultiplier) !== 1 && /*#__PURE__*/React.createElement("span", {
     className: "text-green-600 font-medium"
   }, "\uD83D\uDCC8 Rend.: ", (parseFloat(ing.yieldMultiplier) || 1).toFixed(1), "x"))), /*#__PURE__*/React.createElement("div", {
     className: "mt-3 flex items-center gap-2"

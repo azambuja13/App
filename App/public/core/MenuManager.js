@@ -598,8 +598,9 @@ export class MenuManager {
                 // - Ingrediente atualizado no banco para: 0.2% perda
                 // - Se usar 0.2%: 1000g × (1 - 0.2%) = 998g ≠ 800g ❌ ERRADO!
 
-                // Perda sempre em % (dados antigos em decimal: 0,2 = 20%), igual ao prato e ao servidor
-                const lossPercentage = (v => { const n = parseFloat(v) || 0; return n > 0 && n < 1 ? n * 100 : n; })(dishIng.lossPercentage);
+                // Perda em % (lossPercentage). O campo "loss" é decimal (0,2 = 20%) e só vale quando não há lossPercentage.
+                // Dados antigos com 0 < % < 1 foram convertidos pelo scripts/normalize-small-loss.js da API.
+                const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(dishIng.lossPercentage, dishIng.loss);
                 const yieldMultiplier = dishIng.yieldMultiplier || 1;
 
                 console.log(`🔍 [MenuManager] Usando valores salvos no prato para ${dishIng.ingredientName}: loss=${lossPercentage}%, yield=${yieldMultiplier}x`);
