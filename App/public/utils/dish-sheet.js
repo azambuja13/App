@@ -68,6 +68,15 @@ function paraConvidados(dish, guests, porcoesPorPessoa) {
   return { guests: guests, porcoes: pp, porPorcao: !!porPorcao, porPessoa: porPessoa, total: porPessoa * guests, receitas: receitas };
 }
 
+// CMV do prato (custo ÷ preço sugerido) e a meta de Custos da empresa
+function precoCmv(dish) {
+  var P = window.PricingRules;
+  var c = P && P.dishCmv ? P.dishCmv(dish) : null;
+  if (!c) return null;
+  var st = P.cmvStatus(c.cmvPct);
+  return { preco: c.preco, base: c.base, texto: fmtN(c.cmvPct, 1) + '%' + (st ? ' (meta ' + fmtN(st.meta, 1) + '%)' : '') };
+}
+
 function html(dish) {
   var ls = linhas(dish);
   var soma = ls.reduce(function (a, l) { return a + l.total; }, 0);
@@ -80,6 +89,8 @@ function html(dish) {
     ['Peso total', peso(dish.totalWeight)]
   ];
   if (servings > 0) { info.push(['Rendimento', fmtN(servings) + (servings === 1 ? ' porção' : ' porções')]); info.push(['Custo por porção', brl(custo / servings)]); }
+  var cmv = precoCmv(dish);
+  if (cmv) { info.push(['Preço sugerido (por ' + cmv.base + ')', brl(cmv.preco)]); info.push(['CMV (custo ÷ preço)', cmv.texto]); }
   var agora = new Date();
   return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
     '<title>Ficha Técnica - ' + esc(dish.name) + '</title><style>' +
@@ -149,6 +160,8 @@ function pdf(dish) {
     ['PESO TOTAL', peso(dish.totalWeight)]
   ];
   if (servings > 0) { info.push(['RENDIMENTO', fmtN(servings) + (servings === 1 ? ' porção' : ' porções')]); info.push(['CUSTO POR PORÇÃO', brl(custo / servings)]); }
+  var cmvP = precoCmv(dish);
+  if (cmvP) { info.push(['PREÇO SUGERIDO (POR ' + cmvP.base.toUpperCase() + ')', brl(cmvP.preco)]); info.push(['CMV (CUSTO ÷ PREÇO)', cmvP.texto]); }
   var bw = (LW - 4) / 2, bh = 13;
   info.forEach(function (x, k) {
     var col = k % 2, x0 = M + col * (bw + 4);

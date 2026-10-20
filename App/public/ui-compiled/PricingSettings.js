@@ -37,7 +37,8 @@ const FIELDS = [
   ['fixedCostsPct', 'Custos fixos (% do faturamento)', 'Quanto do faturamento vai para as contas que existem mesmo sem evento: aluguel, gás, energia, contador, veículo, pró-labore… Use a calculadora abaixo.'],
   ['targetProfitPct', 'Lucro desejado (% do preço)', 'Quanto do preço deve sobrar limpo no modo "Custos da empresa". Ex.: 20% = em uma proposta de R$ 10.000, sobram R$ 2.000.'],
   ['serviceMarkupPct', 'Markup sobre serviços (%)', 'Só no modo "Markup": quanto somar sobre apoio, mão de obra e transporte. Ex.: 10% → R$ 1.000 de serviços entram como R$ 1.100. Use 0 para repassar pelo custo.'],
-  ['inflationMonthlyPct', 'Correção mensal dos insumos até o evento (%)', 'Para eventos daqui a alguns meses: corrige comida e apoio por mês até a data do evento. Ex.: 1% ao mês, evento em 6 meses ≈ +6,2%.']
+  ['inflationMonthlyPct', 'Correção mensal dos insumos até o evento (%)', 'Para eventos daqui a alguns meses: corrige comida e apoio por mês até a data do evento. Ex.: 1% ao mês, evento em 6 meses ≈ +6,2%.'],
+  ['cmvTargetPct', 'CMV desejado dos pratos (%)', 'Quanto do preço de cada prato pode ser custo de ingredientes (CMV = custo ÷ preço). Em buffet/eventos costuma ficar entre 25% e 35%. Os pratos mostram verde até a meta, amarelo até 5 pontos acima e vermelho acima disso; no cadastro, o botão "Usar meta" calcula o preço por ela.']
 ];
 
 function PricingSettings({ onClose }) {

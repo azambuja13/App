@@ -19,6 +19,7 @@ const DEFAULTS = {
   targetProfitPct: 20,    // lucro desejado (% do preço) - usado no método do divisor
   serviceMarkupPct: 0,    // markup sobre apoio, mão de obra e transporte
   inflationMonthlyPct: 1, // correção mensal dos insumos até o evento
+  cmvTargetPct: 30,       // CMV desejado dos pratos (custo ÷ preço) — meta das cores e do botão "usar meta"
   defaultPricingMode: 'markup' // 'markup' | 'divisor'
 };
 const LS_KEY = 'precificacao_pricing_settings';
@@ -158,7 +159,35 @@ function indicators(cost, price) {
   return { markupPct: (price / cost - 1) * 100, marginPct: (price - cost) / price * 100, cmvPct: cost / price * 100 };
 }
 
-const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson };
+// ===== CMV (custo da mercadoria vendida = custo ÷ preço) =====
+// Relação com o markup: CMV = 1 ÷ (1 + markup) → markup 233,3% = CMV 30%
+function markupFromCmv(cmvPct) { cmvPct = num(cmvPct); return cmvPct > 0 ? (100 / cmvPct - 1) * 100 : 0; }
+function cmvFromMarkup(markupPct) { markupPct = num(markupPct); return markupPct > -100 ? 100 / (1 + markupPct / 100) : 0; }
+/** Nível do CMV em relação à meta: ok (≤ meta), atencao (até meta + 5 pontos), alto (acima) */
+function cmvStatus(cmvPct, targetPct) {
+  const meta = num(targetPct, get().cmvTargetPct) || 30;
+  const v = Math.round(num(cmvPct) * 10) / 10; // 30,02% (preço arredondado em centavos) conta como 30%
+  if (!(v > 0)) return null;
+  if (v <= meta) return { nivel: 'ok', cor: '#15803d', fundo: '#dcfce7', rotulo: 'dentro da meta', meta };
+  if (v <= meta + 5) return { nivel: 'atencao', cor: '#a16207', fundo: '#fef9c3', rotulo: 'um pouco acima da meta', meta };
+  return { nivel: 'alto', cor: '#b91c1c', fundo: '#fee2e2', rotulo: 'acima da meta', meta };
+}
+/** CMV de um prato salvo: custo e preço na mesma base (por porção ou por 100 g, como o preço sugerido) */
+function dishCmv(dish) {
+  if (!dish) return null;
+  const custoTotal = num(dish.totalCost);
+  const preco = num(dish.sellingPrice) || num(dish.suggestedPrice);
+  if (!(custoTotal > 0) || !(preco > 0)) return null;
+  const servings = num(dish.servings);
+  const peso = num(dish.totalWeight);
+  let custo;
+  if (dish.useWeightCalculation) custo = servings > 0 ? custoTotal / servings : 0;
+  else custo = peso > 0 ? custoTotal / peso * 100 : 0;
+  if (!(custo > 0)) return null;
+  return { custo, preco, cmvPct: custo / preco * 100, base: dish.useWeightCalculation ? 'porção' : '100 g' };
+}
+
+const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

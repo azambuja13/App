@@ -595,7 +595,12 @@ const DishCard = React.memo(function DishCard({
   // Custo do prato para os convidados do evento aberto (porções do cardápio ou 1 por pessoa)
   const evento = window.DishSheet ? window.DishSheet.paraConvidados(dish, guests, portionsPerPerson) : null;
   const fmtBRL = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const receitasTxt = evento ? (() => {
+  // CMV (custo ÷ preço sugerido, na mesma base: porção ou 100 g) com a cor da meta de Custos da empresa
+  const cmvInfo = window.PricingRules && window.PricingRules.dishCmv ? window.PricingRules.dishCmv(dish) : null;
+  const cmvSt = cmvInfo ? window.PricingRules.cmvStatus(cmvInfo.cmvPct) : null;
+  const fmtPct = v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+  const cmvTitulo = cmvInfo && cmvSt ? `CMV = custo ${fmtBRL(cmvInfo.custo)} ÷ preço ${fmtBRL(cmvInfo.preco)} (por ${cmvInfo.base}) · meta ${fmtPct(cmvSt.meta)}: ${cmvSt.rotulo}` : '';
+    const receitasTxt = evento ? (() => {
     const r = evento.receitas;
     const n = r >= 10 ? Math.round(r) : Math.round(r * 10) / 10;
     return `${n.toLocaleString('pt-BR')} ${n === 1 ? 'receita' : 'receitas'}`;
@@ -651,7 +656,12 @@ const DishCard = React.memo(function DishCard({
     }, "\uD83D\uDCB5 R$ ", dish.sellingPrice.toFixed(2)), !dish.sellingPrice && dish.suggestedPrice && /*#__PURE__*/React.createElement("span", {
       className: "text-green-500 font-semibold",
       title: "Pre\xE7o sugerido (informativo)"
-    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredientsCount || dish.ingredients?.length || 0, " ingred.")), evento && /*#__PURE__*/React.createElement("div", {
+    }, "\uD83D\uDCB5 R$ ", dish.suggestedPrice.toFixed(2)), cmvInfo && cmvSt && /*#__PURE__*/React.createElement("span", {
+      className: "font-semibold",
+      "data-cmv": cmvInfo.cmvPct.toFixed(1),
+      style: { color: cmvSt.cor, background: cmvSt.fundo, borderRadius: 999, padding: '0 8px' },
+      title: cmvTitulo
+    }, "CMV ", fmtPct(cmvInfo.cmvPct)), /*#__PURE__*/React.createElement("span", null, "\u2696\uFE0F ", formatWeight(dish.totalWeight)), /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDD1\u200D\uD83C\uDF73 ", dish.ingredientsCount || dish.ingredients?.length || 0, " ingred.")), evento && /*#__PURE__*/React.createElement("div", {
       className: "mt-1 text-sm",
       style: { color: '#6b21a8' },
       title: `${porcoesTxt} · ${receitasTxt}`
@@ -786,7 +796,16 @@ const DishCard = React.memo(function DishCard({
   }, "\uD83D\uDCB5 Pre\xE7o sugerido:"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold text-green-500",
     title: "Pre\xE7o sugerido (informativo)"
-  }, "R$ ", dish.suggestedPrice.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+  }, "R$ ", dish.suggestedPrice.toFixed(2))), cmvInfo && cmvSt && /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-sm",
+    title: cmvTitulo
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "\uD83C\uDFAF CMV:"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold",
+    "data-cmv": cmvInfo.cmvPct.toFixed(1),
+    style: { color: cmvSt.cor, background: cmvSt.fundo, borderRadius: 999, padding: '0 8px' }
+  }, fmtPct(cmvInfo.cmvPct), cmvSt.nivel === 'ok' ? ' \u2713' : cmvSt.nivel === 'alto' ? ' \u26A0' : '')), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between text-sm"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-gray-600"

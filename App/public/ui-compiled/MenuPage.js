@@ -436,6 +436,16 @@ function MenuPage({
     return t || 'outros';
   };
   const brl = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // CMV (custo ÷ preço) com a cor da meta de Custos da empresa
+  const cmvTag = (pct, extra) => {
+    if (!(pct > 0)) return /*#__PURE__*/React.createElement("span", { className: "text-gray-400" }, "\u2014");
+    const st = window.PricingRules && window.PricingRules.cmvStatus ? window.PricingRules.cmvStatus(pct) : null;
+    return /*#__PURE__*/React.createElement("span", {
+      "data-cmv": pct.toFixed(1),
+      title: st ? `CMV = custo \xF7 pre\xE7o \xB7 meta ${st.meta}%: ${st.rotulo}` : 'CMV = custo \xF7 pre\xE7o',
+      style: Object.assign({ color: st ? st.cor : '#374151', background: st ? st.fundo : 'transparent', borderRadius: 999, padding: '1px 8px', fontWeight: 600, whiteSpace: 'nowrap' }, extra || {})
+    }, pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
+  };
   const calcItem = item => {
     const guests = state.guests || 0;
     const dishCost = item.dishCost || 0;
@@ -460,6 +470,7 @@ function MenuPage({
       : `${window.unitConversions?.formatWeight?.(numPortions * 100 * guests, 1) || (numPortions * 100 * guests).toFixed(0) + 'g'} total`;
     return {
       isPortionBased, costPerPerson, totalCost: costPerPerson * guests, margin, pricePerPerson, totalPrice: pricePerPerson * guests,
+      cmvPct: pricePerPerson > 0 ? costPerPerson / pricePerPerson * 100 : null,
       tamanho, qtd, porcaoLabel: item.useWeightCalculation ? 'Porções do prato por pessoa' : 'Porções por pessoa (1 = 100 g)'
     };
   };
@@ -510,7 +521,7 @@ function MenuPage({
         className: (big ? "text-xl" : "text-lg") + " font-bold text-white"
       }, titulo, " ", /*#__PURE__*/React.createElement("span", { className: "text-xs", style: { color: '#f5d0fe' } }, "(", itens.length, ")")), /*#__PURE__*/React.createElement("div", {
         className: "flex gap-4 text-right"
-      }, (big ? [['Custo/pessoa', brl(soma('costPerPerson'))], [`Custo ${guests} pessoas`, brl(soma('totalCost'))], ['Com markup', brl(soma('totalPrice'))]] : [['Custo', brl(soma('totalCost'))], ['Com markup', brl(soma('totalPrice'))]]).map(([l, v]) => /*#__PURE__*/React.createElement("div", { key: l }, /*#__PURE__*/React.createElement("div", { className: "text-xs", style: { color: '#f5d0fe' } }, l), /*#__PURE__*/React.createElement("div", { className: "text-sm font-bold text-white", style: { whiteSpace: 'nowrap' } }, v)))));
+      }, (big ? [['Custo/pessoa', brl(soma('costPerPerson'))], [`Custo ${guests} pessoas`, brl(soma('totalCost'))], ['Com markup', brl(soma('totalPrice'))], ['CMV', soma('totalPrice') > 0 ? (soma('totalCost') / soma('totalPrice') * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '\u2014']] : [['Custo', brl(soma('totalCost'))], ['Com markup', brl(soma('totalPrice'))], ['CMV', soma('totalPrice') > 0 ? (soma('totalCost') / soma('totalPrice') * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '\u2014']]).map(([l, v]) => /*#__PURE__*/React.createElement("div", { key: l }, /*#__PURE__*/React.createElement("div", { className: "text-xs", style: { color: '#f5d0fe' } }, l), /*#__PURE__*/React.createElement("div", { className: "text-sm font-bold text-white", style: { whiteSpace: 'nowrap' } }, v)))));
       return /*#__PURE__*/React.createElement("div", {
         key: key,
         className: "bg-white rounded-xl shadow-lg overflow-hidden",
@@ -528,18 +539,18 @@ function MenuPage({
         }, /*#__PURE__*/React.createElement("span", { className: "font-semibold text-gray-800 min-w-0", style: { overflowWrap: 'anywhere' } }, item.dishName), /*#__PURE__*/React.createElement("span", { className: "font-bold whitespace-nowrap", style: { color: '#9333ea' } }, brl(c.totalPrice))), /*#__PURE__*/React.createElement("div", {
           className: "grid gap-2 mt-2",
           style: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }
-        }, cell(c.isPortionBased ? 'Custo/pessoa' : 'Custo/pessoa', brl(c.costPerPerson)), cell(`Custo ${guests} pessoas`, brl(c.totalCost)), cell(`Valor/pessoa (markup ${c.margin}%)`, brl(c.pricePerPerson), c.margin > 0 ? '#16a34a' : null), cell(item.useWeightCalculation ? 'Serve' : 'Peso do prato', c.tamanho)), /*#__PURE__*/React.createElement("div", {
+        }, cell(c.isPortionBased ? 'Custo/pessoa' : 'Custo/pessoa', brl(c.costPerPerson)), cell(`Custo ${guests} pessoas`, brl(c.totalCost)), cell(`Valor/pessoa (markup ${c.margin}%)`, brl(c.pricePerPerson), c.margin > 0 ? '#16a34a' : null), cell(item.useWeightCalculation ? 'Serve' : 'Peso do prato', c.tamanho), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", { className: "text-xs text-gray-500" }, "CMV"), /*#__PURE__*/React.createElement("div", { className: "text-sm" }, cmvTag(c.cmvPct)))), /*#__PURE__*/React.createElement("div", {
           className: "flex flex-wrap items-center gap-2 mt-2"
         }, /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-600" }, item.useWeightCalculation ? 'Porções/pessoa:' : 'Porções/pessoa (100 g):'), portionsInput(item), /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-500", style: { whiteSpace: 'nowrap' } }, "= ", c.qtd), /*#__PURE__*/React.createElement("span", { style: { marginLeft: 'auto' } }, removeBtn(item))));
       })),
       // Computador: tabela
-      /*#__PURE__*/React.createElement("div", { className: "hidden lg:block overflow-x-auto" }, header(true), /*#__PURE__*/React.createElement("table", { className: "w-full", style: { tableLayout: 'fixed' } }, /*#__PURE__*/React.createElement("colgroup", null, ['22%', '10%', '23%', '10%', '11%', '10%', '10%', '4%'].map((w, i) => /*#__PURE__*/React.createElement("col", { key: i, style: { width: w } }))), /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+      /*#__PURE__*/React.createElement("div", { className: "hidden lg:block overflow-x-auto" }, header(true), /*#__PURE__*/React.createElement("table", { className: "w-full", style: { tableLayout: 'fixed' } }, /*#__PURE__*/React.createElement("colgroup", null, ['20%', '9%', '21%', '10%', '11%', '10%', '7%', '9%', '3%'].map((w, i) => /*#__PURE__*/React.createElement("col", { key: i, style: { width: w } }))), /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
         className: "bg-gray-50 border-b-2 border-gray-200"
-      }, th('Prato', null, 'left'), th('Tamanho', null, 'left'), th('Porções/pessoa', null, 'left'), th('Custo/pessoa'), th('Custo total', `${guests} pessoas`), th('Valor/pessoa', 'com markup'), th('Total c/ markup'), /*#__PURE__*/React.createElement("th", { className: "px-2 py-2" }))), /*#__PURE__*/React.createElement("tbody", null, linhas.map(({ item, c }, idx) => /*#__PURE__*/React.createElement("tr", {
+      }, th('Prato', null, 'left'), th('Tamanho', null, 'left'), th('Porções/pessoa', null, 'left'), th('Custo/pessoa'), th('Custo total', `${guests} pessoas`), th('Valor/pessoa', 'com markup'), th('CMV', 'custo \xF7 pre\xE7o', 'center'), th('Total c/ markup'), /*#__PURE__*/React.createElement("th", { className: "px-2 py-2" }))), /*#__PURE__*/React.createElement("tbody", null, linhas.map(({ item, c }, idx) => /*#__PURE__*/React.createElement("tr", {
         key: item.id,
         "data-menu-row": item.dishName,
         className: `border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
-      }, /*#__PURE__*/React.createElement("td", { className: "px-3 py-2" }, /*#__PURE__*/React.createElement("div", { className: "font-semibold text-gray-800" }, item.dishName)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-gray-600", style: { whiteSpace: 'nowrap' } }, c.tamanho), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2" }, /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2", title: c.porcaoLabel }, portionsInput(item), /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-500", style: { whiteSpace: 'nowrap' } }, "= ", c.qtd))), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right", style: { whiteSpace: 'nowrap' } }, brl(c.costPerPerson)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right font-semibold", style: { whiteSpace: 'nowrap', color: '#9333ea' } }, brl(c.totalCost)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right", style: { whiteSpace: 'nowrap', color: c.margin > 0 ? '#16a34a' : '#374151' } }, brl(c.pricePerPerson), /*#__PURE__*/React.createElement("div", { className: "text-xs text-gray-400" }, c.margin, "%")), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right font-bold", style: { whiteSpace: 'nowrap', color: c.margin > 0 ? '#16a34a' : '#374151' } }, brl(c.totalPrice)), /*#__PURE__*/React.createElement("td", { className: "px-2 py-2 text-right" }, removeBtn(item))))))));
+      }, /*#__PURE__*/React.createElement("td", { className: "px-3 py-2" }, /*#__PURE__*/React.createElement("div", { className: "font-semibold text-gray-800" }, item.dishName)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-gray-600", style: { whiteSpace: 'nowrap' } }, c.tamanho), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2" }, /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2", title: c.porcaoLabel }, portionsInput(item), /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-500", style: { whiteSpace: 'nowrap' } }, "= ", c.qtd))), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right", style: { whiteSpace: 'nowrap' } }, brl(c.costPerPerson)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right font-semibold", style: { whiteSpace: 'nowrap', color: '#9333ea' } }, brl(c.totalCost)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right", style: { whiteSpace: 'nowrap', color: c.margin > 0 ? '#16a34a' : '#374151' } }, brl(c.pricePerPerson), /*#__PURE__*/React.createElement("div", { className: "text-xs text-gray-400" }, c.margin, "%")), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-center" }, cmvTag(c.cmvPct)), /*#__PURE__*/React.createElement("td", { className: "px-3 py-2 text-sm text-right font-bold", style: { whiteSpace: 'nowrap', color: c.margin > 0 ? '#16a34a' : '#374151' } }, brl(c.totalPrice)), /*#__PURE__*/React.createElement("td", { className: "px-2 py-2 text-right" }, removeBtn(item))))))));
     }));
   };
 
@@ -582,6 +593,14 @@ function MenuPage({
   }, "Valor/Pessoa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xl font-bold text-center"
   }, "R$ ", stats.totalPrice ? stats.totalPrice.toFixed(2) : stats.totalCost.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2",
+    "data-menu-cmv": true
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-purple-100 text-xs text-center"
+  }, "CMV"), /*#__PURE__*/React.createElement("p", {
+    className: "text-xl font-bold text-center",
+    title: "Custo \xF7 valor do card\xE1pio (meta em Custos da empresa)"
+  }, stats.totalPrice > 0 ? (stats.totalCost / stats.totalPrice * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '\u2014')), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100 text-xs text-center"

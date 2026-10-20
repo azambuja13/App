@@ -355,6 +355,25 @@ const DishForm = React.memo(function DishForm({
   // Markup máximo: a coluna do banco é DECIMAL(5,2) → até 999,99%
   const MAX_MARKUP = 999.99;
 
+  // CMV desejado (custo ÷ preço). Não é salvo: vira markup/preço (CMV 30% = markup 233,33%).
+  // Aplica ao sair do campo (ao digitar "30", o "3" intermediário daria markup absurdo).
+  const [cmvEdit, setCmvEdit] = React.useState(null);
+  const cmvAtual = (() => {
+    const m = parseFloat(formData.profitMargin);
+    return m > 0 && window.PricingRules ? Math.round(window.PricingRules.cmvFromMarkup(m) * 10) / 10 : '';
+  })();
+  const cmvMeta = window.PricingRules ? window.PricingRules.get().cmvTargetPct : 30;
+  const aplicarCmv = (valor) => {
+    const c = parseFloat(String(valor).replace(',', '.'));
+    setCmvEdit(null);
+    if (!(c > 0) || c >= 100 || !window.PricingRules) return;
+    if (c < 9.1) {
+      alert('Com CMV abaixo de 9,1% o markup passaria de 999,99% (limite). Informe o preço sugerido diretamente.');
+      return;
+    }
+    handleMarginChange(String(Math.round(window.PricingRules.markupFromCmv(c) * 100) / 100));
+  };
+
   // Handler bidirecional: quando margem muda → calcular preço
   const handleMarginChange = (value) => {
     if ((parseFloat(value) || 0) > MAX_MARKUP) {
@@ -1010,11 +1029,39 @@ const DishForm = React.memo(function DishForm({
     const ind = window.PricingRules && window.PricingRules.indicators(getBaseCost(), parseFloat(formData.suggestedPrice) || 0);
     if (!ind) return null;
     const f = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
-    const cor = ind.cmvPct > 40 ? 'text-red-600' : ind.cmvPct > 35 ? 'text-yellow-700' : 'text-green-700';
+    const st = window.PricingRules.cmvStatus(ind.cmvPct);
     return /*#__PURE__*/React.createElement("p", {
-      className: "text-xs mt-1 " + cor
-    }, "Margem real ", f(ind.marginPct), " \xB7 CMV ", f(ind.cmvPct), ind.cmvPct > 40 ? " (alto: comida acima de 40% do pre\xE7o)" : "");
+      className: "text-xs mt-1",
+      style: { color: st ? st.cor : '#15803d' }
+    }, "Margem real ", f(ind.marginPct), " \xB7 CMV ", f(ind.cmvPct), st ? ` (${st.rotulo}: ${f(st.meta)})` : "");
   })())), /*#__PURE__*/React.createElement("div", {
+    className: "mt-3 flex flex-wrap items-end gap-3",
+    "data-cmv-row": true
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { flex: '1 1 160px' }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-medium text-gray-700 mb-2"
+  }, "CMV desejado (%) \u2014 custo \xF7 pre\xE7o"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    inputMode: "decimal",
+    "aria-label": "CMV desejado",
+    value: cmvEdit !== null ? cmvEdit : String(cmvAtual).replace('.', ','),
+    onChange: e => setCmvEdit(e.target.value.replace(/[^0-9.,]/g, '')),
+    onBlur: e => aplicarCmv(e.target.value),
+    onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } },
+    placeholder: `Ex: ${String(cmvMeta).replace('.', ',')}`,
+    className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+  })), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => aplicarCmv(cmvMeta),
+    disabled: !(getBaseCost() > 0),
+    className: "px-4 py-2 rounded-lg text-sm font-medium",
+    style: { background: getBaseCost() > 0 ? '#15803d' : '#9ca3af', color: '#fff', height: '42px', alignSelf: 'flex-end' },
+    title: "Calcula o pre\xE7o para o CMV da meta (Custos da empresa)"
+  }, "Usar meta (", String(cmvMeta).replace('.', ','), "%)"), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-gray-500 w-full",
+    style: { marginTop: '-4px' }
+  }, "\uD83D\uDCA1 CMV 30% = a comida \xE9 30% do pre\xE7o (markup 233%). A meta fica em Custos da empresa.")), /*#__PURE__*/React.createElement("div", {
     className: "mt-4 p-3 bg-white rounded-lg border border-green-200"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-4 text-sm"
