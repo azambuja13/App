@@ -523,6 +523,7 @@ O resumo mostra o custo total e o peso final depois da perda dos ingredientes. A
 - **Adicionar ao Cardápio:** coloca o prato no cardápio do evento atual.
 - **Atualizar Ingredientes:** atualiza os preços de todos os pratos e cardápios salvos com os valores atuais da aba Ingredientes. Use depois de mudar preços.
 - **Importar Receita com IA (Premium):** cole uma receita de qualquer fonte. A IA identifica os ingredientes e as quantidades e mostra quais já estão cadastrados. Ela também estima os preços que faltam, para você revisar, e cria o prato.
+  - **Pedir à IA:** na mesma janela, abra a aba **🔎 Pedir à IA**, diga o prato (ex.: "Costela no bafo"), quantas porções deve render e, se quiser, observações (sem lactose, custo baixo…). Com **Buscar receitas na internet** marcado, a IA pesquisa em sites de culinária e mostra as fontes. Confira a sugestão e toque em **Usar esta receita**: os ingredientes são ligados à sua base como na receita colada, e o prato é criado já com o rendimento e o modo de preparo na ficha técnica. Se não gostar, peça **Outra sugestão**.
 
 ---
 

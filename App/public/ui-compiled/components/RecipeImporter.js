@@ -13,11 +13,20 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
 
   const [step, setStep] = useState(1); // 1: Input, 2: Review, 3: Success
   const [recipeText, setRecipeText] = useState('');
+  const recipeTextState = recipeText;
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [editedIngredients, setEditedIngredients] = useState([]);
   const [editedDishName, setEditedDishName] = useState('');
   const [error, setError] = useState(null);
+  // Pedir à IA (out/2026): a IA pesquisa e sugere a receita; depois segue o mesmo fluxo de revisão
+  const [mode, setMode] = useState('colar'); // 'colar' | 'ia'
+  const [aiDish, setAiDish] = useState('');
+  const [aiServings, setAiServings] = useState('10');
+  const [aiNotes, setAiNotes] = useState('');
+  const [aiWeb, setAiWeb] = useState(true);
+  const [suggestion, setSuggestion] = useState(null);
+  const [aiExtra, setAiExtra] = useState(null); // { technicalSheet, servings, description } para o prato criado
 
   if (!isOpen) return null;
 
@@ -29,11 +38,19 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
     setEditedIngredients([]);
     setEditedDishName('');
     setError(null);
+    setMode('colar');
+    setAiDish('');
+    setAiServings('10');
+    setAiNotes('');
+    setAiWeb(true);
+    setSuggestion(null);
+    setAiExtra(null);
     onClose();
   };
 
   // Step 1: Processar receita com IA
-  const handleProcessRecipe = async () => {
+  const handleProcessRecipe = async (textoOpcional) => {
+    const recipeText = typeof textoOpcional === 'string' ? textoOpcional : recipeTextState;
     if (!recipeText.trim() || recipeText.trim().length < 10) {
       setError('Por favor, cole uma receita válida (mínimo 10 caracteres)');
       return;
@@ -101,7 +118,8 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
         body: JSON.stringify({
           dishName: editedDishName,
           ingredients: editedIngredients,
-          recipeText: recipeText
+          recipeText: recipeText,
+          ...(aiExtra || {})
         })
       });
 
@@ -133,6 +151,127 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
     }
   };
 
+  // ===== Pedir à IA =====
+  const fmtQtd = (q, u) => {
+    const n = Number(q) || 0;
+    if (u === 'g' && n >= 1000) return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg`;
+    if (u === 'ml' && n >= 1000) return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} L`;
+    return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${u}`;
+  };
+  const textoDaSugestao = (sg) => {
+    const r = sg.recipe;
+    return [
+      `${r.title} (rende ${r.servings} porções${r.portion ? ' de ' + r.portion : ''})`,
+      '',
+      'Ingredientes:',
+      ...r.ingredients.map(i => `- ${fmtQtd(i.quantity, i.unit)} de ${i.name}${i.note ? ' (' + i.note + ')' : ''}`),
+      '',
+      'Modo de preparo:',
+      ...r.steps.map((p, k) => `${k + 1}. ${p}`)
+    ].join('\n');
+  };
+  const fichaDaSugestao = (sg) => {
+    const r = sg.recipe;
+    const partes = [r.steps.map((p, k) => `${k + 1}. ${p}`).join('\n')];
+    if (r.timeMinutes) partes.push(`Tempo aproximado: ${r.timeMinutes >= 60 ? Math.floor(r.timeMinutes / 60) + ' h ' + (r.timeMinutes % 60 ? (r.timeMinutes % 60) + ' min' : '') : r.timeMinutes + ' min'}`.trim());
+    if (r.tips) partes.push(`Dicas: ${r.tips}`);
+    if (sg.sources && sg.sources.length) partes.push('Fontes: ' + sg.sources.map(f => f.url).join(' · '));
+    return partes.join('\n\n');
+  };
+  const handleSuggest = async () => {
+    if (aiDish.trim().length < 3) { setError('Diga qual prato você quer (ex.: "Costela no bafo")'); return; }
+    setLoading(true); setError(null); setSuggestion(null);
+    try {
+      const api = window.PrecificacaoAPI?.api;
+      if (!api) throw new Error('API não inicializada');
+      const result = await api.request('/api/recipes/suggest', {
+        method: 'POST',
+        timeoutMs: 150000,
+        body: JSON.stringify({ dish: aiDish.trim(), servings: parseInt(aiServings, 10) || 10, notes: aiNotes.trim(), webSearch: aiWeb })
+      });
+      if (!result.success) throw new Error(result.error || 'Erro ao sugerir receita');
+      setSuggestion(result.data);
+    } catch (err) {
+      const premium = err && (err.code === 'PREMIUM_REQUIRED' || /PREMIUM/i.test(err.message || ''));
+      setError(premium ? 'Recurso disponível apenas no plano PREMIUM.' : (err.message || 'Erro ao sugerir receita. Tente novamente.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleUseSuggestion = () => {
+    if (!suggestion) return;
+    const texto = textoDaSugestao(suggestion);
+    setRecipeText(texto);
+    setAiExtra({
+      technicalSheet: fichaDaSugestao(suggestion),
+      servings: suggestion.recipe.servings,
+      description: suggestion.recipe.portion ? `Porção: ${suggestion.recipe.portion}` : ''
+    });
+    handleProcessRecipe(texto);
+  };
+  const aba = (id, rotulo) => React.createElement('button', {
+    type: 'button',
+    onClick: () => { setMode(id); setError(null); },
+    'data-recipe-tab': id,
+    className: 'flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition',
+    style: mode === id ? { background: '#4f46e5', color: '#fff' } : { background: '#eef2ff', color: '#3730a3' }
+  }, rotulo);
+  const painelIA = () => React.createElement('div', { className: 'space-y-4', 'data-recipe-ai': true },
+    React.createElement('div', {},
+      React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-2' }, '🍽️ Qual prato você quer?'),
+      React.createElement('input', {
+        type: 'text', value: aiDish, maxLength: 300,
+        onChange: e => setAiDish(e.target.value),
+        onKeyDown: e => { if (e.key === 'Enter' && !loading) handleSuggest(); },
+        placeholder: 'Ex.: Costela no bafo, Risoto de cogumelos, Pudim de leite',
+        'aria-label': 'Prato desejado',
+        className: 'w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500'
+      })
+    ),
+    React.createElement('div', { className: 'flex flex-wrap gap-4 items-end' },
+      React.createElement('div', { style: { flex: '0 0 160px' } },
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-2' }, '👥 Rende (porções)'),
+        React.createElement('input', {
+          type: 'text', inputMode: 'numeric', value: aiServings, 'aria-label': 'Porções',
+          onChange: e => setAiServings(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)),
+          className: 'w-full px-4 py-2 border-2 border-gray-300 rounded-lg'
+        })
+      ),
+      React.createElement('label', { className: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer', style: { flex: '1 1 220px', paddingBottom: 10 } },
+        React.createElement('input', { type: 'checkbox', checked: aiWeb, onChange: e => setAiWeb(e.target.checked), 'aria-label': 'Buscar na internet' }),
+        '🌐 Buscar receitas na internet (mais confiável; um pouco mais lento)')
+    ),
+    React.createElement('div', {},
+      React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-2' }, '📝 Observações (opcional)'),
+      React.createElement('textarea', {
+        value: aiNotes, maxLength: 1000, rows: 2, 'aria-label': 'Observações',
+        onChange: e => setAiNotes(e.target.value),
+        placeholder: 'Ex.: sem lactose, estilo churrasco gaúcho, custo baixo, servir em buffet',
+        className: 'w-full px-4 py-2 border-2 border-gray-300 rounded-lg'
+      })
+    ),
+    error && React.createElement('div', { className: 'bg-red-50 border-l-4 border-red-500 p-4 rounded' },
+      React.createElement('p', { className: 'text-red-700 font-semibold' }, '❌ ', error)),
+    loading && !suggestion && React.createElement('p', { className: 'text-sm text-indigo-700' }, aiWeb ? '🔎 Pesquisando e montando a receita… (até 1 minuto)' : '🤖 Montando a receita…'),
+    suggestion && React.createElement('div', { className: 'border-2 rounded-lg p-4', style: { borderColor: '#c7d2fe', background: '#f8faff' }, 'data-recipe-suggestion': true },
+      React.createElement('div', { className: 'flex flex-wrap justify-between gap-2 mb-2' },
+        React.createElement('h3', { className: 'text-lg font-bold text-gray-800' }, suggestion.recipe.title),
+        React.createElement('span', { className: 'text-sm text-gray-600' },
+          `Rende ${suggestion.recipe.servings} porções${suggestion.recipe.portion ? ' · ' + suggestion.recipe.portion : ''}${suggestion.recipe.timeMinutes ? ' · ~' + suggestion.recipe.timeMinutes + ' min' : ''}`)),
+      React.createElement('p', { className: 'text-sm font-semibold text-gray-700 mt-2' }, 'Ingredientes'),
+      React.createElement('ul', { className: 'text-sm text-gray-700 list-disc list-inside' },
+        suggestion.recipe.ingredients.map((i, k) => React.createElement('li', { key: k }, `${fmtQtd(i.quantity, i.unit)} de ${i.name}${i.note ? ' (' + i.note + ')' : ''}`))),
+      React.createElement('p', { className: 'text-sm font-semibold text-gray-700 mt-3' }, 'Modo de preparo'),
+      React.createElement('ol', { className: 'text-sm text-gray-700 list-decimal list-inside space-y-1' },
+        suggestion.recipe.steps.map((p, k) => React.createElement('li', { key: k }, p))),
+      suggestion.recipe.tips && React.createElement('p', { className: 'text-sm text-gray-600 mt-3' }, '💡 ', suggestion.recipe.tips),
+      React.createElement('p', { className: 'text-xs text-gray-500 mt-3' },
+        suggestion.usedWebSearch ? '🌐 Pesquisado na internet. ' : '🤖 Sugerido pela IA (sem busca na internet). ',
+        suggestion.sources && suggestion.sources.length ? 'Fontes: ' : '',
+        (suggestion.sources || []).map((f, k) => React.createElement('a', { key: k, href: f.url, target: '_blank', rel: 'noopener noreferrer', style: { color: '#4338ca', textDecoration: 'underline', marginRight: 8 } }, f.title))),
+      React.createElement('p', { className: 'text-xs text-gray-500 mt-2' }, 'Confira quantidades e preços antes de usar. No próximo passo os ingredientes são ligados à sua base e você pode editar tudo.'))
+  );
+
   // Atualizar ingrediente específico
   const updateIngredient = (index, field, value) => {
     const updated = [...editedIngredients];
@@ -156,7 +295,7 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
             '🤖 Importação Inteligente de Receitas'
           ),
           React.createElement('p', { className: 'text-indigo-100 text-sm mt-1' },
-            step === 1 ? 'Cole o texto da sua receita' :
+            step === 1 ? (mode === 'ia' ? 'Diga o prato e a IA pesquisa e sugere a receita' : 'Cole o texto da sua receita') :
             step === 2 ? 'Revise os ingredientes detectados' :
             'Prato criado com sucesso!'
           )
@@ -169,8 +308,13 @@ function RecipeImporter({ isOpen, onClose, onSuccess }) {
 
       // Content
       React.createElement('div', { className: 'flex-1 overflow-y-auto p-6' },
+        // Step 1: escolher entre colar a receita ou pedir à IA
+        step === 1 && React.createElement('div', { className: 'flex gap-2 mb-4' },
+          aba('colar', '📝 Colar receita'),
+          aba('ia', '🔎 Pedir à IA')),
+        step === 1 && mode === 'ia' && painelIA(),
         // Step 1: Input de receita
-        step === 1 && React.createElement('div', { className: 'space-y-4' },
+        step === 1 && mode === 'colar' && React.createElement('div', { className: 'space-y-4' },
           React.createElement('div', {},
             React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-2' },
               '📝 Cole sua receita aqui:'
@@ -420,8 +564,23 @@ etc.`,
           disabled: loading
         }, step === 3 ? 'Fechar' : 'Cancelar'),
 
-        step === 1 && React.createElement('button', {
-          onClick: handleProcessRecipe,
+        step === 1 && mode === 'ia' && React.createElement('div', { className: 'flex gap-2' },
+          suggestion && React.createElement('button', {
+            onClick: handleSuggest,
+            disabled: loading,
+            className: 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold disabled:opacity-50'
+          }, '🔄 Outra sugestão'),
+          React.createElement('button', {
+            onClick: suggestion ? handleUseSuggestion : handleSuggest,
+            disabled: loading || aiDish.trim().length < 3,
+            'data-recipe-ai-go': true,
+            className: 'px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
+          },
+            loading && React.createElement('span', { className: 'animate-spin' }, '⏳'),
+            loading ? (suggestion ? 'Processando com IA...' : 'Buscando receita...') : (suggestion ? '✅ Usar esta receita' : '🔎 Sugerir receita'))),
+
+        step === 1 && mode === 'colar' && React.createElement('button', {
+          onClick: () => handleProcessRecipe(),
           disabled: loading || !recipeText.trim(),
           className: 'px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
         },
