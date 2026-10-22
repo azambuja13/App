@@ -1286,6 +1286,21 @@ window.AppFull = function AppFull() {
   // ====================================
   // Handlers - Eventos Salvos
   // ====================================
+  const restaurarCardapioDoEvento = async dishes => {
+    const menuManager = window.menuManager;
+    if (!menuManager) return;
+    try {
+      if (menuManager.restoreMenu) {
+        await menuManager.restoreMenu(dishes);
+      } else if (menuManager.clearMenu && dishes.length === 0) {
+        await menuManager.clearMenu();
+        window.dispatchEvent(new Event('menu-updated'));
+      }
+      console.log(`✅ Cardápio do evento restaurado (${dishes.length} pratos)`);
+    } catch (e) {
+      console.warn('⚠️ Erro ao restaurar cardápio no MenuManager:', e);
+    }
+  };
   const handleLoadEvent = async eventId => {
     console.log('🔄 [handleLoadEvent] Carregando evento:', eventId);
 
@@ -1362,36 +1377,25 @@ window.AppFull = function AppFull() {
         if (eventData.proposalData) state.setProposalData(eventData.proposalData);
 
         // Restaurar cardápio vinculado
-        if (eventData.linkedMenuId) {
-          console.log('  - linkedMenuId:', eventData.linkedMenuId);
-          state.setLinkedMenuId(eventData.linkedMenuId);
-        }
-        if (eventData.linkedMenuName) {
-          console.log('  - linkedMenuName:', eventData.linkedMenuName);
-          state.setLinkedMenuName(eventData.linkedMenuName);
-        }
+        // ✅ FIX: sempre sobrescrever (evento sem vínculo não herda o do evento anterior)
+        state.setLinkedMenuId(eventData.linkedMenuId || null);
+        state.setLinkedMenuName(eventData.linkedMenuName || '');
 
         // Restaurar cardápio no MenuManager
-        // ✅ FIX: restaurar também quando o evento foi salvo SEM pratos (array vazio).
-        // Antes, um evento sem pratos não mexia no cardápio, e o aparelho continuava
-        // mostrando o cardápio que já estava carregado localmente (ex: de outro evento).
-        // Eventos antigos sem o campo menuDishes (undefined) mantêm o comportamento anterior.
-        if (Array.isArray(eventData.menuDishes)) {
-          console.log('  - menuDishes:', eventData.menuDishes.length);
-          const menuManager = window.menuManager;
-          if (menuManager && menuManager.restoreMenu) {
-            try {
-              await menuManager.restoreMenu(eventData.menuDishes);
-              console.log('✅ Cardápio restaurado no MenuManager');
-            } catch (e) {
-              console.warn('⚠️ Erro ao restaurar cardápio no MenuManager:', e);
-            }
-          }
+        // ✅ FIX: o cardápio pertence ao evento. Evento salvo sem o campo menuDishes
+        // (ou sem pratos) começa com cardápio VAZIO — antes ele herdava o cardápio
+        // que estava carregado no aparelho (ex: o do evento anterior).
+        await restaurarCardapioDoEvento(Array.isArray(eventData.menuDishes) ? eventData.menuDishes : []);
+      } else {
+        // Evento sem dados de estado: não manter o cardápio/vínculo do evento anterior
+        state.setLinkedMenuId(null);
+        state.setLinkedMenuName('');
+        await restaurarCardapioDoEvento([]);
+        if (event.guests !== undefined) {
+          // Backend pode ter guests na raiz sem stateData
+          console.log('📋 Restaurando guests da raiz:', event.guests);
+          state.setGuests(event.guests);
         }
-      } else if (event.guests !== undefined) {
-        // Backend pode ter guests na raiz sem stateData
-        console.log('📋 Restaurando guests da raiz:', event.guests);
-        state.setGuests(event.guests);
       }
 
       // Restaurar metadados do evento

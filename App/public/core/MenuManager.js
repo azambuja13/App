@@ -355,6 +355,10 @@ export class MenuManager {
     async clearMenu() {
         try {
             await this.storage.set(this.storageKey, []);
+            // ✅ FIX: avisar a UI (resumo de custos escuta 'menu-updated') para zerar os valores do cardápio
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('menu-updated'));
+            }
             return {
                 success: true,
                 message: 'Cardápio limpo'

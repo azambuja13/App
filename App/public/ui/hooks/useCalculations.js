@@ -261,7 +261,12 @@ function useCalculations(eventData, ingredients = []) {
         hasActiveMenu: false
     });
 
+    // ✅ FIX: descartar resultados antigos quando um recálculo mais novo começou
+    // (ex: limpar o cardápio logo após carregar um evento)
+    const calcSeqRef = React.useRef(0);
+
     useEffect(() => {
+        const seq = ++calcSeqRef.current;
         async function calculate() {
             try {
                 // Aguardar managers carregarem
@@ -272,6 +277,7 @@ function useCalculations(eventData, ingredients = []) {
 
                 // Sempre calcular, mesmo sem itens (para labor e transport)
                 const calculated = await calculateEventCosts(eventData, ingredients);
+                if (seq !== calcSeqRef.current) return;
                 setCosts(calculated);
             } catch (error) {
                 console.error('❌ [useCalculations] Erro ao calcular custos:', error);

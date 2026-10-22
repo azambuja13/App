@@ -135,6 +135,7 @@
         clearMenu() {
             try {
                 localStorage.setItem(this.storageKey, JSON.stringify([]));
+                window.dispatchEvent(new Event('menu-updated'));
                 return {
                     success: true,
                     message: 'Cardápio limpo'
