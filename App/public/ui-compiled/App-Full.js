@@ -2338,6 +2338,10 @@ window.AppFull = function AppFull() {
     className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
   }, "\uD83D\uDCCA Custos da empresa (impostos, taxas, lucro)"), /*#__PURE__*/React.createElement("div", {
     role: "button",
+    onClick: () => window.openChangePassword && window.openChangePassword(),
+    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+  }, "\uD83D\uDD11 Alterar senha"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
     onClick: () => {
       if (window.ConfigHelper) { window.ConfigHelper._cachedPlan = null; window.ConfigHelper._cacheTime = null; }
       if (window.ConfigHelper && !window.ConfigHelper.hasFeatureAccess('whatsapp')) { alert('📱 O envio de propostas pelo WhatsApp é do plano PREMIUM.'); return; }

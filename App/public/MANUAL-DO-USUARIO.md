@@ -48,7 +48,7 @@ A Calculadora de Precificação organiza todo o trabalho de quem vende eventos, 
 ### 2.1 Primeiro acesso
 
 1. Digite o **e-mail** da sua conta.
-2. Crie uma **senha** com no mínimo 4 caracteres e repita no campo "Confirmar Senha".
+2. Crie uma **senha** com no mínimo 8 caracteres, uma letra maiúscula e um número, e repita no campo "Confirmar Senha".
 3. Toque em **"Criar Senha e Entrar"**.
 
 ### 2.2 Próximos acessos
@@ -61,7 +61,17 @@ A Calculadora de Precificação organiza todo o trabalho de quem vende eventos, 
 1. Na tela de acesso, toque em **"Esqueci minha senha"**.
 2. Confirme. Em seguida, você cria uma senha nova.
 
-### 2.4 Não encontra sua conta?
+### 2.4 Alterar a senha
+
+Já dentro do sistema, toque em **"🔑 Alterar senha"** no painel lateral (abaixo de "Custos da empresa").
+
+1. Digite a **senha atual**.
+2. Digite a **nova senha** (mínimo 8 caracteres, uma letra maiúscula e um número) e confirme.
+3. Toque em **"Alterar senha"**.
+
+Não lembra a senha atual? Toque em **"Esqueci a senha atual"**: enviamos um código de 6 dígitos para o e-mail da conta. Digite o código no lugar da senha atual. A senha nova vale para todos os aparelhos (é preciso estar com internet).
+
+### 2.5 Não encontra sua conta?
 
 Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 
