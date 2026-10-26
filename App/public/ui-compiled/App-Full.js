@@ -843,7 +843,8 @@ window.AppFull = function AppFull() {
     support: state.support,
     labor: state.labor,
     transport: state.transport,
-    monthsUntilEvent: state.monthsUntilEvent
+    monthsUntilEvent: state.monthsUntilEvent,
+    proteinSafetyPct: state.proteinSafetyPct
   }, state.ingredientsDatabase);
 
   // DEBUG: Verificar resultado dos cálculos
@@ -1345,6 +1346,8 @@ window.AppFull = function AppFull() {
 
         // Meses até o evento: recalculados pela data logo abaixo (o valor salvo fica velho com o tempo)
         if (eventData.monthsUntilEvent !== undefined) state.setMonthsUntilEvent(eventData.monthsUntilEvent);
+        // Margem de segurança das proteínas do evento (evento sem o campo = padrão de Custos da empresa)
+        if (state.setProteinSafetyPct) state.setProteinSafetyPct(eventData.proteinSafetyPct != null && eventData.proteinSafetyPct !== '' ? Number(eventData.proteinSafetyPct) : null);
         // ✅ FIX: NÃO trocar a base de ingredientes pela cópia salva no evento (os preços antigos
         // substituíam os atuais e o auto-save gravava isso na conta). A base atual continua valendo;
         // só entram ingredientes que os itens do evento usam e que não existem mais na base.
@@ -1518,6 +1521,7 @@ window.AppFull = function AppFull() {
       state.setCurrentEventId(null);
       state.setGuests(100);
       state.setMonthsUntilEvent(0);
+      if (state.setProteinSafetyPct) state.setProteinSafetyPct(null);
     }
   };
   const handleExportEvents = () => {
@@ -1659,6 +1663,7 @@ window.AppFull = function AppFull() {
         data: {
           guests: state.guests,
           monthsUntilEvent: state.monthsUntilEvent,
+          proteinSafetyPct: state.proteinSafetyPct,
           ingredientsDatabase: state.ingredientsDatabase,
           items: state.items,
           support: state.support,
@@ -1690,6 +1695,8 @@ window.AppFull = function AppFull() {
     monthsUntilEvent: costs?.monthsUntilEvent || 0,
     inflationMultiplier: costs?.inflationMultiplier || 1,
     inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
+          proteinSafetyPct: costs?.proteinSafetyPct || 0,
+          proteinSafetyCost: costs?.proteinSafetyCost || 0,
           supportCost: costs?.supportCost || 0,
           laborCost: costs?.laborCost || 0,
           transportCost: costs?.transportCost || 0
@@ -2815,6 +2822,8 @@ window.AppFull = function AppFull() {
     monthsUntilEvent: costs?.monthsUntilEvent || 0,
     inflationMultiplier: costs?.inflationMultiplier || 1,
     inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
+    proteinSafetyPct: costs?.proteinSafetyPct || 0,
+    proteinSafetyCost: costs?.proteinSafetyCost || 0,
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
@@ -2892,6 +2901,8 @@ window.AppFull = function AppFull() {
     monthsUntilEvent: costs?.monthsUntilEvent || 0,
     inflationMultiplier: costs?.inflationMultiplier || 1,
     inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
+    proteinSafetyPct: costs?.proteinSafetyPct || 0,
+    proteinSafetyCost: costs?.proteinSafetyCost || 0,
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
@@ -3053,6 +3064,7 @@ window.AppFull = function AppFull() {
       eventLocation: state.eventLocation,
       clientData: state.clientData,
       monthsUntilEvent: state.monthsUntilEvent,
+      proteinSafetyPct: state.proteinSafetyPct,
       eventName: state.eventName
     },
     isSavingEvent: isSavingEvent,
@@ -3083,6 +3095,9 @@ window.AppFull = function AppFull() {
       }
       if (updates.monthsUntilEvent !== undefined) {
         state.setMonthsUntilEvent(updates.monthsUntilEvent);
+      }
+      if (updates.proteinSafetyPct !== undefined && state.setProteinSafetyPct) {
+        state.setProteinSafetyPct(updates.proteinSafetyPct);
       }
       if (updates.eventName !== undefined) {
         state.setEventName(updates.eventName);
@@ -3175,6 +3190,7 @@ window.AppFull = function AppFull() {
       eventDate: state.eventDate,
       eventLocation: state.eventLocation,
       monthsUntilEvent: state.monthsUntilEvent,
+      proteinSafetyPct: state.proteinSafetyPct,
       clientData: state.clientData,
       proposalData: state.proposalData,
       eventName: state.eventName,

@@ -509,10 +509,21 @@ export class MenuManager {
 
         console.log(`📊 TOTAL: totalCost=${totalCost.toFixed(2)}, totalPrice=${totalPrice.toFixed(2)}`);
 
+        // Parte de proteína do custo/preço por pessoa (sem a margem de segurança).
+        // Quem usa as estatísticas soma: proteinCost × margem% (ver PricingRules.menuProteinBase).
+        let protein = { cost: 0, price: 0 };
+        try {
+            if (window.PricingRules && window.PricingRules.menuProteinBase) {
+                protein = window.PricingRules.menuProteinBase(menu, (window.eventState && window.eventState.ingredientsDatabase) || []);
+            }
+        } catch (e) { console.warn('⚠️ [MenuManager] Erro ao calcular a parte de proteína:', e); }
+
         const stats = {
             totalDishes: menu.length,
             totalCost: totalCost,
             totalPrice: totalPrice, // ✅ Preço com margem
+            proteinCost: protein.cost,   // custo de proteína por pessoa (base da margem de segurança)
+            proteinPrice: protein.price, // preço de proteína por pessoa (base da margem de segurança)
             byCategory: this.groupByCategory(menu)
         };
 

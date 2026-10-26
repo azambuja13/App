@@ -38,7 +38,8 @@ const FIELDS = [
   ['targetProfitPct', 'Lucro desejado (% do preço)', 'Quanto do preço deve sobrar limpo no modo "Custos da empresa". Ex.: 20% = em uma proposta de R$ 10.000, sobram R$ 2.000.'],
   ['serviceMarkupPct', 'Markup sobre serviços (%)', 'Só no modo "Markup": quanto somar sobre apoio, mão de obra e transporte. Ex.: 10% → R$ 1.000 de serviços entram como R$ 1.100. Use 0 para repassar pelo custo.'],
   ['inflationMonthlyPct', 'Correção mensal dos insumos até o evento (%)', 'Para eventos daqui a alguns meses: corrige comida e apoio por mês até a data do evento. Ex.: 1% ao mês, evento em 6 meses ≈ +6,2%.'],
-  ['cmvTargetPct', 'CMV desejado dos pratos (%)', 'Quanto do preço de cada prato pode ser custo de ingredientes (CMV = custo ÷ preço). Em buffet/eventos costuma ficar entre 25% e 35%. Os pratos mostram verde até a meta, amarelo até 5 pontos acima e vermelho acima disso; no cadastro, o botão "Usar meta" calcula o preço por ela.']
+  ['cmvTargetPct', 'CMV desejado dos pratos (%)', 'Quanto do preço de cada prato pode ser custo de ingredientes (CMV = custo ÷ preço). Em buffet/eventos costuma ficar entre 25% e 35%. Os pratos mostram verde até a meta, amarelo até 5 pontos acima e vermelho acima disso; no cadastro, o botão "Usar meta" calcula o preço por ela.'],
+  ['proteinSafetyPct', 'Margem de segurança das proteínas (%)', 'Carne a mais para não faltar: os ingredientes da categoria Proteínas saem esse % a mais na lista de compras e no custo (depois da perda). Ex.: 15% → 48 kg viram 55,2 kg. Cada evento pode usar outro valor em Dados do Evento. Use 0 para desligar.']
 ];
 
 function PricingSettings({ onClose }) {

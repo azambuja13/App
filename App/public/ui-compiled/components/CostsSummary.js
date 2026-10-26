@@ -51,7 +51,9 @@ const CostsSummary = React.memo(function CostsSummary({
   additionalMarkupAmount = 0,
   monthsUntilEvent = 0,  // meses até o evento (correção de comida e apoio)
   inflationMultiplier = 1,
-  inflationMonthlyPct = 1
+  inflationMonthlyPct = 1,
+  proteinSafetyPct = 0,   // margem de segurança das proteínas (%)
+  proteinSafetyCost = 0   // quanto ela somou na comida (já incluído nos totais)
 }) {
   // ✅ Verificar se tem margem do cardápio
   const hasMargin = menuMarginAmount > 0;
@@ -134,7 +136,14 @@ const CostsSummary = React.memo(function CostsSummary({
     className: "text-gray-600"
   }, "\uD83D\uDE97 Transporte"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold text-gray-800"
-  }, formatCurrency(transportCost))), mult > 1 && /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(transportCost))), proteinSafetyCost > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center text-sm",
+    title: "Prote\xEDnas compradas a mais para n\xE3o faltar carne. J\xE1 est\xE1 inclu\xEDdo no custo da comida e nos totais."
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "\uD83E\uDD69 Margem de seguran\xE7a das prote\xEDnas (+", String(Math.round(proteinSafetyPct * 100) / 100).replace('.', ','), "%, j\xE1 inclu\xEDda)"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-gray-800"
+  }, formatCurrency(proteinSafetyCost))), mult > 1 && /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-center text-sm",
     title: "Comida e apoio corrigidos até a data do evento (mesma regra da proposta)"
   }, /*#__PURE__*/React.createElement("span", {

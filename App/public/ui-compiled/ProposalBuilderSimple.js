@@ -37,6 +37,7 @@ function ProposalBuilderSimple({
     transportCost: 0,
     itemsCostPerPerson: 0,
     inflationMonths: null, // null = automático pela data do evento
+    proteinSafetyPct: null, // margem de segurança das proteínas (%); null = a das regras (Custos da empresa)
     clientName: '',
     clientPhone: '',
     clientEmail: '',
@@ -94,7 +95,8 @@ function ProposalBuilderSimple({
   const legacySigRef = useRef(null);
   const pricingSig = fd => JSON.stringify([parseInt(fd.guests) || 0, fd.selectedMenuId || null, fd.totalType || '', fd.pricingMode || 'markup',
     Number(fd.supportCost) || 0, Number(fd.laborCost) || 0, Number(fd.transportCost) || 0, Math.round((Number(fd.itemsCostPerPerson) || 0) * 100),
-    Number(fd.markupPercent) || 0, fd.inflationMonths == null || fd.inflationMonths === '' ? null : Number(fd.inflationMonths) || 0]);
+    Number(fd.markupPercent) || 0, fd.inflationMonths == null || fd.inflationMonths === '' ? null : Number(fd.inflationMonths) || 0,
+    fd.proteinSafetyPct == null || fd.proteinSafetyPct === '' ? null : Number(fd.proteinSafetyPct) || 0]);
 
   // Aguardar backend estar pronto
   useEffect(() => {
@@ -256,6 +258,7 @@ function ProposalBuilderSimple({
         transportCost: Number(proposal.transportCost) || 0,
         itemsCostPerPerson: proposal.itemsCostPerPerson != null ? Number(proposal.itemsCostPerPerson) : ((Number(proposal.ingredientsCost) || 0) / (Number(proposal.guests) || 1)),
         inflationMonths: proposal.inflationMonths != null ? Number(proposal.inflationMonths) : 0, // propostas antigas: o valor gravado não tinha correção
+        proteinSafetyPct: null, // vem das regras gravadas na proposta (pricingSnapshot.proteinSafetyPct; propostas antigas = 0)
         clientName: proposal.clientName || '',
         clientPhone: proposal.clientPhone || '',
         clientEmail: proposal.clientEmail || '',
@@ -370,6 +373,7 @@ function ProposalBuilderSimple({
             guests: firstLoad ? (eventData.guests || prev.guests) : prev.guests,
             eventDate: firstLoad ? (eventData.eventDate || prev.eventDate) : prev.eventDate,
             inflationMonths: firstLoad && eventData.monthsUntilEvent != null && eventData.monthsUntilEvent !== '' && !isNaN(Number(eventData.monthsUntilEvent)) ? Number(eventData.monthsUntilEvent) : prev.inflationMonths,
+            proteinSafetyPct: firstLoad && !proposal && eventData.proteinSafetyPct != null && eventData.proteinSafetyPct !== '' ? Number(eventData.proteinSafetyPct) : prev.proteinSafetyPct,
             eventLocation: firstLoad ? (eventData.eventLocation || prev.eventLocation) : prev.eventLocation,
             // Dados do Cliente
             clientName: firstLoad ? clientName : prev.clientName,
@@ -451,6 +455,21 @@ function ProposalBuilderSimple({
   const autoMonths = window.PricingRules ? window.PricingRules.monthsUntil(formData.eventDate) : 0;
   const effectiveMonths = formData.inflationMonths != null && formData.inflationMonths !== '' ? Number(formData.inflationMonths) || 0 : autoMonths;
   const monthsFor = fd => fd.inflationMonths != null && fd.inflationMonths !== '' ? Number(fd.inflationMonths) || 0 : (window.PricingRules ? window.PricingRules.monthsUntil(fd.eventDate) : 0);
+  // % da margem de segurança das proteínas: o da proposta, senão o das regras usadas (propostas antigas: 0)
+  const proteinPctFor = (fd, rulesOverride) => {
+    if (fd.proteinSafetyPct != null && fd.proteinSafetyPct !== '' && isFinite(Number(fd.proteinSafetyPct))) return Math.max(0, Number(fd.proteinSafetyPct));
+    const r = rulesOverride || pricingSettings || {};
+    return r.proteinSafetyPct != null && isFinite(Number(r.proteinSafetyPct)) ? Math.max(0, Number(r.proteinSafetyPct)) : 0;
+  };
+  // Parte de proteína do custo/preço por pessoa do cardápio escolhido (base da margem)
+  const proteinBaseFor = fd => {
+    try {
+      const md = fd.selectedMenuData || {};
+      const dishes = (md.menuData && md.menuData.dishes) || md.dishes || [];
+      if (!window.PricingRules || !window.PricingRules.menuProteinBase || !dishes.length) return { cost: 0, price: 0 };
+      return window.PricingRules.menuProteinBase(dishes, (window.eventState && window.eventState.ingredientsDatabase) || []);
+    } catch (e) { return { cost: 0, price: 0 }; }
+  };
   const computeProposal = (fd = formData, rulesOverride = null) => {
     const stats = fd.selectedMenuData?.stats || {};
     // Proposta antiga sem os números do cardápio salvos: mantém o valor gravado (não recalcula às cegas)
@@ -463,9 +482,13 @@ function ProposalBuilderSimple({
         markupOnCostPct: dc > 0 ? Math.round((fin / dc - 1) * 10000) / 100 : 0, cmvPct: 0,
         pricePerPerson: (parseInt(fd.guests) || 0) > 0 ? fin / parseInt(fd.guests) : 0, noProfit: false, doubleMargin: false };
     }
+    // Margem de segurança das proteínas: parte de proteína dos pratos × %
+    const safetyPct = proteinPctFor(fd, rulesOverride);
+    const pb = proteinBaseFor(fd);
+    const temPreco = Number(stats.totalPrice) > 0;
     const args = {
-      perPersonCost: Number(stats.totalCost) || 0,
-      perPersonPrice: Number(stats.totalPrice) || Number(stats.totalCost) || 0,
+      perPersonCost: (Number(stats.totalCost) || 0) + pb.cost * safetyPct / 100,
+      perPersonPrice: (Number(stats.totalPrice) || Number(stats.totalCost) || 0) + (temPreco ? pb.price : pb.cost) * safetyPct / 100,
       itemsCostPerPerson: Number(fd.itemsCostPerPerson) || 0,
       guests: parseInt(fd.guests) || 0,
       totalType: fd.totalType,
@@ -502,6 +525,7 @@ function ProposalBuilderSimple({
     if (em != null && em !== '' && !isNaN(Number(em))) patch.inflationMonths = Number(em); // mesmos meses de correção do evento
     else if (ed.eventDate && ed.eventDate !== formData.eventDate) patch.inflationMonths = null; // data nova: calcula pelos meses até o evento
     if (ed.eventLocation) patch.eventLocation = ed.eventLocation;
+    if (ed.proteinSafetyPct != null && ed.proteinSafetyPct !== '') patch.proteinSafetyPct = Number(ed.proteinSafetyPct) || 0;
     if (cd.name) {
       patch.clientName = cd.name; patch.clientPhone = cd.phone || ''; patch.clientEmail = cd.email || ''; patch.clientAddress = cd.address || '';
       patch.clientId = cd.id || null;
@@ -758,7 +782,8 @@ function ProposalBuilderSimple({
         pricingMode: formData.pricingMode,
         inflationMonths: effectiveMonths,
         monthsUntilEvent: effectiveMonths,
-        pricingSnapshot: calcSaved.legacy ? null : (pricingSettings || null), // proposta antiga continua antiga
+        // proposta antiga continua antiga; a margem de segurança das proteínas usada fica gravada junto das regras
+        pricingSnapshot: calcSaved.legacy ? null : { ...(pricingSettings || {}), proteinSafetyPct: proteinPctFor(formData) },
         foodCost: calcSaved.foodCost,
         directCost: calcSaved.directCost,
         profit: calcSaved.profit,
@@ -1304,6 +1329,12 @@ function ProposalBuilderSimple({
       h('div', { className: 'space-y-2 text-sm' },
         line(formData.totalType === 'items' ? 'Comida (lista de compras) — custo' : 'Comida — custo', brl(R.foodCost)),
         R.mode === 'markup' && formData.totalType === 'menu_price' ? line('Comida — preço com markup dos pratos', brl(R.foodPrice)) : null,
+        (() => {
+          if (formData.totalType === 'items' || R.legacy) return null;
+          const sp = proteinPctFor(formData);
+          const amt = proteinBaseFor(formData).cost * sp / 100 * (parseInt(formData.guests) || 0) * (R.inflationFactor || 1);
+          return sp > 0 && amt > 0.004 ? line('Margem de seguran\xE7a das prote\xEDnas (+' + pct(sp) + ') — j\xE1 inclu\xEDda no custo', brl(amt), { muted: true }) : null;
+        })(),
         line('Apoio e log\xEDstica', brl(R.support)),
         line('M\xE3o de obra', brl(R.labor)),
         line('Transporte', brl(R.transport)),
@@ -1318,6 +1349,10 @@ function ProposalBuilderSimple({
           h('label', { className: 'text-xs text-gray-600' }, 'Meses at\xE9 o evento (corre\xE7\xE3o)',
             h('input', { type: 'number', min: 0, step: 1, value: formData.inflationMonths != null && formData.inflationMonths !== '' ? formData.inflationMonths : autoMonths,
               onChange: e => handleChange('inflationMonths', e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0)),
+              className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
+          formData.totalType === 'items' ? null : h('label', { className: 'text-xs text-gray-600' }, 'Margem de seguran\xE7a das prote\xEDnas (%)',
+            h('input', { type: 'number', min: 0, max: 100, step: 1, 'aria-label': 'Margem de seguran\xE7a das prote\xEDnas da proposta', value: proteinPctFor(formData),
+              onChange: e => handleChange('proteinSafetyPct', e.target.value === '' ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))),
               className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
           h('label', { className: 'text-xs text-gray-600' }, 'Ajuste final (%) — desconto ou acr\xE9scimo',
             h('input', { type: 'number', step: 1, value: formData.markupPercent === 0 ? 0 : formData.markupPercent,

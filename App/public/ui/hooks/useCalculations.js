@@ -63,7 +63,10 @@ async function calculateEventCosts(data, ingredients) {
     }
 
     // ✅ SEMPRE calcular os itens (para custo base E para exibir categorias)
-    const itemsCalculated = window.calculateItems(data.items || [], ingredients, data.guests);
+    // Margem de segurança das proteínas: a do evento (se definida) ou a de Custos da empresa
+    const proteinSafetyPct = window.PricingRules && window.PricingRules.proteinSafetyPct
+        ? window.PricingRules.proteinSafetyPct(data.proteinSafetyPct) : 0;
+    const itemsCalculated = window.calculateItems(data.items || [], ingredients, data.guests, { proteinSafetyPct: data.proteinSafetyPct });
 
     // Custo dos itens do evento (para exibição por categorias)
     const itemsEventCost = itemsCalculated.reduce((sum, item) => sum + (item.total || 0), 0);
@@ -97,11 +100,18 @@ async function calculateEventCosts(data, ingredients) {
     // ✅ Custo dos ITENS DO EVENTO (custo real dos ingredientes)
     const ingredientsCost = itemsEventCost;
 
-    // ✅ Custo do CARDÁPIO (sem margem) × convidados
-    const menuCostTotal = (menuStats.totalCost || 0) * (data.guests || 0);
+    // Margem de segurança das proteínas no cardápio (por pessoa): parte de proteína × %
+    const menuSafetyCostPP = (menuStats.proteinCost || 0) * proteinSafetyPct / 100;
+    const menuSafetyPricePP = (menuStats.proteinPrice || 0) * proteinSafetyPct / 100;
+    const menuCostPP = (menuStats.totalCost || 0) + menuSafetyCostPP;
+    const menuPricePP = (menuStats.totalPrice || 0) + menuSafetyPricePP;
+    const itemsSafetyCost = itemsCalculated.reduce((sum, item) => sum + (item.safetyCost || 0), 0);
+
+    // ✅ Custo do CARDÁPIO (sem margem de lucro, com a margem de segurança) × convidados
+    const menuCostTotal = menuCostPP * (data.guests || 0);
 
     // ✅ Preço do CARDÁPIO (com margem) × convidados
-    const menuPriceTotal = (menuStats.totalPrice || 0) * (data.guests || 0);
+    const menuPriceTotal = menuPricePP * (data.guests || 0);
 
     // ✅ Margem do cardápio = diferença entre preço e custo do CARDÁPIO
     const menuMarginAmount = menuPriceTotal - menuCostTotal;
@@ -146,8 +156,12 @@ async function calculateEventCosts(data, ingredients) {
         // ✅ Valores do CARDÁPIO (separados dos itens do evento)
         menuCostTotal: menuCostTotal,  // Total do cardápio SEM margem (custo × convidados)
         menuPriceTotal: menuPriceTotal,  // Total do cardápio COM margem (preço × convidados)
-        menuPriceWithMargin: menuStats.totalPrice || 0,  // Preço por pessoa COM margem
-        menuCostWithoutMargin: menuStats.totalCost || 0,  // Custo por pessoa SEM margem
+        menuPriceWithMargin: menuPricePP,  // Preço por pessoa COM margem
+        menuCostWithoutMargin: menuCostPP,  // Custo por pessoa SEM margem
+        proteinSafetyPct: proteinSafetyPct,  // % da margem de segurança das proteínas
+        // Quanto a margem de segurança somou no custo da comida do evento (já incluído nos totais)
+        proteinSafetyCost: hasActiveMenu ? menuSafetyCostPP * (data.guests || 0) : itemsSafetyCost,
+        itemsSafetyCost: itemsSafetyCost,
         totalWithMargin: totalWithMargin,  // Total geral COM margem (cardápio + outros custos)
         menuMarginAmount: menuMarginAmount,  // Valor absoluto da margem
         hasActiveMenu: hasActiveMenu  // ✅ Flag para saber se tem cardápio
@@ -302,6 +316,7 @@ function useCalculations(eventData, ingredients = []) {
         eventData.transport?.quantity,
         eventData.guests,
         eventData.monthsUntilEvent,
+        eventData.proteinSafetyPct,
         ingredientsHash         // ✅ Usar hash ao invés de array
     ]);
 

@@ -259,7 +259,10 @@ const ItemsList = React.memo(function ItemsList({
         className: "flex justify-between items-start gap-3"
       }, /*#__PURE__*/React.createElement("span", {
         className: "font-semibold text-gray-800 min-w-0"
-      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome'), /*#__PURE__*/React.createElement("span", {
+      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome', item.safetyPct > 0 && /*#__PURE__*/React.createElement("span", {
+        title: "Margem de seguran\xE7a das prote\xEDnas: a compra e o custo j\xE1 incluem esse % a mais",
+        style: { marginLeft: 8, display: 'inline-block', fontSize: 10, fontWeight: 600, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' }
+      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a")), /*#__PURE__*/React.createElement("span", {
         className: "font-bold text-orange-600 whitespace-nowrap"
       }, formatCurrency(item.total))), /*#__PURE__*/React.createElement("div", {
         className: "grid gap-2 mt-2",
@@ -363,7 +366,10 @@ const ItemsList = React.memo(function ItemsList({
         className: `border-b hover:bg-orange-50 transition ${!item.active ? 'opacity-40' : ''} ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`
       }, /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 font-medium text-gray-800"
-      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome'), /*#__PURE__*/React.createElement("td", {
+      }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome', item.safetyPct > 0 && /*#__PURE__*/React.createElement("span", {
+        title: "Margem de seguran\xE7a das prote\xEDnas: a compra e o custo j\xE1 incluem esse % a mais",
+        style: { marginLeft: 8, display: 'inline-block', fontSize: 10, fontWeight: 600, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' }
+      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a")), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-center"
       }, /*#__PURE__*/React.createElement("div", {
         className: "text-center font-medium text-gray-800"

@@ -20,6 +20,7 @@ const DEFAULTS = {
   serviceMarkupPct: 0,    // markup sobre apoio, mão de obra e transporte
   inflationMonthlyPct: 1, // correção mensal dos insumos até o evento
   cmvTargetPct: 30,       // CMV desejado dos pratos (custo ÷ preço) — meta das cores e do botão "usar meta"
+  proteinSafetyPct: 15,   // margem de segurança das proteínas: compra (e custo) a mais para não faltar carne
   defaultPricingMode: 'markup' // 'markup' | 'divisor'
 };
 const LS_KEY = 'precificacao_pricing_settings';
@@ -187,7 +188,78 @@ function dishCmv(dish) {
   return { custo, preco, cmvPct: custo / preco * 100, base: dish.useWeightCalculation ? 'porção' : '100 g' };
 }
 
-const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv };
+// ===== Margem de segurança das proteínas (out/2026) =====
+// Ingredientes da categoria "Proteínas" saem X% a mais na lista de compras e no custo.
+// Ordem: primeiro perda/rendimento, depois a margem (400 g + 20% de perda = 500 g → +15% = 575 g).
+const PROTEIN_CATEGORY = 'Proteínas';
+function normCat(c) {
+  try { if (typeof window !== 'undefined' && window.normalizeCategory) return window.normalizeCategory(c || 'Outros'); } catch (e) {}
+  return c || 'Outros';
+}
+function isProteinCategory(c) { return normCat(c) === PROTEIN_CATEGORY; }
+/** % efetivo: o do evento (quando definido) ou o de Custos da empresa. */
+function proteinSafetyPct(override) {
+  if (override !== null && override !== undefined && override !== '' && isFinite(num(override, NaN))) return Math.max(0, num(override));
+  return Math.max(0, num(get().proteinSafetyPct, DEFAULTS.proteinSafetyPct));
+}
+/** Fator de compra/custo de um ingrediente pela categoria (1 quando não é proteína). */
+function proteinFactor(category, pct) {
+  return isProteinCategory(category) ? 1 + Math.max(0, num(pct)) / 100 : 1;
+}
+const MIL_UNITS = ['kg', 'l', 'litro', 'litros'];
+/** Categoria de um ingrediente do prato: pelo id/nome na base de ingredientes (ou o que vier no próprio item). */
+function dishIngredientCategory(ing, db) {
+  const list = Array.isArray(db) ? db : [];
+  let base = ing.ingredientId ? list.find(x => x && x.id === ing.ingredientId) : null;
+  const nome = String(ing.ingredientName || ing.name || '').toLowerCase().trim();
+  if (!base && nome) base = list.find(x => x && String(x.name || x.ingredientName || '').toLowerCase().trim() === nome);
+  return (base && (base.category || base.categoria)) || ing.category || ing.categoria || (ing.ingredient && ing.ingredient.category) || 'Outros';
+}
+/** Parte do custo do prato que é proteína (0 a 1), pelos ingredientes da receita. */
+function dishProteinShare(dish, db) {
+  const ings = (dish && (dish.dishIngredients || dish.ingredients)) || [];
+  let total = 0, prot = 0;
+  for (const ing of ings) {
+    const q = num(ing.quantity);
+    const qBase = MIL_UNITS.includes(String(ing.unit || 'g').toLowerCase().trim()) ? q * 1000 : q;
+    // Custo do ingrediente no prato: custo unitário (por g/ml/un) × quantidade; senão o custo total já calculado
+    const c = num(ing.unitCost) > 0 ? qBase * num(ing.unitCost)
+      : num(ing.ingredientCost) > 0 ? num(ing.ingredientCost)
+      : num(ing.cost) > 0 ? num(ing.cost)
+      : qBase * num(ing.costPerUnit);
+    if (!(c > 0)) continue;
+    total += c;
+    if (isProteinCategory(dishIngredientCategory(ing, db))) prot += c;
+  }
+  return total > 0 ? Math.min(1, prot / total) : 0;
+}
+/** Custo e preço por pessoa de um prato do cardápio (mesma regra de MenuManager.getStatistics). */
+function dishPerPerson(item) {
+  const dishCost = num(item.dishCost != null ? item.dishCost : item.totalCost);
+  const portions = num(item.portionsPerPerson);
+  const totalWeight = num(item.totalWeight);
+  const servings = num(item.servings) || 1;
+  const margin = num(item.profitMargin);
+  const porPorcao = item.useWeightCalculation || (servings > 0 && totalWeight === 0);
+  const cost = porPorcao ? (servings > 0 ? dishCost / servings : dishCost) * portions
+    : (totalWeight > 0 ? dishCost / totalWeight : dishCost) * portions * 100;
+  return { cost, price: margin > 0 ? cost * (1 + margin / 100) : cost };
+}
+/** Parte de proteína do custo/preço por pessoa de um cardápio (sem a margem). Margem = isso × %. */
+function menuProteinBase(dishes, db) {
+  let cost = 0, price = 0;
+  for (const d of (dishes || [])) {
+    if (!d || d.active === false) continue;
+    const share = dishProteinShare(d, db);
+    if (!(share > 0)) continue;
+    const pp = dishPerPerson(d);
+    cost += pp.cost * share; price += pp.price * share;
+  }
+  return { cost, price };
+}
+
+const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
+  PROTEIN_CATEGORY, isProteinCategory, proteinSafetyPct, proteinFactor, dishIngredientCategory, dishProteinShare, dishPerPerson, menuProteinBase };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

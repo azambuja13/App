@@ -278,6 +278,8 @@ function useEventState() {
     // ====================================
     const [guests, setGuests] = useState(100);
     const [monthsUntilEvent, setMonthsUntilEvent] = useState(0);
+    // Margem de segurança das proteínas deste evento (%). null = usa a de "Custos da empresa"
+    const [proteinSafetyPct, setProteinSafetyPct] = useState(null);
     const [activeTab, setActiveTabInternal] = useState('calendar'); // Agenda é a aba inicial
     const [isCompanyExpanded, setIsCompanyExpanded] = useState(false);
 
@@ -430,6 +432,7 @@ function useEventState() {
                 console.log('📦 Carregando dados salvos do storage...');
                 if (savedData.guests) setGuests(savedData.guests);
                 if (savedData.monthsUntilEvent) setMonthsUntilEvent(savedData.monthsUntilEvent);
+                setProteinSafetyPct(savedData.proteinSafetyPct != null && savedData.proteinSafetyPct !== '' ? Number(savedData.proteinSafetyPct) : null);
                 // ✅ SIMPLIFICADO: Ingredientes serão carregados do backend (IngredientManager)
                 // Não fazer merge aqui - backend já gerencia tudo
                 if (savedData.ingredientsDatabase) {
@@ -751,6 +754,7 @@ function useEventState() {
                 const currentDataToSave = {
                     guests,
                     monthsUntilEvent,
+                    proteinSafetyPct,
                     ingredientsDatabase,
                     items,
                     support,
@@ -799,6 +803,7 @@ function useEventState() {
         isInitializing, // Adicionar como dependência
         guests,
         monthsUntilEvent,
+        proteinSafetyPct,
         ingredientsDatabase,
         items,
         support,
@@ -879,6 +884,7 @@ function useEventState() {
             const dataToSave = {
                 guests,
                 monthsUntilEvent,
+                proteinSafetyPct,
                 ingredientsDatabase,
                 items,
                 support,
@@ -916,6 +922,7 @@ function useEventState() {
     }, [
         guests,
         monthsUntilEvent,
+        proteinSafetyPct,
         ingredientsDatabase,
         items,
         support,
@@ -961,6 +968,8 @@ function useEventState() {
         setGuests,
         monthsUntilEvent,
         setMonthsUntilEvent,
+        proteinSafetyPct,
+        setProteinSafetyPct,
         activeTab,
         setActiveTab,
         isCompanyExpanded,

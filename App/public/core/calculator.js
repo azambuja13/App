@@ -14,7 +14,16 @@ const DEBUG = (typeof window !== 'undefined' && window.__DEBUG__ === true);
  * @param {number} guests - Número de convidados
  * @returns {Array} Array de itens calculados
  */
-export function calculateItems(items, ingredients, guests) {
+export function calculateItems(items, ingredients, guests, opts = {}) {
+    // Margem de segurança das proteínas (% a mais na compra e no custo de "Proteínas")
+    const PR = (typeof window !== 'undefined' && window.PricingRules) || null;
+    const proteinPct = PR ? PR.proteinSafetyPct(opts.proteinSafetyPct !== undefined ? opts.proteinSafetyPct : (window.eventState && window.eventState.proteinSafetyPct)) : 0;
+    const safetyFor = (ing, item) => {
+        const cat = (ing && (ing.category || ing.categoria)) || item.category || 'Outros';
+        const f = PR ? PR.proteinFactor(cat, proteinPct) : 1;
+        return f;
+    };
+
     // 🐛 DEBUG: Log para identificar problema de custos R$ 0,00
     if (DEBUG) console.log('🔍 [calculateItems] Iniciando cálculo:', {
         totalItems: items.length,
@@ -111,9 +120,14 @@ export function calculateItems(items, ingredients, guests) {
 
             // Aplicar perda (ex: 5% de pães quebrados)
             const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-            const unitsWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
+            let unitsWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
                 ? window.lossCalculations.calculateQuantityWithLoss(totalUnitsNeeded, lossDecimal)
                 : (lossDecimal > 0 && lossDecimal < 1 ? totalUnitsNeeded / (1 - lossDecimal) : totalUnitsNeeded);
+
+            // Margem de segurança (proteínas): compra e custo X% maiores
+            const safetyF = safetyFor(ingredient, item);
+            const unitsWithLossBase = unitsWithLoss;
+            unitsWithLoss = unitsWithLoss * safetyF;
 
             // Custo por unidade do ingrediente
             // Suporte para costPerUnit (novo) e cost (legacy)
@@ -154,6 +168,9 @@ export function calculateItems(items, ingredients, guests) {
                 qtyRoundedLabel: `${unitsRounded} un`,
                 qtyToBuy: unitsWithLoss,  // Quantidade total em unidades (não em kg)
                 qtyInKgL: unitsWithLoss,  // Para "Kg/L" vai mostrar quantidade em Un
+                safetyPct: safetyF > 1 ? (safetyF - 1) * 100 : 0,
+                safetyQty: unitsWithLoss - unitsWithLossBase,
+                safetyCost: (unitsWithLoss - unitsWithLossBase) * costPerUnit,
                 total
             };
 
@@ -179,7 +196,11 @@ export function calculateItems(items, ingredients, guests) {
             // ✅ Aplicar rendimento INVERSO (para calcular quantidade crua a comprar)
             // Se rende 150% (1.5x), para 150g preparado preciso 100g cru → dividir por 1.5
             const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
-            const qtyWithLossAndYield = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
+            const qtyWithLossAndYieldBase = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
+
+            // Margem de segurança (proteínas): compra e custo X% maiores, depois de perda e rendimento
+            const safetyF = safetyFor(ingredient, item);
+            const qtyWithLossAndYield = qtyWithLossAndYieldBase * safetyF;
 
             // Custo por grama/ml
             // Suporte para costPerUnit (novo) e cost (legacy)
@@ -252,6 +273,9 @@ export function calculateItems(items, ingredients, guests) {
                 packs,
                 qtyRoundedLabel,
                 purchaseCost: costPerGramMl * qtyRoundedInGrams, // custo da compra (com sobra)
+                safetyPct: safetyF > 1 ? (safetyF - 1) * 100 : 0,
+                safetyQty: (qtyWithLossAndYield - qtyWithLossAndYieldBase) / 1000, // kg/L a mais
+                safetyCost: costPerGramMl * (qtyWithLossAndYield - qtyWithLossAndYieldBase),
                 total
             };
         }

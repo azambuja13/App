@@ -360,7 +360,33 @@ function EventsPage({
     className: "w-full px-4 py-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
   }), eventData.monthsUntilEvent > 0 && /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-600 mt-1"
-  }, "\uD83D\uDCB0 Corre\xE7\xE3o de infla\xE7\xE3o: +", ((Math.pow(1 + ((costs && costs.inflationMonthlyPct != null ? costs.inflationMonthlyPct : (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1)) / 100), eventData.monthsUntilEvent) - 1) * 100).toFixed(2).replace('.', ','), "% na comida e no apoio"))), costs && (() => {
+  }, "\uD83D\uDCB0 Corre\xE7\xE3o de infla\xE7\xE3o: +", ((Math.pow(1 + ((costs && costs.inflationMonthlyPct != null ? costs.inflationMonthlyPct : (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1)) / 100), eventData.monthsUntilEvent) - 1) * 100).toFixed(2).replace('.', ','), "% na comida e no apoio")), (() => {
+    // Margem de segurança das proteínas (vazio = a de "Custos da empresa")
+    const padrao = window.PricingRules ? window.PricingRules.get().proteinSafetyPct : 15;
+    const temValor = eventData.proteinSafetyPct != null && eventData.proteinSafetyPct !== '';
+    const efetivo = temValor ? Number(eventData.proteinSafetyPct) || 0 : padrao;
+    const extra = costs && costs.proteinSafetyCost > 0 ? costs.proteinSafetyCost : 0;
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+      className: "block text-sm font-semibold text-gray-700 mb-2"
+    }, "\uD83E\uDD69 Margem de seguran\xE7a das prote\xEDnas (%)"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      min: "0",
+      max: "100",
+      step: "1",
+      inputMode: "decimal",
+      "aria-label": "Margem de seguran\xE7a das prote\xEDnas",
+      value: temValor ? eventData.proteinSafetyPct : '',
+      placeholder: `Padr\xE3o: ${String(padrao).replace('.', ',')}%`,
+      onChange: e => onUpdateEventData && onUpdateEventData({
+        proteinSafetyPct: e.target.value === '' ? null : Math.max(0, Math.min(100, parseFloat(String(e.target.value).replace(',', '.')) || 0))
+      }),
+      className: "w-full px-4 py-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+    }), /*#__PURE__*/React.createElement("p", {
+      className: "text-xs text-gray-600 mt-1"
+    }, efetivo > 0
+      ? `+${String(efetivo).replace('.', ',')}% na compra e no custo das prote\xEDnas${extra > 0 ? ' (' + formatCurrency(extra) + ')' : ''}${temValor ? '' : ' \u2014 padr\xE3o de Custos da empresa'}`
+      : 'Sem margem de seguran\xE7a nas prote\xEDnas'));
+  })()), costs && (() => {
     // Mesma conta do resumo e da proposta: (comida + apoio) × correção até o evento + mão de obra + transporte
     const mult = Number(costs.inflationMultiplier) > 0 ? Number(costs.inflationMultiplier) : 1;
     const fixo = (costs.laborCost || 0) + (costs.transportCost || 0);

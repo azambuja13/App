@@ -165,6 +165,7 @@ No painel da empresa, toque em **"📊 Custos da empresa"**. Os percentuais entr
 | Lucro desejado | quanto do preço deve sobrar de lucro | 20% |
 | Markup sobre serviços | quanto somar ao custo de apoio, mão de obra e transporte | 20% |
 | Correção mensal | correção de comida e apoio até a data do evento | 1% |
+| Margem de segurança das proteínas | carne a mais para não faltar: ingredientes da categoria Proteínas saem esse % a mais na compra e no custo | 15% |
 
 A **calculadora de custos fixos** faz a conta: custos fixos do mês ÷ faturamento médio do mês.
 
@@ -663,8 +664,11 @@ Ao aplicar um kit, os preços que você já tem são mantidos. Os itens que não
 2. Escolha o **cliente** (cadastre antes na aba Clientes).
 3. Informe a data, o número de convidados e o local.
 4. Em **"Meses até o Evento"**, informe quantos meses faltam. O sistema corrige **comida e apoio** pela correção mensal de "Custos da empresa" (padrão 1% ao mês). Mão de obra e transporte não são corrigidos.
-5. Confira os totais: ingredientes, apoio, transporte, mão de obra, total, total dos pratos e total com margem.
-6. Toque em **"Salvar Evento"**.
+5. Em **"🥩 Margem de segurança das proteínas (%)"**, deixe vazio para usar o padrão de Custos da empresa (15%) ou digite outro valor só para este evento (ex.: 20% num casamento grande, 0% num jantar com número fechado).
+6. Confira os totais: ingredientes, apoio, transporte, mão de obra, total, total dos pratos e total com margem.
+7. Toque em **"Salvar Evento"**.
+
+> 🥩 **Como funciona a margem de segurança:** vale para os ingredientes da categoria **Proteínas** (carnes, frango, peixe, linguiça). A conta aplica primeiro a perda e depois a margem. Exemplo com 120 convidados, 400 g por pessoa e 20% de perda: 60 kg → com 15% de margem, **69 kg** na lista de compras. A carne extra entra no custo, nos totais e na proposta, então a sobra não sai do seu lucro. No Resumo aparece a linha "Margem de segurança das proteínas (já incluída)" e, na aba Itens, as proteínas mostram o selo **+15% segurança**.
 
 ### 18.2 Eventos salvos
 
@@ -713,6 +717,7 @@ O quadro mostra:
 
 - custo da comida, apoio, mão de obra e transporte;
 - a correção até o evento, calculada pela data;
+- a **margem de segurança das proteínas** já incluída no custo (o % pode ser mudado na própria proposta; vem do evento ou de Custos da empresa). Propostas feitas antes desta opção continuam sem a margem;
 - o **custo direto** e o **valor final**;
 - o **lucro estimado** (já descontando impostos, taxas e custos fixos), o markup sobre o custo e o CMV.
 
