@@ -366,6 +366,14 @@ A mensagem pronta abre o WhatsApp com o texto já escrito, preenchido com os dad
 
 Com o Funil (Premium), o envio fica registrado na linha do tempo do cliente como "WhatsApp".
 
+**Enviar direto pelo número da empresa (Premium, com o WhatsApp configurado no painel da empresa):** o botão **"📤 Enviar pelo WhatsApp"** manda a mensagem sem abrir o seu WhatsApp. A Meta só entrega texto livre para quem falou com você nas **últimas 24 h**. Para os outros clientes:
+
+1. Crie e aprove os modelos de mensagem no WhatsApp Manager da Meta.
+2. Em **"✏️ Editar modelos"**, no quadro **"📲 Modelos da Meta"**, toque em **"Ligar pelos nomes"** (ou escolha o modelo em cada mensagem) e confira as variáveis: cada {{1}}, {{2}}… do modelo recebe um dado do app ({primeiro_nome}, {evento}, {data}…).
+3. Toque em **"Salvar ligações"**.
+
+Assim, quando o cliente não falou com você nas últimas 24 h, o app manda o **modelo aprovado** com os dados preenchidos. Vai o texto aprovado na Meta, não o texto editado na tela. Mensagens sem modelo ligado continuam com **"💬 Abrir no app"**. Precisa do **WhatsApp Business Account ID** preenchido no painel da empresa > WhatsApp.
+
 ### 9.3 Modelos que já vêm prontos
 
 - **Primeiro contato:** para responder um pedido de orçamento.

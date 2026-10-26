@@ -10,6 +10,87 @@ const h = React.createElement;
 
 const TEMPLATE_BY_TASK = { stale: 'followup', post_event: 'avaliacao', recontact: 'recontato', lead: 'primeiro_contato' };
 
+// ===== Modelos da Meta (out/2026) =====
+// Fora das 24 h a Meta só entrega modelo aprovado. Cada mensagem pronta pode ser ligada a um
+// modelo (user-settings → whatsappMetaTemplates[chave] = { name, language, named, header, body,
+// buttons, bodyText }). header/body: [{ v: variável do modelo, app: variável do app }].
+const META = { lista: null, erro: '', vinculos: null };
+function apiReq() { const a = window.PrecificacaoAPI && window.PrecificacaoAPI.api; return a && typeof a.request === 'function' ? a : null; }
+async function carregarModelosMeta(force) {
+  if (META.lista && !force) return META.lista;
+  const a = apiReq(); if (!a) throw new Error('Sem conexão com o servidor');
+  const r = await a.request('/api/company/whatsapp/templates');
+  META.lista = ((r && r.data) || []).filter(t => String(t.status || '').toUpperCase() === 'APPROVED');
+  return META.lista;
+}
+async function carregarVinculos(force) {
+  if (META.vinculos && !force) return META.vinculos;
+  const a = apiReq(); if (!a) return {};
+  try { const r = await a.request('/api/user-settings'); META.vinculos = (r && r.data && r.data.settingsData && r.data.settingsData.whatsappMetaTemplates) || {}; }
+  catch (e) { META.vinculos = META.vinculos || {}; }
+  return META.vinculos;
+}
+async function salvarVinculos(mapa) {
+  const a = apiReq(); if (!a) throw new Error('Sem conexão com o servidor');
+  await a.request('/api/user-settings', { method: 'PATCH', body: JSON.stringify({ partialSettings: { whatsappMetaTemplates: mapa } }) });
+  META.vinculos = mapa;
+}
+const semAcento = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Palpite da variável do app pelo nome da variável do modelo ({{cliente}}, {{data_evento}}...)
+function palpitePorNome(v) {
+  const k = semAcento(v);
+  if (/primeiro/.test(k)) return 'primeiro_nome';
+  if (/empresa|buffet|chef|negocio|loja/.test(k)) return 'empresa';
+  if (/link|avalia|google|url/.test(k)) return 'link_avaliacao';
+  if (/convid|pessoa|guest/.test(k)) return 'convidados';
+  if (/valor|preco|total|price/.test(k)) return 'valor';
+  if (/data|dia|date/.test(k)) return 'data';
+  if (/evento|festa|event/.test(k)) return 'evento';
+  if (/client|nome|name/.test(k)) return 'cliente';
+  return null;
+}
+// Liga as variáveis do modelo às do app: por nome; senão na ordem em que aparecem na mensagem pronta
+function sugerirVinculo(tpl, corpoApp) {
+  const C = window.CRM;
+  const ordemApp = []; String(corpoApp || '').replace(/\{(\w+)\}/g, (m, k) => { if (C.TEMPLATE_VARS.includes(k) && !ordemApp.includes(k)) ordemApp.push(k); return m; });
+  const usados = [];
+  const textoTudo = ((tpl.header && tpl.header.text) || '') + '\n' + ((tpl.body && tpl.body.text) || '');
+  // Pelas palavras antes da variável no texto do modelo ("Olá {{1}}", "Abraço, {{3}}", "no dia {{2}}")
+  const peloContexto = v => {
+    const i = textoTudo.indexOf('{{' + v + '}}'); if (i < 0) return null;
+    const antes = semAcento(textoTudo.slice(Math.max(0, i - 30), i)).trim();
+    if (/(ola|oi|bom dia|boa tarde|boa noite|prezad[oa]|querid[oa]|car[oa])[,!.\s]*$/.test(antes)) return 'primeiro_nome';
+    if (/(abraco|abracos|att|atenciosamente|equipe|aqui e|sou o|sou a)[,:.!\s]*$/.test(antes)) return 'empresa';
+    if (/(valor|total|r\$)( de)?[:\s]*$/.test(antes)) return 'valor';
+    if (/(dia|data)( do evento)?[:\s]*$/.test(antes)) return 'data';
+    if (/(evento|festa|proposta (do|da|de|para))[:\s]*$/.test(antes)) return 'evento';
+    if (/(para|com)$/.test(antes) && /^\}\}\s*(convidados|pessoas)/.test(textoTudo.slice(i + v.length + 2, i + v.length + 20).replace(/^\}\}/, '}}'))) return 'convidados';
+    return null;
+  };
+  let i = 0;
+  const prox = () => { while (i < ordemApp.length && usados.includes(ordemApp[i])) i++; return ordemApp[i++] || ['empresa', 'data', 'valor', 'evento', 'convidados', 'cliente'].find(a => !usados.includes(a)) || 'cliente'; };
+  const liga = v => { const app = tpl.named ? (palpitePorNome(v) || 'cliente') : (peloContexto(v) || prox()); usados.push(app); return { v, app }; };
+  return {
+    name: tpl.name, language: tpl.language, named: !!tpl.named, bodyText: (tpl.body && tpl.body.text) || '',
+    header: ((tpl.header && tpl.header.vars) || []).map(liga),
+    body: ((tpl.body && tpl.body.vars) || []).map(liga),
+    buttons: (tpl.buttons || []).filter(b => b.vars && b.vars.length).map(b => ({ index: b.index, app: 'link_avaliacao' }))
+  };
+}
+// Modelo da Meta com nome parecido com o da mensagem pronta
+function modeloParecido(lista, t) {
+  const tokens = x => semAcento(x).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !['de', 'da', 'do', 'para', 'com'].includes(w));
+  const alvo = tokens(t.key + ' ' + t.title);
+  let melhor = null, nota = 0;
+  (lista || []).forEach(m => { const n = tokens(m.name).filter(w => alvo.some(a => a.startsWith(w.slice(0, 5)) || w.startsWith(a.slice(0, 5)))).length; if (n > nota) { nota = n; melhor = m; } });
+  return melhor;
+}
+function parametrosDoVinculo(vinc, valores) {
+  const val = app => (valores && valores[app] != null ? String(valores[app]) : '');
+  const p = x => vinc.named ? { name: x.v, text: val(x.app) } : { text: val(x.app) };
+  return { header: (vinc.header || []).map(p), body: (vinc.body || []).map(p), buttons: (vinc.buttons || []).map(b => ({ index: b.index, text: val(b.app) })) };
+}
+
 function companyName() {
   try {
     const cm = window.companyManager || (window.PrecificacaoAPI && window.PrecificacaoAPI.companyManager);
@@ -54,7 +135,8 @@ function MessageDialog({ ctx, onClose }) {
   const [apiPronta, setApiPronta] = React.useState(() => waOk(window.whatsappSettings));
   const [enviando, setEnviando] = React.useState(false);
 
-  React.useEffect(() => { C.templatesStore.load().then(setDados); }, []);
+  const [vinculos, setVinculos] = React.useState(META.vinculos || {});
+  React.useEffect(() => { C.templatesStore.load().then(setDados); carregarVinculos().then(v => setVinculos({ ...v })); }, []);
   React.useEffect(() => {
     const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
     if (!api || typeof api.request !== 'function') return;
@@ -112,14 +194,29 @@ function MessageDialog({ ctx, onClose }) {
     if (!api || !telefone || !texto.trim()) return;
     setErroEnvio('');
     setEnviando(true);
+    const vinc = vinculos && vinculos[chave];
     try {
       await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
       registrar();
-      alert('✅ Mensagem enviada para o WhatsApp (aceita pela Meta).\n\nLembrete: a Meta só entrega mensagem livre para quem falou com você nas últimas 24 h. Se o cliente não receber, use "Abrir no app".');
+      alert('✅ Mensagem enviada pelo WhatsApp (aceita pela Meta).');
       onClose();
     } catch (e) {
-      // Não abre o app sozinho (o navegador bloqueia depois da espera): mostra o aviso e o botão "Abrir no app"
-      setErroEnvio(String((e && e.message) || e));
+      const msg = String((e && e.message) || e);
+      // 131047 = o cliente não falou com você nas últimas 24 h → manda o modelo aprovado ligado a esta mensagem
+      if (/131047/.test(msg) && vinc && vinc.name) {
+        try {
+          const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink));
+          await api.request('/api/company/whatsapp/send-template', { method: 'POST', body: JSON.stringify({ to: telefone, name: vinc.name, language: vinc.language, ...prm }) });
+          registrar();
+          alert('✅ Enviado pelo modelo da Meta "' + vinc.name + '".\n\nO cliente não tinha falado com você nas últimas 24 h, então foi o texto aprovado do modelo (não o texto editado aqui).');
+          onClose();
+        } catch (e2) { setErroEnvio(String((e2 && e2.message) || e2)); }
+      } else if (/131047/.test(msg)) {
+        setErroEnvio('O cliente não falou com você nas últimas 24 h e esta mensagem não está ligada a um modelo da Meta. Ligue em "✏️ Editar modelos" ou use "Abrir no app".');
+      } else {
+        // Não abre o app sozinho (o navegador bloqueia depois da espera): mostra o aviso e o botão "Abrir no app"
+        setErroEnvio(msg);
+      }
     } finally { setEnviando(false); }
   };
   const copiar = async () => {
@@ -137,7 +234,7 @@ function MessageDialog({ ctx, onClose }) {
           h('div', { className: 'crm-break', style: { fontSize: 18, fontWeight: 800, color: '#111827' } }, editando ? 'Editar modelos' : (varsFor(cliente, proposta).cliente || 'Cliente'))),
         h('div', { role: 'button', 'aria-label': 'Fechar', onClick: onClose, style: { fontSize: 26, lineHeight: 1, padding: '4px 10px', cursor: 'pointer', color: '#6b7280' } }, '×')),
       !dados ? h('div', { className: 'crm-muted', style: { padding: 24, textAlign: 'center' } }, 'Carregando...') :
-      editando ? h(TemplateEditor, { dados, onSaved: d => { setDados(d); }, onBack: () => setEditando(false) }) :
+      editando ? h(TemplateEditor, { dados, onSaved: d => { setDados(d); }, onVinculos: v => setVinculos({ ...v }), onBack: () => setEditando(false) }) :
       h('div', { style: { padding: 16, display: 'flex', flexDirection: 'column', gap: 12 } },
         propostas.length > 1 && h('div', null,
           h('div', { className: 'crm-muted', style: { marginBottom: 4 } }, 'Negócio'),
@@ -155,15 +252,69 @@ function MessageDialog({ ctx, onClose }) {
           href && h('a', { href, target: '_blank', rel: 'noopener', onClick: registrar, className: 'crm-btn', style: apiPronta ? { background: '#fff', color: '#15803d', border: '1px solid #86efac', flex: '1 1 160px' } : { background: '#16a34a', color: '#fff', flex: '1 1 200px' } }, apiPronta ? '💬 Abrir no app' : '💬 Abrir no WhatsApp'),
           h('button', { onClick: copiar, className: 'crm-btn', style: { background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', flex: '0 0 auto' } }, copiado ? '✓ Copiado' : 'Copiar texto')),
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
-          h('div', { className: 'crm-muted' }, (apiPronta && wa ? 'Envio direto: só chega se o cliente falou com você nas últimas 24 h. ' : '') + (C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : '')),
+          h('div', { className: 'crm-muted' }, (apiPronta && wa ? (vinculos && vinculos[chave] && vinculos[chave].name
+              ? 'Fora das 24 h vai o modelo da Meta "' + vinculos[chave].name + '". '
+              : 'Envio direto: só chega se o cliente falou com você nas últimas 24 h. ') : '') + (C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : '')),
           h('div', { role: 'button', onClick: () => setEditando(true), style: { fontSize: 13, color: '#c2410c', cursor: 'pointer', fontWeight: 600 } }, '✏️ Editar modelos')))));
 }
 
-function TemplateEditor({ dados, onSaved, onBack }) {
+function TemplateEditor({ dados, onSaved, onBack, onVinculos }) {
   const C = window.CRM;
   const [lista, setLista] = React.useState(dados.templates.map(t => ({ ...t })));
   const [link, setLink] = React.useState(dados.reviewLink || '');
   const [salvando, setSalvando] = React.useState(null);
+  // Modelos da Meta ligados às mensagens prontas
+  const [meta, setMeta] = React.useState(META.lista);
+  const [metaErro, setMetaErro] = React.useState('');
+  const [vinc, setVinc] = React.useState({ ...(META.vinculos || {}) });
+  const [vincSujo, setVincSujo] = React.useState(false);
+  React.useEffect(() => {
+    carregarVinculos().then(v => { if (!vincSujo) setVinc({ ...v }); });
+    carregarModelosMeta().then(setMeta).catch(e => setMetaErro(String((e && e.message) || e)));
+  }, []);
+  const setV = (key, v) => { setVinc(m => { const n = { ...m }; if (v) n[key] = v; else delete n[key]; return n; }); setVincSujo(true); };
+  const escolherModelo = (t, valor) => {
+    if (!valor) return setV(t.key, null);
+    const [nome, idioma] = valor.split('|');
+    const tpl = (meta || []).find(m => m.name === nome && m.language === idioma);
+    if (tpl) setV(t.key, sugerirVinculo(tpl, t.body));
+  };
+  const ligarPelosNomes = () => {
+    let n = 0;
+    const novo = { ...vinc };
+    lista.forEach(t => { if (t.key === 'new' || novo[t.key]) return; const m = modeloParecido(meta, t); if (m) { novo[t.key] = sugerirVinculo(m, t.body); n++; } });
+    setVinc(novo); if (n) setVincSujo(true);
+    alert(n ? n + ' mensagem(ns) ligada(s) pelo nome. Confira as variáveis e toque em "Salvar ligações".' : 'Não achei modelos com nome parecido. Escolha o modelo em cada mensagem.');
+  };
+  const salvarLigacoes = async () => {
+    setSalvando('_meta');
+    try { await salvarVinculos(vinc); setVincSujo(false); onVinculos && onVinculos(vinc); }
+    catch (e) { alert('Não foi possível salvar: ' + (e && e.message ? e.message : 'erro')); }
+    finally { setSalvando(null); }
+  };
+  const blocoMeta = t => {
+    if (t.key === 'new') return null;
+    const v = vinc[t.key];
+    const opcoes = meta || [];
+    const atual = v ? v.name + '|' + v.language : '';
+    const temNaLista = !v || opcoes.some(m => m.name === v.name && m.language === v.language);
+    const linhaVar = (x, i, grupo) => h('div', { key: grupo + i, style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 } },
+      h('span', { style: { fontFamily: 'monospace', minWidth: 90, color: '#374151' } }, grupo === 'buttons' ? 'botão (link)' : '{{' + x.v + '}}' + (grupo === 'header' ? ' (título)' : '')),
+      h('span', null, '→'),
+      h('select', { className: 'crm-select', style: { flex: 1 }, value: x.app, onChange: e => {
+        const n = { ...v, [grupo]: v[grupo].map((y, j) => j === i ? { ...y, app: e.target.value } : y) }; setV(t.key, n);
+      } }, C.TEMPLATE_VARS.map(a => h('option', { key: a, value: a }, '{' + a + '}'))));
+    return h('div', { style: { marginTop: 4, padding: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6 } },
+      h('div', { style: { fontSize: 12, fontWeight: 700, color: '#166534' } }, '📲 Modelo da Meta (fora das 24 h)'),
+      h('select', { className: 'crm-select', value: atual, 'aria-label': 'Modelo da Meta para ' + t.title, onChange: e => escolherModelo(t, e.target.value) },
+        h('option', { value: '' }, '— nenhum (fora das 24 h, use "Abrir no app") —'),
+        !temNaLista && h('option', { value: atual }, v.name + ' (' + v.language + ')'),
+        opcoes.map(m => h('option', { key: m.name + m.language, value: m.name + '|' + m.language }, m.name + ' · ' + m.language + ' · ' + String(m.category || '').toLowerCase()))),
+      v && v.bodyText && h('div', { className: 'crm-break', style: { fontSize: 12, color: '#4b5563', whiteSpace: 'pre-wrap', background: '#fff', borderRadius: 6, padding: '6px 8px', border: '1px solid #e5e7eb' } }, v.bodyText),
+      v && (v.header || []).map((x, i) => linhaVar(x, i, 'header')),
+      v && (v.body || []).map((x, i) => linhaVar(x, i, 'body')),
+      v && (v.buttons || []).map((x, i) => linhaVar(x, i, 'buttons')));
+  };
   const recarregar = async () => { const d = await C.templatesStore.load(true); setLista(d.templates.map(t => ({ ...t }))); setLink(d.reviewLink || ''); onSaved(d); };
   const set = (key, campo, v) => setLista(l => l.map(t => t.key === key ? { ...t, [campo]: v, _dirty: true } : t));
   const salvar = async t => {
@@ -195,6 +346,14 @@ function TemplateEditor({ dados, onSaved, onBack }) {
       h('div', { style: { display: 'flex', gap: 8 } },
         h('input', { className: 'crm-input', value: link, onChange: e => setLink(e.target.value), placeholder: 'https://g.page/r/...', style: { flex: 1 } }),
         h('button', { onClick: salvarLink, disabled: salvando === '_link', className: 'crm-btn', style: { background: '#ea580c', color: '#fff' } }, salvando === '_link' ? '...' : 'Salvar'))),
+    h('div', { style: { padding: 12, border: '1px solid #bbf7d0', background: '#f0fdf4', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 } },
+      h('div', { style: { fontWeight: 700, fontSize: 14 } }, '📲 Modelos da Meta (para enviar fora das 24 h)'),
+      h('div', { className: 'crm-muted' }, 'Se o cliente não falou com você nas últimas 24 h, o "Enviar pelo WhatsApp" manda o modelo aprovado ligado à mensagem, com as variáveis preenchidas. Liga em cada mensagem abaixo.'),
+      metaErro ? h('div', { style: { fontSize: 13, color: '#991b1b' } }, '❌ ' + metaErro)
+        : h('div', { className: 'crm-muted' }, meta ? meta.length + ' modelo(s) aprovado(s) na Meta' : 'Carregando modelos da Meta...'),
+      h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        meta && meta.length > 0 && h('button', { onClick: ligarPelosNomes, className: 'crm-btn', style: { background: '#fff', color: '#15803d', border: '1px solid #86efac', fontSize: 13 } }, 'Ligar pelos nomes'),
+        h('button', { onClick: salvarLigacoes, disabled: !vincSujo || salvando === '_meta', className: 'crm-btn', style: { background: '#16a34a', color: '#fff', fontSize: 13, opacity: vincSujo ? 1 : 0.45 } }, salvando === '_meta' ? 'Salvando...' : 'Salvar ligações'))),
     lista.map((t, i) => h('div', { key: t.key + i, style: { padding: 12, border: '1px solid #e5e7eb', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 } },
       h('input', { className: 'crm-input', value: t.title, onChange: e => set(t.key, 'title', e.target.value), placeholder: 'Nome do modelo', style: { fontWeight: 700 } }),
       h('textarea', { className: 'crm-input', value: t.body, onChange: e => set(t.key, 'body', e.target.value), rows: 4, placeholder: 'Texto da mensagem. Ex.: Olá, {primeiro_nome}!' }),
@@ -203,7 +362,9 @@ function TemplateEditor({ dados, onSaved, onBack }) {
         h('div', { style: { display: 'flex', gap: 8 } },
           (t.edited || (!t.isDefault && t.key !== 'new')) && h('button', { onClick: () => restaurar(t), className: 'crm-btn', style: { background: '#fff', color: '#6b7280', border: '1px solid #d1d5db', fontSize: 13 } }, t.isDefault ? 'Restaurar' : 'Apagar'),
           h('button', { onClick: () => salvar(t), disabled: !t._dirty || salvando === t.key || !t.title.trim() || !t.body.trim(), className: 'crm-btn',
-            style: { background: '#16a34a', color: '#fff', fontSize: 13, opacity: (!t._dirty || !t.title.trim() || !t.body.trim()) ? 0.45 : 1 } }, salvando === t.key ? 'Salvando...' : 'Salvar'))))),
+            style: { background: '#16a34a', color: '#fff', fontSize: 13, opacity: (!t._dirty || !t.title.trim() || !t.body.trim()) ? 0.45 : 1 } }, salvando === t.key ? 'Salvando...' : 'Salvar'))),
+      blocoMeta(t))),
+    vincSujo && h('button', { onClick: salvarLigacoes, disabled: salvando === '_meta', className: 'crm-btn', style: { background: '#16a34a', color: '#fff', position: 'sticky', bottom: 8 } }, salvando === '_meta' ? 'Salvando...' : '💾 Salvar ligações com a Meta'),
     !lista.some(t => t.key === 'new') && h('button', { onClick: novo, className: 'crm-btn', style: { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' } }, '+ Novo modelo'));
 }
 
