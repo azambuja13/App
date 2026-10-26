@@ -6,14 +6,14 @@ Desde 07/10/2026 o app iOS tem **exatamente o mesmo código** da web. Nunca edit
 ## Passo a passo
 
 ### 1. Mudar e commitar na web
-- Repositório `precificacao-cloud`, branch **`precificacao/v2`** (é dele que sai a produção:
-  `publicar-precificacao-v2-producao.sh` faz `push precificacao/v2:main`).
+- Repositório `precificacao-cloud`, branch **`main`** (produção; `publicar-producao.sh` leva
+  `staging` → `main`).
 - Ao mudar um `.js` carregado pelo `index.html`, suba o `?v=` daquele `<script>` (cache do navegador).
 - Arquivo novo em `utils/`, `vendor/`… precisa da tag `<script>` no `index.html`.
 
 ### 2. Copiar para o app — `bash sync-ios-com-web.sh` (pasta `precificacao/`)
 O script:
-1. Faz `git archive precificacao/v2` do `precificacao-cloud` para uma pasta temporária
+1. Faz `git archive main` do `precificacao-cloud` para uma pasta temporária
    (outro branch: `WEB_BRANCH=main bash sync-ios-com-web.sh`; de uma pasta qualquer:
    `WEB_SRC=/caminho bash sync-ios-com-web.sh`).
 2. Copia com `rsync -a` as pastas `adapters config constants core services styles ui ui-compiled
@@ -59,8 +59,8 @@ Compare os blobs do git (rápido e exato):
 ```bash
 WEB=~/…/precificacao/precificacao-cloud
 IOS=~/…/precificacao/precificacao-ios/ios/App
-for f in $(git -C "$WEB" ls-tree -r --name-only precificacao/v2 -- ui-compiled utils ui core config adapters services vendor index.html api-client.js | grep -v ' [0-9]'); do
-  a=$(git -C "$WEB" rev-parse "precificacao/v2:$f")
+for f in $(git -C "$WEB" ls-tree -r --name-only main -- ui-compiled utils ui core config adapters services vendor index.html api-client.js | grep -v ' [0-9]'); do
+  a=$(git -C "$WEB" rev-parse "main:$f")
   b=$(git -C "$IOS" rev-parse "HEAD:App/public/$f" 2>/dev/null)
   [ "$a" = "$b" ] || echo "DIFERENTE: $f"
 done

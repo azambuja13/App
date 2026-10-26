@@ -16,7 +16,7 @@ compartilhar, API de produção, esconder compra) está no código da web, prote
 | Dispositivos | Universal — iPhone + iPad (`TARGETED_DEVICE_FAMILY = "1,2"`) |
 | Deployment target | iOS 17.6 (Podfile declara `platform :ios, '15.0'`) |
 | Capacitor | `@capacitor/core`, `@capacitor/ios`, `@capacitor/cli` 7.4.x — **sem plugins** extras |
-| Código web embutido | `App/App/public/` (cópia do branch `precificacao/v2` da web) |
+| Código web embutido | `App/App/public/` (cópia do branch `main` da web) |
 | Versão / build | Committed no `release/1.2`: **1.2, build 9**. A cópia local do Rafael tem `MARKETING_VERSION = 1.2.1` e `CURRENT_PROJECT_VERSION = 10` **ainda não commitados** no `project.pbxproj` |
 
 ## Documentos
@@ -37,7 +37,7 @@ compartilhar, API de produção, esconder compra) está no código da web, prote
 ## Começo rápido
 
 ```bash
-# 1. trazer a web atual para dentro do app (copia do branch precificacao/v2)
+# 1. trazer a web atual para dentro do app (copia do branch main)
 bash sync-ios-com-web.sh            # na pasta precificacao/
 
 # 2. commitar o bundle no repositório do iOS

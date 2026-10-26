@@ -8,8 +8,8 @@ Suporte: https://www.chefazambuja.com/suporte.html.
 ## Ordem de publicação de uma versão
 
 1. **Backend e web primeiro** (o app usa a API de produção):
-   `bash publicar-precificacao-v2-staging.sh` → testar → `bash publicar-precificacao-v2-producao.sh`
-   (API `precificacao/v2 → main`, espera o deploy no Railway, depois web).
+   `bash publicar-staging.sh` → testar → `bash publicar-producao.sh`
+   (API `staging → main`, espera o deploy no Railway, depois web).
 2. **Bundle do iOS** atualizado e commitado ([fluxo-de-atualizacao.md](fluxo-de-atualizacao.md)).
 3. **`bash publicar-ios-1.2.sh`** (pasta `precificacao/`): move locks órfãos, recusa se houver
    mudanças não commitadas (fora `_to_delete`), faz checkout de `release/1.2` e `push`.
