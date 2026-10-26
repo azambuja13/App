@@ -738,9 +738,9 @@ function IngredientsDatabase({
     },
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
     placeholder: newIngredient.unitType === 'unit' ? 'Ex: 10' : '0'
-  }), newIngredient.unitType === 'unit' && /*#__PURE__*/React.createElement("p", {
+  }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
-  }, "Quantas unidades vem no pacote/caixa")), newIngredient.unitType === 'unit' && newIngredient.costPerUnit > 0 && newIngredient.unitSize > 0 && /*#__PURE__*/React.createElement("div", {
+  }, newIngredient.unitType === 'unit' ? "Quantas unidades vem no pacote/caixa" : "Por peso/volume fica salvo por 1 kg/L (ex.: 500 g por R$ 12 vira 1000 g por R$ 24)")), newIngredient.unitType === 'unit' && newIngredient.costPerUnit > 0 && newIngredient.unitSize > 0 && /*#__PURE__*/React.createElement("div", {
     className: "col-span-2 bg-green-50 border border-green-200 rounded-lg p-3"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-semibold text-green-900"

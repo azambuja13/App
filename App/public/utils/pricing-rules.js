@@ -258,7 +258,25 @@ function menuProteinBase(dishes, db) {
   return { cost, price };
 }
 
-const api = { DEFAULTS, get, save, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
+// ===== Tamanho da unidade padrão (out/2026) =====
+// Peso/volume: sempre 1000 g/ml (preço por kg/L). O custo por grama não muda:
+// 500 g por R$ 12 → 1000 g por R$ 24. Mesma regra da API (src/utils/unitSize.js).
+function ingredientToStandardSize(ing) {
+  if (!ing) return ing;
+  const tipo = String(ing.unitType || '').toLowerCase();
+  const un = String(ing.unit || '').toLowerCase();
+  if (tipo === 'unit' || (!tipo && ['un', 'unidade', 'unidades'].includes(un))) return ing;
+  const c = num(ing.costPerUnit), u = num(ing.unitSize), uc = num(ing.unitCost);
+  let porGrama = null;
+  if (c > 0 && u > 0) porGrama = c / u;
+  else if (c > 0 && uc > 0 && Math.abs(c - uc) <= Math.max(0.0001, uc * 0.01)) porGrama = uc; // preço = custo/g antigo (sem tamanho)
+  else if (c > 0) porGrama = c / 1000; // sem tamanho: o preço digitado vale por 1 kg/L
+  else if (uc > 0) porGrama = uc;
+  if (porGrama === null) return { ...ing, unitSize: 1000 };
+  return { ...ing, costPerUnit: Math.round(porGrama * 1000 * 100) / 100, unitSize: 1000, unitCost: Math.round(porGrama * 10000) / 10000 };
+}
+
+const api = { DEFAULTS, get, save, ingredientToStandardSize, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
   PROTEIN_CATEGORY, isProteinCategory, proteinSafetyPct, proteinFactor, dishIngredientCategory, dishProteinShare, dishPerPerson, menuProteinBase };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

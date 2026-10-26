@@ -487,6 +487,8 @@ O topo da tela mostra o total de clientes e quantos têm telefone, e-mail e ende
 
 > **Exemplo:** picanha comprada a R$ 89,90 o kg, com 15% de perda na limpeza. Cadastre: tipo **peso**, embalagem **1000 g**, custo **89,90**, perda **15**. O sistema calcula R$ 0,0899 por grama e, nos pratos, já compra 15% a mais para compensar a perda.
 
+> **Peso e volume são sempre por 1 kg / 1 L:** o tamanho da unidade fica em **1000 g (ou ml)**. Se você comprar em pacote menor, pode digitar o pacote (ex.: manteiga, 500 g por R$ 12): ao salvar, o sistema converte para **1000 g por R$ 24**, o mesmo custo por grama.
+
 ### 12.2 Outras ações
 
 - **Buscar:** por nome, categoria ou unidade.

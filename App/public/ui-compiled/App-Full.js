@@ -1016,6 +1016,12 @@ window.AppFull = function AppFull() {
       yieldMultiplier: parseFloat(src.yieldMultiplier) > 0 ? parseFloat(src.yieldMultiplier) : 1,
       unit: src.unit || (unitType === 'unit' ? 'un' : unitType === 'volume' ? 'L' : 'kg')
     };
+    // Peso/volume: sempre 1000 g/ml (preço por kg/L), igual à API
+    if (window.PricingRules && window.PricingRules.ingredientToStandardSize && unitType !== 'unit') {
+      const p = window.PricingRules.ingredientToStandardSize({ ...ingredientData, unitCost: 0 });
+      ingredientData.costPerUnit = p.costPerUnit != null ? p.costPerUnit : ingredientData.costPerUnit;
+      ingredientData.unitSize = p.unitSize;
+    }
 
     // Salvar no PostgreSQL se estiver em modo cloud
     let savedIngredient = null;
@@ -1108,12 +1114,19 @@ window.AppFull = function AppFull() {
   };
   const handleSaveEditingIngredient = async () => {
     console.log('💾 [handleSaveEditingIngredient] Tentando atualizar ingrediente:', state.editingIngredient.name);
+    // Peso/volume: sempre 1000 g/ml (preço por kg/L), igual à API. Mostra já o valor que fica salvo.
+    let ed = state.editingIngredient;
+    if (window.PricingRules && window.PricingRules.ingredientToStandardSize) {
+      const ei = state.editingIngredient;
+      const p = window.PricingRules.ingredientToStandardSize(ei);
+      ed = p;
+    }
 
     // Salvar no PostgreSQL se estiver em modo cloud
     if (window.backendInitialized && window.PrecificacaoAPI?.ingredientManager) {
       try {
-        console.log('📤 [handleSaveEditingIngredient] Enviando para API:', state.editingIngredient);
-        const result = await window.PrecificacaoAPI.ingredientManager.updateIngredient(state.editingIngredient.id, state.editingIngredient);
+        console.log('📤 [handleSaveEditingIngredient] Enviando para API:', ed);
+        const result = await window.PrecificacaoAPI.ingredientManager.updateIngredient(ed.id, ed);
         console.log('📥 [handleSaveEditingIngredient] Resposta da API:', result);
 
         if (!result || !result.success) {
@@ -1122,7 +1135,7 @@ window.AppFull = function AppFull() {
           return;
         }
 
-        console.log('✅ Ingrediente atualizado no PostgreSQL:', state.editingIngredient.name);
+        console.log('✅ Ingrediente atualizado no PostgreSQL:', ed.name);
       } catch (error) {
         console.error('❌ Erro ao atualizar ingrediente no PostgreSQL:', error);
         alert('Erro ao atualizar ingrediente no banco de dados: ' + error.message);
@@ -1131,7 +1144,7 @@ window.AppFull = function AppFull() {
     }
 
     // Atualizar no estado local apenas se salvou com sucesso no backend
-    const updatedIngredients = state.ingredientsDatabase.map(ing => ing.id === state.editingIngredient.id ? state.editingIngredient : ing);
+    const updatedIngredients = state.ingredientsDatabase.map(ing => ing.id === ed.id ? ed : ing);
     state.setIngredientsDatabase(updatedIngredients);
     state.setEditingIngredient(null);
   };
