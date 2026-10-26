@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias.
 - **Apoio automático:** cada item de apoio pode ter uma regra (por convidado, por kg de carne, por hora ou fixo por evento) e a embalagem de compra. O app calcula quanto comprar e arredonda para pacotes inteiros. Também há **kits** prontos por tipo de evento.
 - **Preços mais precisos:**
   - **Custo dos pratos:** a perda dos ingredientes era contada duas vezes. Agora ela só reduz o peso final, e custos e preços sugeridos ficaram corretos (em geral, menores). O app recalcula seus pratos sozinho na primeira vez que você entrar depois da atualização.
@@ -93,6 +94,7 @@ Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 - **Salvos:** cardápios salvos para reutilizar.
 - **Itens:** lista de compras do evento.
 - **Apoio:** itens de apoio e logística, transporte e mão de obra.
+- **Estoque:** compras, saldo, baixa dos eventos e compra sugerida (Premium).
 - **Propostas:** criação, envio e acompanhamento das propostas.
 - **WhatsApp:** configuração do envio de propostas em PDF pelo WhatsApp (Premium, no computador).
 - **Empresa (no celular):** abre o painel da empresa, com os dados da empresa, o suporte e este manual.
@@ -372,7 +374,7 @@ Com o Funil (Premium), o envio fica registrado na linha do tempo do cliente como
 2. Em **"✏️ Editar modelos"**, no quadro **"📲 Modelos da Meta"**, toque em **"Ligar pelos nomes"** (ou escolha o modelo em cada mensagem) e confira as variáveis: cada {{1}}, {{2}}… do modelo recebe um dado do app ({primeiro_nome}, {evento}, {data}…).
 3. Toque em **"Salvar ligações"**.
 
-Assim, quando o cliente não falou com você nas últimas 24 h, o app manda o **modelo aprovado** com os dados preenchidos. Vai o texto aprovado na Meta, não o texto editado na tela. Mensagens sem modelo ligado continuam com **"💬 Abrir no app"**. Precisa do **WhatsApp Business Account ID** preenchido no painel da empresa > WhatsApp.
+Mensagem ligada a modelo: o envio direto manda sempre o **modelo aprovado** com os dados preenchidos, e ele chega mesmo para quem não falou com você nas últimas 24 h. Vai o texto aprovado na Meta, não o texto editado na tela. Mensagem sem modelo vai como texto livre: a Meta aceita, mas **só entrega** se o cliente falou com você nas últimas 24 h. Mensagens sem modelo ligado continuam com **"💬 Abrir no app"**. Precisa do **WhatsApp Business Account ID** preenchido no painel da empresa > WhatsApp.
 
 ### 9.3 Modelos que já vêm prontos
 
@@ -598,6 +600,8 @@ A aba **Itens** mostra os ingredientes do evento calculados para o número de co
 
 Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 
+No plano Premium, o quadro **"Estoque deste evento"** fica no topo da aba (veja o capítulo 21).
+
 ---
 
 ## 17. Apoio, transporte e mão de obra
@@ -802,7 +806,57 @@ Para obter as credenciais:
 
 ---
 
-## 21. Planos e recursos
+## 21. Estoque de insumos (Premium)
+
+Controla o que você tem guardado (carnes, carvão, descartáveis, temperos...) e quanto precisa comprar para os próximos eventos. As quantidades ficam na unidade do ingrediente: **kg** (peso), **L** (volume) ou **un** (unidade).
+
+### 21.1 Registrar compra
+
+1. Abra a aba **📦 Estoque** e toque em **"Registrar compra"**.
+2. Em cada linha, escolha o ingrediente, a quantidade, a unidade (kg ou g, L ou ml, un ou embalagem) e, se quiser, o **valor total pago**.
+3. Toque em **"Registrar compra"**.
+
+Quando o valor pago é diferente do preço do cadastro, o app pergunta se você quer **atualizar o preço do cadastro**, sugerindo o último preço pago. Marque os que quer atualizar. O preço do cadastro é o que entra nas propostas; o estoque guarda também o **custo médio** do que você comprou.
+
+### 21.2 Saldo e estoque mínimo
+
+- A tabela mostra o **saldo**, o **mínimo** e o **custo médio** de cada ingrediente. Use o filtro para ver só os que estão **abaixo do mínimo** ou todos os ingredientes.
+- Digite o **mínimo** direto na tabela (ex.: 5 kg de picanha). Abaixo do mínimo o ingrediente fica com o selo amarelo.
+- Toque no nome do ingrediente para ver o **histórico** (compras, baixas, sobras, perdas e inventários).
+
+### 21.3 Perda, sobra e inventário
+
+Toque em **"Perda / sobra / inventário"**:
+
+- **Perda:** venceu, estragou, caiu. Sai do estoque.
+- **Sobra:** o que voltou de um evento. Entra de novo.
+- **Inventário:** você contou o que tem. O saldo passa a ser o número contado.
+
+### 21.4 Baixa do evento
+
+Na aba **Itens**, o quadro **"Estoque deste evento"** mostra se o estoque cobre a lista de compras. A baixa **só acontece quando você confirma**:
+
+1. Salve o evento.
+2. Toque em **"Dar baixa no estoque"**.
+3. Confira a coluna **Saiu** (o previsto já vem com perda, rendimento e margem das proteínas) e ajuste o que for diferente.
+4. Toque em **"Confirmar baixa"**.
+
+Depois do evento, use **"Registrar sobra / perda"**. Se der baixa por engano, toque em **"Desfazer baixa"**: as quantidades voltam para o estoque. Cada evento tem uma baixa só.
+
+Sem saldo suficiente, a baixa é feita assim mesmo e o saldo fica **negativo** (selo vermelho), para você lembrar de lançar a compra.
+
+### 21.5 Compra sugerida
+
+Toque em **"🧾 Compra sugerida"** e escolha o período (7, 15, 30 ou 60 dias). O app soma o que os **eventos fechados** (proposta **aprovada**) do período precisam, pelo cardápio de cada proposta, tira o que já está no estoque e acrescenta o mínimo.
+
+- **Copiar lista** ou **Enviar pelo WhatsApp** para o fornecedor.
+- **Comprei: registrar a compra** abre a compra já preenchida.
+
+Propostas aprovadas sem cardápio aparecem num aviso e não entram na conta.
+
+---
+
+## 22. Planos e recursos
 
 ### OFFLINE
 
@@ -821,18 +875,19 @@ Para obter as credenciais:
 - CRM: Funil de Vendas, ficha do cliente, tarefas e lembretes, tarefas automáticas e Relatórios.
 - Recursos com IA: importar ingredientes, templates, atualizar preços, importar receitas e montar cardápios.
 - Envio de propostas em PDF pelo WhatsApp.
+- Estoque de insumos: compras, baixa do evento, sobras, perdas e compra sugerida.
 
 Recursos que não fazem parte do seu plano aparecem com um cadeado.
 
 ---
 
-## 22. Uso no celular
+## 23. Uso no celular
 
-### 22.1 App para iPhone
+### 23.1 App para iPhone
 
 O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e senha e seus dados aparecem iguais.
 
-### 22.2 Instalar a versão web na tela inicial
+### 23.2 Instalar a versão web na tela inicial
 
 **iPhone e iPad (Safari):**
 
@@ -846,7 +901,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 2. Toque no menu de três pontos.
 3. Toque em **"Adicionar à tela inicial"** ou **"Instalar app"** e confirme.
 
-### 22.3 Dicas
+### 23.3 Dicas
 
 - As abas ficam na barra inferior. O botão "Empresa" abre os dados da empresa, o suporte e este manual.
 - No Funil, use o menu "Mover para…" no lugar de arrastar.
@@ -854,7 +909,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ---
 
-## 23. Solução de problemas
+## 24. Solução de problemas
 
 ### Não consigo entrar
 
@@ -909,7 +964,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ---
 
-## 24. Suporte
+## 25. Suporte
 
 - No painel da empresa, use o botão **"Falar com o suporte"**. No celular, o painel abre pelo botão "Empresa" na barra inferior. O botão também aparece na tela de acesso.
 - Ou envie um e-mail para: rafael.oliveira.azambuja@gmail.com

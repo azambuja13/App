@@ -2815,7 +2815,7 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,
@@ -3032,7 +3032,10 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "settings",
     className: "w-4 h-4"
-  }), "Apoio"), /*#__PURE__*/React.createElement(ProposalTabButton, {
+  }), "Apoio"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('stock'),
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'stock' ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
+  }, "\uD83D\uDCE6 Estoque"), /*#__PURE__*/React.createElement(ProposalTabButton, {
     isActive: state.activeTab === 'proposals',
     onClick: () => state.setActiveTab('proposals')
   })), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
@@ -3121,9 +3124,21 @@ window.AppFull = function AppFull() {
     className: "bg-white rounded-lg shadow p-6 text-center"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600"
-  }, "Carregando componente de Eventos..."))), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
+  }, "Carregando componente de Eventos..."))), state.activeTab === 'stock' && /*#__PURE__*/React.createElement(FeatureGate, {
+    featureName: "stock",
+    requiredPlan: "premium"
+  }, window.StockPage ? /*#__PURE__*/React.createElement(window.StockPage, {
+    ingredients: state.ingredientsDatabase
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-lg shadow p-6 text-center"
+  }, "Carregando estoque...")), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
-  }, /*#__PURE__*/React.createElement(ItemsList, {
+  }, window.EventStockPanel && /*#__PURE__*/React.createElement(window.EventStockPanel, {
+    items: costs?.itemsCalculated || [],
+    eventId: state.currentEventId,
+    eventName: state.eventName,
+    ingredients: state.ingredientsDatabase
+  }), /*#__PURE__*/React.createElement(ItemsList, {
     groupedItems: groupedItems,
     categoryStats: categoryStats,
     guests: state.guests,
@@ -3356,6 +3371,13 @@ window.AppFull = function AppFull() {
   }, "\uD83E\uDD55"), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
   }, "Ingred.")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('stock'),
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'stock' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm"
+  }, "\uD83D\uDCE6"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Estoque")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('dishes'),
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'dishes' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {

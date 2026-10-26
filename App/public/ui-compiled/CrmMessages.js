@@ -196,27 +196,24 @@ function MessageDialog({ ctx, onClose }) {
     setEnviando(true);
     const vinc = vinculos && vinculos[chave];
     try {
-      await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
-      registrar();
-      alert('✅ Mensagem enviada pelo WhatsApp (aceita pela Meta).');
-      onClose();
+      if (vinc && vinc.name) {
+        // Mensagem ligada a um modelo aprovado: manda sempre o modelo (a Meta entrega mesmo fora das 24 h).
+        // O texto livre fora das 24 h é aceito pela API mas NÃO é entregue (a falha só chega depois, por webhook).
+        const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink));
+        await api.request('/api/company/whatsapp/send-template', { method: 'POST', body: JSON.stringify({ to: telefone, name: vinc.name, language: vinc.language, ...prm }) });
+        registrar();
+        alert('✅ Enviado pelo modelo da Meta "' + vinc.name + '" (vai o texto aprovado do modelo, com os dados do cliente).');
+        onClose();
+      } else {
+        await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
+        registrar();
+        alert('✅ Mensagem aceita pela Meta.\n\nAtenção: texto livre só é ENTREGUE se o cliente falou com você nas últimas 24 h. Para chegar sempre, ligue esta mensagem a um modelo da Meta em "✏️ Editar modelos".');
+        onClose();
+      }
     } catch (e) {
       const msg = String((e && e.message) || e);
-      // 131047 = o cliente não falou com você nas últimas 24 h → manda o modelo aprovado ligado a esta mensagem
-      if (/131047/.test(msg) && vinc && vinc.name) {
-        try {
-          const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink));
-          await api.request('/api/company/whatsapp/send-template', { method: 'POST', body: JSON.stringify({ to: telefone, name: vinc.name, language: vinc.language, ...prm }) });
-          registrar();
-          alert('✅ Enviado pelo modelo da Meta "' + vinc.name + '".\n\nO cliente não tinha falado com você nas últimas 24 h, então foi o texto aprovado do modelo (não o texto editado aqui).');
-          onClose();
-        } catch (e2) { setErroEnvio(String((e2 && e2.message) || e2)); }
-      } else if (/131047/.test(msg)) {
-        setErroEnvio('O cliente não falou com você nas últimas 24 h e esta mensagem não está ligada a um modelo da Meta. Ligue em "✏️ Editar modelos" ou use "Abrir no app".');
-      } else {
-        // Não abre o app sozinho (o navegador bloqueia depois da espera): mostra o aviso e o botão "Abrir no app"
-        setErroEnvio(msg);
-      }
+      if (/131047/.test(msg)) setErroEnvio('O cliente não falou com você nas últimas 24 h e esta mensagem não está ligada a um modelo da Meta. Ligue em "✏️ Editar modelos" ou use "Abrir no app".');
+      else setErroEnvio(msg); // Não abre o app sozinho (o navegador bloqueia depois da espera)
     } finally { setEnviando(false); }
   };
   const copiar = async () => {
@@ -253,8 +250,8 @@ function MessageDialog({ ctx, onClose }) {
           h('button', { onClick: copiar, className: 'crm-btn', style: { background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', flex: '0 0 auto' } }, copiado ? '✓ Copiado' : 'Copiar texto')),
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
           h('div', { className: 'crm-muted' }, (apiPronta && wa ? (vinculos && vinculos[chave] && vinculos[chave].name
-              ? 'Fora das 24 h vai o modelo da Meta "' + vinculos[chave].name + '". '
-              : 'Envio direto: só chega se o cliente falou com você nas últimas 24 h. ') : '') + (C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : '')),
+              ? 'Envio direto: vai o modelo aprovado "' + vinculos[chave].name + '" (chega mesmo fora das 24 h). '
+              : 'Envio direto sem modelo: só chega se o cliente falou com você nas últimas 24 h. ') : '') + (C.hasCrm() && clienteId ? 'O envio fica registrado na linha do tempo do cliente.' : '')),
           h('div', { role: 'button', onClick: () => setEditando(true), style: { fontSize: 13, color: '#c2410c', cursor: 'pointer', fontWeight: 600 } }, '✏️ Editar modelos')))));
 }
 
@@ -348,7 +345,7 @@ function TemplateEditor({ dados, onSaved, onBack, onVinculos }) {
         h('button', { onClick: salvarLink, disabled: salvando === '_link', className: 'crm-btn', style: { background: '#ea580c', color: '#fff' } }, salvando === '_link' ? '...' : 'Salvar'))),
     h('div', { style: { padding: 12, border: '1px solid #bbf7d0', background: '#f0fdf4', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 } },
       h('div', { style: { fontWeight: 700, fontSize: 14 } }, '📲 Modelos da Meta (para enviar fora das 24 h)'),
-      h('div', { className: 'crm-muted' }, 'Se o cliente não falou com você nas últimas 24 h, o "Enviar pelo WhatsApp" manda o modelo aprovado ligado à mensagem, com as variáveis preenchidas. Liga em cada mensagem abaixo.'),
+      h('div', { className: 'crm-muted' }, 'Mensagem ligada a um modelo: o "Enviar pelo WhatsApp" manda o modelo aprovado, com as variáveis preenchidas, e ele chega mesmo para quem não falou com você nas últimas 24 h. Sem modelo, vai o texto livre, que só é entregue dentro das 24 h.'),
       metaErro ? h('div', { style: { fontSize: 13, color: '#991b1b' } }, '❌ ' + metaErro)
         : h('div', { className: 'crm-muted' }, meta ? meta.length + ' modelo(s) aprovado(s) na Meta' : 'Carregando modelos da Meta...'),
       h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },

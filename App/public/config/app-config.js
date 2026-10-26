@@ -378,7 +378,8 @@ const ConfigHelper = {
                 'proposalComparison', // Comparação de propostas - EXCLUSIVO PREMIUM
                 'prioritySupport', // Suporte prioritário - EXCLUSIVO PREMIUM
                 'whatsapp', // Integração WhatsApp - EXCLUSIVO PREMIUM
-                'crm' // CRM: funil de vendas e ficha do cliente - EXCLUSIVO PREMIUM
+                'crm', // CRM: funil de vendas e ficha do cliente - EXCLUSIVO PREMIUM
+                'stock' // Estoque de insumos - EXCLUSIVO PREMIUM
             ]
         };
 
@@ -402,7 +403,8 @@ const ConfigHelper = {
             'proposalComparison',
             'prioritySupport',
             'whatsapp',
-            'crm'
+            'crm',
+            'stock'
         ];
 
         return allPremiumFeatures.filter(feature => !this.hasFeatureAccess(feature));
