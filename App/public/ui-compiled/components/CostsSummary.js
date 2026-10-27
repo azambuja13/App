@@ -85,6 +85,36 @@ const CostsSummary = React.memo(function CostsSummary({
   const porPessoaPratos = pp(totalPratosComApoio);
   const porPessoaMargem = pp(totalMargemComApoio);
 
+  // ✅ Margens do evento (bruta, operacional e líquida) sobre o preço de venda, com a mesma conta da proposta
+  const margens = (() => {
+    if (!window.PricingRules || !window.PricingRules.calcProposal || !window.PricingRules.marginBreakdown || !(guests > 0)) return null;
+    const tipo = hasActiveMenu && hasMargin ? 'menu_price' : hasActiveMenu ? 'menu_cost' : 'items';
+    const modo = regras && regras.defaultPricingMode === 'divisor' ? 'divisor' : 'markup';
+    const c = window.PricingRules.calcProposal({
+      perPersonCost: menuCostTotal / guests, perPersonPrice: menuPriceTotal / guests, itemsCostPerPerson: ingredientsCost / guests,
+      guests, totalType: tipo, supportCost, laborCost, transportCost, months: monthsUntilEvent, pricingMode: modo, settings: regras
+    });
+    const m = window.PricingRules.marginBreakdown(c, regras);
+    if (!m) return null;
+    m.base = modo === 'divisor' ? 'método do divisor' : tipo === 'menu_price' ? 'total com margem' : tipo === 'menu_cost' ? 'total dos pratos' : 'total dos itens';
+    m.divisorInvalid = c.divisorInvalid;
+    return m;
+  })();
+  const pctTxt = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',') + '%';
+  const corPct = v => v < 0 ? 'text-red-600' : v < 10 ? 'text-orange-600' : 'text-green-700';
+  const linhaConta = (rotulo, valor, sinal) => React.createElement("div", {
+    key: rotulo, className: "flex justify-between text-xs text-gray-600"
+  }, React.createElement("span", null, sinal ? sinal + " " + rotulo : rotulo), React.createElement("span", null, formatCurrency(valor)));
+  const linhaTotal = (rotulo, valor) => React.createElement("div", {
+    key: rotulo, className: "flex justify-between text-xs font-semibold text-gray-800 border-t", style: { paddingTop: 2 }
+  }, React.createElement("span", null, "= " + rotulo), React.createElement("span", null, formatCurrency(valor)));
+  const linhaMargem = (rotulo, valor, pctV, dica) => React.createElement("div", {
+    key: rotulo, className: "flex justify-between items-center py-2 border-t border-gray-200", title: dica
+  }, React.createElement("div", null,
+      React.createElement("div", { className: "text-sm font-semibold text-gray-800" }, rotulo),
+      React.createElement("div", { className: "text-xs text-gray-500" }, formatCurrency(valor) + " · " + dica)),
+    React.createElement("span", { className: `text-xl font-bold ${corPct(pctV)}` }, pctTxt(pctV)));
+
   // ✅ Verificar se tem margem adicional (markup da proposta)
   const hasAdditionalMarkup = additionalMarkupPercent > 0 && additionalMarkupAmount > 0;
 
@@ -246,7 +276,35 @@ const CostsSummary = React.memo(function CostsSummary({
     serviceMarkupPct > 0 && /*#__PURE__*/React.createElement("p", {
       className: "text-orange-200 text-xs mt-1"
     }, "inclui markup de serviços de ", String(serviceMarkupPct).replace('.', ','), "% (apoio, mão de obra e transporte)")
-  )))));
+  ))), margens && React.createElement("div", {
+    className: "bg-white rounded-xl p-4 border border-gray-200 shadow-sm", "data-testid": "margens-evento"
+  }, React.createElement("div", { className: "flex items-baseline justify-between gap-2 mb-1" },
+      React.createElement("h4", { className: "font-bold text-gray-800" }, "📊 Margens do evento"),
+      React.createElement("span", { className: "text-xs text-gray-500" }, "% do preço de venda")),
+    React.createElement("div", { className: "flex justify-between items-center text-sm mb-1" },
+      React.createElement("span", { className: "text-gray-600" }, "Preço de venda ", React.createElement("span", { className: "text-xs text-gray-400" }, "(" + margens.base + ")")),
+      React.createElement("span", { className: "font-bold text-gray-800" }, formatCurrency(margens.price))),
+    linhaMargem("Margem bruta", margens.gross, margens.grossPct, "preço − comida − apoio"),
+    linhaMargem("Margem operacional", margens.operating, margens.operatingPct, "bruta − mão de obra, transporte, taxas e custos fixos"),
+    linhaMargem("Margem líquida", margens.net, margens.netPct, "operacional − impostos"),
+    React.createElement("details", { className: "mt-2" },
+      React.createElement("summary", { className: "text-xs text-orange-700 font-semibold cursor-pointer" }, "Ver a conta"),
+      React.createElement("div", { className: "mt-2 space-y-1" },
+        linhaConta("Preço de venda", margens.price, ""), linhaConta("Comida", margens.food, "−"), linhaConta("Apoio", margens.support, "−"),
+        linhaTotal("Lucro bruto", margens.gross),
+        linhaConta("Mão de obra", margens.labor, "−"), linhaConta("Transporte", margens.transport, "−"),
+        linhaConta("Taxas de cartão", margens.cardFees, "−"), linhaConta("Custos fixos", margens.fixedCosts, "−"),
+        linhaTotal("Lucro operacional", margens.operating),
+        linhaConta("Impostos", margens.taxes, "−"),
+        linhaTotal("Lucro líquido", margens.net),
+        mult > 1 && React.createElement("p", { className: "text-xs text-gray-500", style: { paddingTop: 4 } }, "Comida e apoio já com a correção até o evento."))),
+    margens.divisorInvalid && React.createElement("p", { className: "text-xs text-red-600 mt-2" },
+      "Os percentuais de Custos da empresa somam quase 100%: o método do divisor não fecha. Revise os percentuais."),
+    !margens.hasCompanyCosts && React.createElement("p", { className: "text-xs text-yellow-800 bg-yellow-50 rounded-lg p-2 mt-2" },
+      "Cadastre impostos, taxas de cartão e custos fixos em ",
+      window.openPricingSettings ? React.createElement("button", { type: "button", className: "font-semibold", style: { textDecoration: "underline" }, onClick: () => window.openPricingSettings() }, "Custos da empresa") : "Custos da empresa",
+      " para a margem operacional e a líquida ficarem reais.")
+  )));
 });
 
 // Expor ao window para uso com Babel

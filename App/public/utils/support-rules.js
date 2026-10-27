@@ -228,7 +228,8 @@ function kitFromSupport(name, support) {
       unit: i.unit || 'un',
       packSize: num(i.packSize, 0),
       packLabel: i.packLabel || '',
-      cost: num(i.cost, 0)
+      cost: num(i.cost, 0),
+      ...(i.stockControlled ? { stockControlled: true } : {})
     }))
   };
 }
@@ -265,7 +266,9 @@ function applyKit(kit, support, base) {
       cost: 0,
       quantity: num(k.quantity, 0),
       qtyOverride: false,
-      active: true
+      active: true,
+      // Estoque (fase 2): continua controlado se o item já era, ou se o kit marca
+      ...((ex && ex.stockControlled) || k.stockControlled ? { stockControlled: true } : {})
     };
     // Preço: o mais recente da pessoa; senão o do kit.
     // Item no formato novo (tem unidade): converte para a embalagem do kit.

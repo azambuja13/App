@@ -147,6 +147,34 @@ function eventTotal(food, support, labor, transport, mult, settings) {
   return Math.ceil(Math.round(total * 100) / 100 - 1e-9);
 }
 
+/**
+ * Margens do evento sobre o preço de venda (o mesmo preço da proposta, via calcProposal):
+ *   bruta       = preço − comida − apoio (insumos)
+ *   operacional = bruta − mão de obra − transporte − taxas de cartão − custos fixos
+ *   líquida     = operacional − impostos (= lucro estimado da proposta)
+ * c = resultado de calcProposal; settings = Custos da empresa.
+ */
+function marginBreakdown(c, settings) {
+  const s = { ...DEFAULTS, ...(settings || {}) };
+  // Preço arredondado para cima em reais, como o total da proposta e do Resumo
+  const price = num(c && (c.finalTotalRounded != null ? c.finalTotalRounded : c.finalTotal));
+  if (!(price > 0)) return null;
+  const r2 = v => Math.round(v * 100) / 100;
+  const pct = v => r2(v / price * 100);
+  const food = num(c.foodCost), support = num(c.support), labor = num(c.labor), transport = num(c.transport);
+  const cardFees = price * num(s.cardFeesPct) / 100, fixedCosts = price * num(s.fixedCostsPct) / 100, taxes = price * num(s.taxesPct) / 100;
+  const gross = price - food - support;
+  const operating = gross - labor - transport - cardFees - fixedCosts;
+  const net = operating - taxes;
+  return {
+    price: r2(price), food: r2(food), support: r2(support), labor: r2(labor), transport: r2(transport),
+    cardFees: r2(cardFees), fixedCosts: r2(fixedCosts), taxes: r2(taxes),
+    gross: r2(gross), operating: r2(operating), net: r2(net),
+    grossPct: pct(gross), operatingPct: pct(operating), netPct: pct(net),
+    hasCompanyCosts: num(s.cardFeesPct) + num(s.fixedCostsPct) + num(s.taxesPct) > 0
+  };
+}
+
 /** Valor por pessoa como no PDF da proposta (centavos arredondados). */
 function perPerson(total, guests) {
   const g = Math.max(0, num(guests));
@@ -276,7 +304,7 @@ function ingredientToStandardSize(ing) {
   return { ...ing, costPerUnit: Math.round(porGrama * 1000 * 100) / 100, unitSize: 1000, unitCost: Math.round(porGrama * 10000) / 10000 };
 }
 
-const api = { DEFAULTS, get, save, ingredientToStandardSize, monthsUntil, calcProposal, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
+const api = { DEFAULTS, get, save, ingredientToStandardSize, monthsUntil, calcProposal, marginBreakdown, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
   PROTEIN_CATEGORY, isProteinCategory, proteinSafetyPct, proteinFactor, dishIngredientCategory, dishProteinShare, dishPerPerson, menuProteinBase };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

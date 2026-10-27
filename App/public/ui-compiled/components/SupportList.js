@@ -58,6 +58,9 @@ function NumField({ value, onChange, placeholder, className, id, ariaLabel, mone
   });
 }
 
+// Estoque (fase 2, PREMIUM): o item de apoio pode ter saldo controlado na aba Estoque
+const temEstoque = () => !!(window.ConfigHelper && window.ConfigHelper.hasFeatureAccess && window.ConfigHelper.hasFeatureAccess('stock'));
+
 const RULE_SUFFIX = {
   perGuest: 'por convidado',
   perGroup: 'por grupo',
@@ -129,6 +132,9 @@ function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel }) {
     h('label', { className: 'flex items-center gap-2 text-sm text-gray-700' },
       h('input', { type: 'checkbox', checked: item.active !== false, className: 'w-5 h-5',
         onChange: e => set({ active: e.target.checked }) }), 'Usar neste evento'),
+    temEstoque() && h('label', { className: 'flex items-center gap-2 text-sm text-gray-700' },
+      h('input', { type: 'checkbox', checked: !!item.stockControlled, className: 'w-5 h-5', 'aria-label': 'Controlar no estoque',
+        onChange: e => set({ stockControlled: e.target.checked }) }), '📦 Controlar no estoque (entra no saldo e sai na baixa do evento)'),
     h('div', { className: 'flex gap-2' },
       h('button', { onClick: onSave, className: 'flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold' }, saveLabel || 'Salvar'),
       h('button', { onClick: onCancel, className: 'flex-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm font-semibold' }, 'Cancelar')));
@@ -188,6 +194,7 @@ const SupportList = React.memo(function SupportList({
               d.auto && !d.override && chip('automático', C.chipAuto),
               d.auto && d.override && chip('ajustado à mão', C.chipMao),
               !d.auto && chip('manual', C.chipManual),
+              item.stockControlled && temEstoque() && chip('📦 estoque', { background: '#ecfdf5', color: '#047857' }),
               item.active && !(num(item.cost) > 0) && chip('sem preço', C.chipSemPreco),
               item.active && num(item.cost) > 0 && item.priceCheck && chip('confira o preço', C.chipMao)),
             h('span', { className: 'font-bold text-orange-600 whitespace-nowrap' }, brl(item.total))),

@@ -9,7 +9,8 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
-- **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias.
+- **Margens do evento:** o Resumo mostra a margem bruta, a operacional e a líquida, com a conta.
+- **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias. Agora também com **validade** (aviso antes de vencer), **apoio no estoque** (carvão, copos, gás), **inventário** e lançamentos **sem internet**.
 - **Apoio automático:** cada item de apoio pode ter uma regra (por convidado, por kg de carne, por hora ou fixo por evento) e a embalagem de compra. O app calcula quanto comprar e arredonda para pacotes inteiros. Também há **kits** prontos por tipo de evento.
 - **Preços mais precisos:**
   - **Custo dos pratos:** a perda dos ingredientes era contada duas vezes. Agora ela só reduz o peso final, e custos e preços sugeridos ficaram corretos (em geral, menores). O app recalcula seus pratos sozinho na primeira vez que você entrar depois da atualização.
@@ -94,7 +95,7 @@ Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 - **Salvos:** cardápios salvos para reutilizar.
 - **Itens:** lista de compras do evento.
 - **Apoio:** itens de apoio e logística, transporte e mão de obra.
-- **Estoque:** compras, saldo, baixa dos eventos e compra sugerida (Premium).
+- **Estoque:** compras, saldo, validade, apoio, inventário, baixa dos eventos e compra sugerida (Premium).
 - **Propostas:** criação, envio e acompanhamento das propostas.
 - **WhatsApp:** configuração do envio de propostas em PDF pelo WhatsApp (Premium, no computador).
 - **Empresa (no celular):** abre o painel da empresa, com os dados da empresa, o suporte e este manual.
@@ -691,6 +692,18 @@ Ao aplicar um kit, os preços que você já tem são mantidos. Os itens que não
 - **Excluir:** remove o evento.
 - **Novo Evento:** começa um evento em branco.
 
+### 18.3 Margens do evento
+
+No **Resumo Financeiro**, o quadro **📊 Margens do evento** mostra quanto sobra do preço de venda, em reais e em %. O preço de venda é o mesmo da proposta: o total com margem (ou o total dos pratos, sem cardápio com margem) ou o preço pelo método do divisor, se ele for o padrão em Custos da empresa.
+
+- **Margem bruta** = preço − comida − apoio.
+- **Margem operacional** = bruta − mão de obra − transporte − taxas de cartão − custos fixos.
+- **Margem líquida** = operacional − impostos. É o lucro estimado da proposta.
+
+Toque em **"Ver a conta"** para ver cada valor descontado. As taxas, os custos fixos e os impostos vêm dos percentuais de **Custos da empresa**; sem eles, a operacional e a líquida aparecem maiores do que são (o quadro avisa).
+
+> **Exemplo:** preço de R$ 10.000, comida e apoio R$ 3.800 → margem bruta 62%. Menos mão de obra R$ 1.500, transporte R$ 300, taxas R$ 300 e custos fixos R$ 1.000 → operacional 31%. Menos impostos de R$ 600 → líquida 25%.
+
 ---
 
 ## 19. Propostas
@@ -808,15 +821,15 @@ Para obter as credenciais:
 
 ## 21. Estoque de insumos (Premium)
 
-Controla o que você tem guardado (carnes, carvão, descartáveis, temperos...) e quanto precisa comprar para os próximos eventos. As quantidades ficam na unidade do ingrediente: **kg** (peso), **L** (volume) ou **un** (unidade).
+Controla o que você tem guardado (carnes, carvão, descartáveis, temperos...) e quanto precisa comprar para os próximos eventos. As quantidades ficam na unidade do ingrediente: **kg** (peso), **L** (volume) ou **un** (unidade). Os itens de apoio ficam na unidade do item (kg de carvão, unidades de copo...).
 
 ### 21.1 Registrar compra
 
 1. Abra a aba **📦 Estoque** e toque em **"Registrar compra"**.
-2. Em cada linha, escolha o ingrediente, a quantidade, a unidade (kg ou g, L ou ml, un ou embalagem) e, se quiser, o **valor total pago**.
+2. Em cada linha, escolha o ingrediente (ou o item de apoio, marcado "(apoio)"), a quantidade, a unidade (kg ou g, L ou ml, un, embalagem ou saco/pacote do apoio) e, se quiser, o **valor total pago** e a **validade**.
 3. Toque em **"Registrar compra"**.
 
-Quando o valor pago é diferente do preço do cadastro, o app pergunta se você quer **atualizar o preço do cadastro**, sugerindo o último preço pago. Marque os que quer atualizar. O preço do cadastro é o que entra nas propostas; o estoque guarda também o **custo médio** do que você comprou.
+Quando o valor pago de um ingrediente é diferente do preço do cadastro, o app pergunta se você quer **atualizar o preço do cadastro**, sugerindo o último preço pago. Marque os que quer atualizar. O preço do cadastro é o que entra nas propostas; o estoque guarda também o **custo médio** do que você comprou.
 
 ### 21.2 Saldo e estoque mínimo
 
@@ -824,13 +837,12 @@ Quando o valor pago é diferente do preço do cadastro, o app pergunta se você 
 - Digite o **mínimo** direto na tabela (ex.: 5 kg de picanha). Abaixo do mínimo o ingrediente fica com o selo amarelo.
 - Toque no nome do ingrediente para ver o **histórico** (compras, baixas, sobras, perdas e inventários).
 
-### 21.3 Perda, sobra e inventário
+### 21.3 Perda e sobra
 
-Toque em **"Perda / sobra / inventário"**:
+Toque em **"Perda / sobra"**:
 
 - **Perda:** venceu, estragou, caiu. Sai do estoque.
-- **Sobra:** o que voltou de um evento. Entra de novo.
-- **Inventário:** você contou o que tem. O saldo passa a ser o número contado.
+- **Sobra:** o que voltou de um evento. Entra de novo (pode ter validade).
 
 ### 21.4 Baixa do evento
 
@@ -854,6 +866,38 @@ Toque em **"🧾 Compra sugerida"** e escolha o período (7, 15, 30 ou 60 dias).
 
 Propostas aprovadas sem cardápio aparecem num aviso e não entram na conta.
 
+### 21.6 Validade
+
+A validade é opcional na compra e na sobra. Com ela:
+
+- A saída (baixa do evento, perda, inventário) tira **primeiro o que vence antes**.
+- No topo da aba aparece o aviso **⏰ Validade** com o que vence em até **7 dias** e o que **já venceu**. No que venceu, toque em **"Lançar como perda"**.
+- O filtro **"Vencendo ou vencidos"** mostra só esses itens, com o selo "vence em X dias" ou "vencido".
+
+### 21.7 Apoio no estoque
+
+Carvão, gás, copos, guardanapos e outros itens de apoio podem ter estoque:
+
+1. Na aba **Apoio**, edite o item e marque **"📦 Controlar no estoque"**. O item ganha o selo **📦 estoque**.
+2. Ele passa a aparecer na aba Estoque (filtro **"Só apoio"**), na compra, na perda e sobra, no inventário e na compra sugerida.
+3. Na baixa do evento, o apoio controlado entra junto, com a quantidade da regra do item (por convidado, por kg de carne, por hora ou fixa).
+
+Itens que não são insumo (churrasqueiro extra, aluguel) ficam sem marcar.
+
+### 21.8 Inventário
+
+Toque em **"📋 Inventário"**, escolha o que contar (itens com estoque, todos ou uma categoria) e digite ao lado de cada item o que contou. A coluna **Diferença** mostra quanto muda. Só os itens preenchidos são alterados: o saldo passa a ser o contado.
+
+### 21.9 Sem internet
+
+Compra, baixa, sobra, perda e inventário funcionam sem internet (por exemplo, no evento, no iPhone):
+
+- O lançamento fica guardado no aparelho e o aviso **📶 esperando internet** aparece no topo. Os saldos já mostram o lançamento, com "aguardando envio".
+- Quando a conexão volta, o envio é automático (ou toque em **"Enviar agora"**). O mesmo lançamento nunca é gravado duas vezes.
+- Se o servidor recusar algum (ex.: baixa repetida do mesmo evento), aparece o aviso com o motivo.
+
+O estoque mínimo só muda com internet.
+
 ---
 
 ## 22. Planos e recursos
@@ -875,7 +919,7 @@ Propostas aprovadas sem cardápio aparecem num aviso e não entram na conta.
 - CRM: Funil de Vendas, ficha do cliente, tarefas e lembretes, tarefas automáticas e Relatórios.
 - Recursos com IA: importar ingredientes, templates, atualizar preços, importar receitas e montar cardápios.
 - Envio de propostas em PDF pelo WhatsApp.
-- Estoque de insumos: compras, baixa do evento, sobras, perdas e compra sugerida.
+- Estoque de insumos: compras, validade, apoio, inventário, baixa do evento, sobras, perdas, compra sugerida e lançamentos sem internet.
 
 Recursos que não fazem parte do seu plano aparecem com um cadeado.
 

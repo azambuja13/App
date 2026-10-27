@@ -1247,7 +1247,8 @@ window.AppFull = function AppFull() {
       unit: ns.unit || 'un',
       packSize: ns.packSize || 0,
       packLabel: ns.packLabel || '',
-      qtyOverride: !!ns.qtyOverride
+      qtyOverride: !!ns.qtyOverride,
+      ...(ns.stockControlled ? { stockControlled: true } : {})
     };
     state.setSupport([...state.support, window.SupportRules ? window.SupportRules.applyRules([newItem], supportBase)[0] : newItem]);
     // Reset newSupport
@@ -2892,7 +2893,7 @@ window.AppFull = function AppFull() {
     className: "text-sm text-blue-100"
   }, "Custo por Pessoa"), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-bold"
-  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
@@ -3128,7 +3129,9 @@ window.AppFull = function AppFull() {
     featureName: "stock",
     requiredPlan: "premium"
   }, window.StockPage ? /*#__PURE__*/React.createElement(window.StockPage, {
-    ingredients: state.ingredientsDatabase
+    ingredients: state.ingredientsDatabase,
+    support: state.support,
+    base: supportBase
   }) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"
   }, "Carregando estoque...")), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
@@ -3137,7 +3140,9 @@ window.AppFull = function AppFull() {
     items: costs?.itemsCalculated || [],
     eventId: state.currentEventId,
     eventName: state.eventName,
-    ingredients: state.ingredientsDatabase
+    ingredients: state.ingredientsDatabase,
+    support: supportItemsWithTotal,
+    base: supportBase
   }), /*#__PURE__*/React.createElement(ItemsList, {
     groupedItems: groupedItems,
     categoryStats: categoryStats,
