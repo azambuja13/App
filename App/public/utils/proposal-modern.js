@@ -85,6 +85,23 @@ function pmIncluded(p) {
   return { itens: itens, obs: resto.join('\n') };
 }
 
+// Insumos por conta do cliente (out/2026): lista do que o cliente compra (proposta.clientSupplyList)
+function pmClientSupply(p, esc) {
+  var l = p.clientSupplyList || null;
+  var itens = l && Array.isArray(l.itens) ? l.itens : [];
+  var apoio = l && Array.isArray(l.apoio) ? l.apoio : [];
+  if (!itens.length && !apoio.length) return '';
+  var grupos = {}, ordem = [];
+  itens.forEach(function (i) { var c = i.category || 'Outros'; if (!grupos[c]) { grupos[c] = []; ordem.push(c); } grupos[c].push(i); });
+  if (apoio.length) { grupos['Apoio'] = apoio; ordem.push('Apoio'); }
+  var caixas = ordem.map(function (c) {
+    return '<div class="pm-box"><h4>' + esc(c) + '</h4><ul>' + grupos[c].map(function (i) {
+      return '<li><span class="pm-ck">□</span><span style="flex:1">' + esc(i.name) + '</span><b style="white-space:nowrap">' + esc(i.qty || '') + '</b></li>';
+    }).join('') + '</ul></div>';
+  }).join('');
+  return caixas;
+}
+
 function pmRender(p, opts) {
   opts = opts || {};
   var img = opts.img || function (s) { return s || ''; };
@@ -213,6 +230,14 @@ function pmRender(p, opts) {
       '<div class="pm-menu' + (dishes.length <= 6 ? ' pm-one' : '') + '">' + menuHtml + '</div>' +
       (guests ? '<p class="pm-note">Porções calculadas para ' + guests + ' convidados.</p>' : '') +
       '</div>' + rodape() + '</div>';
+  }
+
+  // 4b. Insumos por conta do cliente
+  var cliHtml = pmClientSupply(p, esc);
+  if (cliHtml) {
+    html += '<div class="pm-pg"><div class="pm-main"><div class="pm-kicker">Combinado do evento</div><h2>Insumos por conta do cliente</h2>' +
+      '<p class="pm-lead">Neste evento, você compra os itens abaixo e entrega até a véspera.' + (guests ? ' As quantidades já consideram a perda no preparo para ' + guests + ' convidados.' : '') + ' O investimento cobre o preparo, a mão de obra e o restante.</p>' +
+      '<div class="pm-two">' + cliHtml + '</div></div>' + rodape() + '</div>';
   }
 
   // 5. Investimento e condições

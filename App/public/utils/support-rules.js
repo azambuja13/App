@@ -268,7 +268,9 @@ function applyKit(kit, support, base) {
       qtyOverride: false,
       active: true,
       // Estoque (fase 2): continua controlado se o item já era, ou se o kit marca
-      ...((ex && ex.stockControlled) || k.stockControlled ? { stockControlled: true } : {})
+      ...((ex && ex.stockControlled) || k.stockControlled ? { stockControlled: true } : {}),
+      // Insumos do cliente: o item continua marcado como trazido pelo cliente neste evento
+      ...(ex && ex.clientProvides ? { clientProvides: true } : {})
     };
     // Preço: o mais recente da pessoa; senão o do kit.
     // Item no formato novo (tem unidade): converte para a embalagem do kit.

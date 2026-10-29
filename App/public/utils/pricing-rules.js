@@ -70,7 +70,8 @@ function monthsUntil(dateStr, today) {
  * p = { perPersonCost, perPersonPrice, itemsCostPerPerson, guests,
  *       totalType: 'menu_price'|'menu_cost'|'items',
  *       supportCost, laborCost, transportCost,
- *       months, pricingMode: 'markup'|'divisor', extraPct, settings }
+ *       months, pricingMode: 'markup'|'divisor', extraPct, settings,
+ *       prepFee }  prepFee = taxa de preparo (R$, total) quando o cliente fornece insumos: entra direto no preço
  */
 function calcProposal(p) {
   const s = { ...DEFAULTS, ...(p.settings || {}) };
@@ -107,6 +108,8 @@ function calcProposal(p) {
     servicesPrice = services * (1 + num(s.serviceMarkupPct) / 100);
     subtotal = foodPriceBase + servicesPrice;
   }
+  const prepFee = Math.max(0, num(p.prepFee));
+  subtotal += prepFee;
   const extraPct = num(p.extraPct);
   const finalTotal = subtotal * (1 + extraPct / 100);
 
@@ -118,7 +121,7 @@ function calcProposal(p) {
     mode, type, guests: g, months, inflationFactor: infl,
     foodCost: r2(foodCost), foodPrice: r2(mode === 'markup' ? foodPriceBase : foodCost),
     support: r2(support), labor: r2(labor), transport: r2(transport),
-    servicesPrice: r2(servicesPrice), inflationAmount: r2(inflationAmount),
+    servicesPrice: r2(servicesPrice), inflationAmount: r2(inflationAmount), prepFee: r2(prepFee),
     directCost: r2(directCost), subtotal: r2(subtotal), extraPct,
     finalTotal: r2(finalTotal), finalTotalRounded: Math.ceil(r2(finalTotal) - 1e-9),
     salesDeductions: r2(salesDeductions), profit: r2(profit),
@@ -138,12 +141,12 @@ function calcProposal(p) {
  * transporte) levam o markup de serviços; arredondado para cima em reais (igual à proposta).
  * food = comida (itens, custo do cardápio ou preço do cardápio) para todos os convidados.
  */
-function eventTotal(food, support, labor, transport, mult, settings) {
+function eventTotal(food, support, labor, transport, mult, settings, prepFee) {
   const s = settings || get();
   const m = num(mult, 1) > 0 ? num(mult, 1) : 1;
   const smk = s.defaultPricingMode === 'divisor' ? 0 : num(s.serviceMarkupPct);
   const services = (num(support) * m + num(labor) + num(transport)) * (1 + smk / 100);
-  const total = num(food) * m + services;
+  const total = num(food) * m + services + Math.max(0, num(prepFee));
   return Math.ceil(Math.round(total * 100) / 100 - 1e-9);
 }
 
@@ -245,6 +248,10 @@ function dishIngredientCategory(ing, db) {
 }
 /** Parte do custo do prato que é proteína (0 a 1), pelos ingredientes da receita. */
 function dishProteinShare(dish, db) {
+  return dishShare(dish, db, (ing, cat) => isProteinCategory(cat));
+}
+/** Parte do custo do prato (0 a 1) dos ingredientes em que pred(ingrediente, categoria) é verdadeiro. */
+function dishShare(dish, db, pred) {
   const ings = (dish && (dish.dishIngredients || dish.ingredients)) || [];
   let total = 0, prot = 0;
   for (const ing of ings) {
@@ -257,7 +264,7 @@ function dishProteinShare(dish, db) {
       : qBase * num(ing.costPerUnit);
     if (!(c > 0)) continue;
     total += c;
-    if (isProteinCategory(dishIngredientCategory(ing, db))) prot += c;
+    if (pred(ing, dishIngredientCategory(ing, db))) prot += c;
   }
   return total > 0 ? Math.min(1, prot / total) : 0;
 }
@@ -275,10 +282,15 @@ function dishPerPerson(item) {
 }
 /** Parte de proteína do custo/preço por pessoa de um cardápio (sem a margem). Margem = isso × %. */
 function menuProteinBase(dishes, db) {
+  return menuShareBase(dishes, db, (ing, cat) => isProteinCategory(cat));
+}
+/** Custo e preço por pessoa da parte dos pratos em que pred(ingrediente, categoria) é verdadeiro
+ *  (ex.: insumos que o cliente compra). Preço = mesma proporção do preço do prato. */
+function menuShareBase(dishes, db, pred) {
   let cost = 0, price = 0;
   for (const d of (dishes || [])) {
     if (!d || d.active === false) continue;
-    const share = dishProteinShare(d, db);
+    const share = dishShare(d, db, pred);
     if (!(share > 0)) continue;
     const pp = dishPerPerson(d);
     cost += pp.cost * share; price += pp.price * share;
@@ -305,7 +317,7 @@ function ingredientToStandardSize(ing) {
 }
 
 const api = { DEFAULTS, get, save, ingredientToStandardSize, monthsUntil, calcProposal, marginBreakdown, indicators, eventTotal, perPerson, markupFromCmv, cmvFromMarkup, cmvStatus, dishCmv,
-  PROTEIN_CATEGORY, isProteinCategory, proteinSafetyPct, proteinFactor, dishIngredientCategory, dishProteinShare, dishPerPerson, menuProteinBase };
+  PROTEIN_CATEGORY, isProteinCategory, proteinSafetyPct, proteinFactor, dishIngredientCategory, dishProteinShare, dishShare, dishPerPerson, menuProteinBase, menuShareBase };
 if (typeof window !== 'undefined') window.PricingRules = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

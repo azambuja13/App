@@ -70,7 +70,7 @@ const RULE_SUFFIX = {
 };
 
 // Formulário de item (novo ou edição) com regra e embalagem
-function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel }) {
+function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel, clientOn }) {
   const h = React.createElement;
   const rules = R().RULES;
   const set = patch => onChange({ ...item, ...patch });
@@ -135,6 +135,9 @@ function ItemEditor({ item, onChange, base, onSave, onCancel, saveLabel }) {
     temEstoque() && h('label', { className: 'flex items-center gap-2 text-sm text-gray-700' },
       h('input', { type: 'checkbox', checked: !!item.stockControlled, className: 'w-5 h-5', 'aria-label': 'Controlar no estoque',
         onChange: e => set({ stockControlled: e.target.checked }) }), '📦 Controlar no estoque (entra no saldo e sai na baixa do evento)'),
+    clientOn && h('label', { className: 'flex items-center gap-2 text-sm text-gray-700' },
+      h('input', { type: 'checkbox', checked: !!item.clientProvides, className: 'w-5 h-5', 'aria-label': 'O cliente traz este item',
+        onChange: e => set({ clientProvides: e.target.checked }) }), '🧺 O cliente traz este item (não entra no custo nem no preço)'),
     h('div', { className: 'flex gap-2' },
       h('button', { onClick: onSave, className: 'flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold' }, saveLabel || 'Salvar'),
       h('button', { onClick: onCancel, className: 'flex-1 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm font-semibold' }, 'Cancelar')));
@@ -156,7 +159,8 @@ const SupportList = React.memo(function SupportList({
   onApplyKit,
   onSaveKit,
   onDeleteKit,
-  onResetAuto
+  onResetAuto,
+  clientSupplyOn = false
 }) {
   const h = React.createElement;
   const { useState } = React;
@@ -168,7 +172,9 @@ const SupportList = React.memo(function SupportList({
   if (!R()) return h('div', { className: 'p-4' }, 'Carregando…');
 
   const ativos = supportItems.filter(i => i.active);
-  const total = ativos.reduce((s, i) => s + (i.total || 0), 0);
+  // O que o cliente traz não entra no total (insumos do cliente ligados no evento)
+  const doCliente = i => clientSupplyOn && !!i.clientProvides;
+  const total = ativos.reduce((s, i) => s + (doCliente(i) ? 0 : (i.total || 0)), 0);
   const usaCarne = ativos.some(i => R().isAuto(i) && i.rule === 'perMeatKg' && !i.qtyOverride);
   const usaHora = ativos.some(i => R().isAuto(i) && i.rule === 'perHour' && !i.qtyOverride);
   const kits = R().getKits();
@@ -178,7 +184,7 @@ const SupportList = React.memo(function SupportList({
   const linha = (item, idx) => {
     if (editingSupport && editingSupport.id === item.id) {
       return h('div', { key: item.id, className: 'px-4 py-4 border-b border-gray-100 bg-orange-50' },
-        h(ItemEditor, { item: editingSupport, onChange: onEditingChange, base, onSave: onSaveEditing, onCancel: onCancelEditing }));
+        h(ItemEditor, { item: editingSupport, onChange: onEditingChange, base, onSave: onSaveEditing, onCancel: onCancelEditing, clientOn: clientSupplyOn }));
     }
     const d = R().describe(item, base);
     return h('div', { key: item.id, 'data-support-item': item.name,
@@ -195,9 +201,10 @@ const SupportList = React.memo(function SupportList({
               d.auto && d.override && chip('ajustado à mão', C.chipMao),
               !d.auto && chip('manual', C.chipManual),
               item.stockControlled && temEstoque() && chip('📦 estoque', { background: '#ecfdf5', color: '#047857' }),
+              doCliente(item) && chip('🧺 o cliente traz', { background: '#ffedd5', color: '#9a3412' }),
               item.active && !(num(item.cost) > 0) && chip('sem preço', C.chipSemPreco),
               item.active && num(item.cost) > 0 && item.priceCheck && chip('confira o preço', C.chipMao)),
-            h('span', { className: 'font-bold text-orange-600 whitespace-nowrap' }, brl(item.total))),
+            h('span', { className: 'font-bold text-orange-600 whitespace-nowrap', style: doCliente(item) ? { textDecoration: 'line-through', opacity: .6 } : undefined }, brl(item.total))),
           d.auto && !d.override && h('div', { className: 'text-xs mt-1', style: C.tealTxt }, d.ruleText),
           d.auto && d.override && h('div', { className: 'text-xs mt-1', style: C.amberTxt },
             'Automático seria ', fmtN(R().computeQuantity(item, base)), '. ',

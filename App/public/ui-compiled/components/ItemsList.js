@@ -106,7 +106,10 @@ const ItemsList = React.memo(function ItemsList({
     `;
 
     // Iterar por cada categoria
-    Object.entries(groupedItems).forEach(([category, items]) => {
+    Object.entries(groupedItems).forEach(([category, todos]) => {
+      // O que o cliente compra não entra na sua lista (ele recebe a lista dele em Itens → Insumos do cliente)
+      const items = todos.filter(i => !i.clientSupplied);
+      if (!items.length) return;
       html += `
         <div class="category">
           <div class="category-header">${category.toUpperCase()}</div>
@@ -262,9 +265,9 @@ const ItemsList = React.memo(function ItemsList({
       }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome', item.safetyPct > 0 && /*#__PURE__*/React.createElement("span", {
         title: "Margem de seguran\xE7a das prote\xEDnas: a compra e o custo j\xE1 incluem esse % a mais",
         style: { marginLeft: 8, display: 'inline-block', fontSize: 10, fontWeight: 600, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' }
-      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a")), /*#__PURE__*/React.createElement("span", {
+      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a"), item.clientSupplied && /*#__PURE__*/React.createElement("span", { "data-client-item": true, title: "O cliente compra este item: n\xE3o entra no custo nem no pre\xE7o", style: { marginLeft: 8, display: "inline-block", fontSize: 10, fontWeight: 700, color: "#9a3412", background: "#ffedd5", border: "1px solid #fed7aa", borderRadius: 4, padding: "1px 6px", verticalAlign: "middle", whiteSpace: "nowrap" } }, "\uD83E\uDDFA cliente compra")), /*#__PURE__*/React.createElement("span", {
         className: "font-bold text-orange-600 whitespace-nowrap"
-      }, formatCurrency(item.total))), /*#__PURE__*/React.createElement("div", {
+      }, (item.clientSupplied ? /*#__PURE__*/React.createElement("s", { style: { opacity: .6 } }, formatCurrency(item.total)) : formatCurrency(item.total)))), /*#__PURE__*/React.createElement("div", {
         className: "grid gap-2 mt-2",
         style: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }
       }, cell("Consumo/pessoa (preparado)", fmtPerPerson(item.qtyPerPerson)), cell("Consumo/pessoa (cru)", fmtPerPerson(qtyPerPersonBruto)), cell("Comprar (exato)", isUnitType ? `${(item.qtyInKgL || 0).toFixed(2)} un` : `${(item.qtyInKgL || 0).toFixed(2)} kg/L`), cell("Comprar (pela embalagem)", item.qtyRoundedLabel || (isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`))));
@@ -369,7 +372,7 @@ const ItemsList = React.memo(function ItemsList({
       }, item.name || item.ingredient?.nome || item.ingredient?.name || 'Sem nome', item.safetyPct > 0 && /*#__PURE__*/React.createElement("span", {
         title: "Margem de seguran\xE7a das prote\xEDnas: a compra e o custo j\xE1 incluem esse % a mais",
         style: { marginLeft: 8, display: 'inline-block', fontSize: 10, fontWeight: 600, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle', whiteSpace: 'nowrap' }
-      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a")), /*#__PURE__*/React.createElement("td", {
+      }, "+", String(Math.round(item.safetyPct * 10) / 10).replace('.', ','), "% seguran\xE7a"), item.clientSupplied && /*#__PURE__*/React.createElement("span", { "data-client-item": true, title: "O cliente compra este item: n\xE3o entra no custo nem no pre\xE7o", style: { marginLeft: 8, display: "inline-block", fontSize: 10, fontWeight: 700, color: "#9a3412", background: "#ffedd5", border: "1px solid #fed7aa", borderRadius: 4, padding: "1px 6px", verticalAlign: "middle", whiteSpace: "nowrap" } }, "\uD83E\uDDFA cliente compra")), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-center"
       }, /*#__PURE__*/React.createElement("div", {
         className: "text-center font-medium text-gray-800"
@@ -383,7 +386,7 @@ const ItemsList = React.memo(function ItemsList({
         className: "px-4 py-3 text-right font-medium text-gray-700"
       }, item.qtyRoundedLabel || (isUnitType ? `${Math.ceil(item.qtyInKgL || 0)} un` : `${Math.ceil(item.qtyInKgL || 0)} kg/L`)), /*#__PURE__*/React.createElement("td", {
         className: "px-4 py-3 text-right font-bold text-orange-600"
-      }, formatCurrency(item.total)));
+      }, (item.clientSupplied ? /*#__PURE__*/React.createElement("s", { style: { opacity: .6 } }, formatCurrency(item.total)) : formatCurrency(item.total))));
     })))));
   }));
 });

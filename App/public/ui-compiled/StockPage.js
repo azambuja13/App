@@ -441,8 +441,12 @@ async function necessidadeDaProposta(p, db, support, horas) {
   const calc = window.calculateItems(itens, db, conv, { proteinSafetyPct: snap && snap.proteinSafetyPct != null ? snap.proteinSafetyPct : undefined });
   const out = new Map();
   let meatKg = 0;
+  // Insumos do cliente: o que o cliente compra/traz não entra na compra sugerida
+  const csP = d.clientSupply || p.clientSupply;
+  const apoioCli = new Set((((d.clientSupplyList || p.clientSupplyList) || {}).apoio || []).map(a => supportKey(a.name)));
   calc.forEach(it => {
     if (!it.ingredientId || !(it.qtyToBuy > 0)) return;
+    if (window.ClientSupply && window.ClientSupply.ingrediente(it.name || (it.ingredient && (it.ingredient.nome || it.ingredient.name)), it.category, csP)) return;
     const ing = db.find(i => i.id === it.ingredientId);
     const un = tipoIng(ing || it) === 'un';
     out.set('i:' + it.ingredientId, (out.get('i:' + it.ingredientId) || 0) + (un ? it.qtyToBuy : it.qtyToBuy * 1000));
@@ -451,6 +455,7 @@ async function necessidadeDaProposta(p, db, support, horas) {
   // Apoio controlado no estoque: pela regra de cada item, com os convidados e a carne desta proposta
   (support || []).forEach(it => {
     if (!it || !it.stockControlled || !String(it.name || '').trim()) return;
+    if (apoioCli.has(supportKey(it.name))) return;
     const n = apoioNecessario(it, { guests: conv, meatKg: Math.round(meatKg * 100) / 100, hours: horas || 0 });
     if (n > 0) { const k = 's:' + supportKey(it.name); out.set(k, (out.get(k) || 0) + n); }
   });

@@ -959,7 +959,7 @@ function ProposalPreview({
     className: "text-sm text-gray-600 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
-  }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, window.ClientSupplySection && /*#__PURE__*/React.createElement(window.ClientSupplySection, { proposal: proposal }), proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold text-gray-800 mb-4 border-b-2 border-orange-500 pb-2"
@@ -1081,7 +1081,7 @@ function ProposalPreview({
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
-  }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, window.ClientSupplySection && /*#__PURE__*/React.createElement(window.ClientSupplySection, { proposal: proposal }), proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-bold text-blue-600 mb-6 border-b-4 border-blue-600 pb-2"
@@ -1184,7 +1184,7 @@ function ProposalPreview({
     className: "text-sm text-gray-700 mt-1 italic"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
-  }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, window.ClientSupplySection && /*#__PURE__*/React.createElement(window.ClientSupplySection, { proposal: proposal }), proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-8"
   }, /*#__PURE__*/React.createElement("div", {
     className: "border-l-8 border-gray-800 pl-6 mb-8"
@@ -1315,7 +1315,7 @@ function ProposalPreview({
     className: "text-sm text-gray-600 mt-1 font-light"
   }, dish.dishDescription))))))))), /*#__PURE__*/React.createElement("div", {
     className: "page-break min-h-screen bg-white p-12 flex flex-col"
-  }, proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, window.ClientSupplySection && /*#__PURE__*/React.createElement(window.ClientSupplySection, { proposal: proposal }), proposal.includedItems && proposal.includedItems.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-12"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-light mb-6"

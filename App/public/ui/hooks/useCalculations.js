@@ -68,17 +68,25 @@ async function calculateEventCosts(data, ingredients) {
         ? window.PricingRules.proteinSafetyPct(data.proteinSafetyPct) : 0;
     const itemsCalculated = window.calculateItems(data.items || [], ingredients, data.guests, { proteinSafetyPct: data.proteinSafetyPct });
 
-    // Custo dos itens do evento (para exibição por categorias)
-    const itemsEventCost = itemsCalculated.reduce((sum, item) => sum + (item.total || 0), 0);
+    // Insumos do cliente (out/2026): o que o cliente compra sai do custo e do preço; entra a taxa de preparo
+    const CS = window.ClientSupply;
+    const cs = CS ? CS.normalizar(data.clientSupply) : { enabled: false };
+    const doCliente = it => !!(CS && cs.enabled && CS.ingrediente(it.name || (it.ingredient && (it.ingredient.nome || it.ingredient.name)), it.category, data.clientSupply));
+    itemsCalculated.forEach(it => { if (doCliente(it)) it.clientSupplied = true; else if (it.clientSupplied) delete it.clientSupplied; });
+    const clientItemsCost = itemsCalculated.reduce((sum, item) => sum + (item.clientSupplied ? (item.total || 0) : 0), 0);
+
+    // Custo dos itens do evento (para exibição por categorias) — sem o que o cliente compra
+    const itemsEventCost = itemsCalculated.reduce((sum, item) => sum + (item.clientSupplied ? 0 : (item.total || 0)), 0);
     console.log(`📋 [useCalculations] Custo dos ITENS DO EVENTO: R$ ${itemsEventCost.toFixed(2)}`);
 
     // ✅ Verificar se tem cardápio ativo (para calcular margem)
     const hasActiveMenu = (menuStats.totalDishes || 0) > 0;
 
     // Usar módulo calculations para custos de apoio (funções diretas no window)
+    const supportEmpresa = CS ? CS.filtrarApoio(data.support || [], data.clientSupply) : (data.support || []);
     const supportCost = window.calculateSupportCost
-        ? window.calculateSupportCost(data.support || [], true)
-        : (data.support || []).reduce((sum, item) => {
+        ? window.calculateSupportCost(supportEmpresa, true)
+        : supportEmpresa.reduce((sum, item) => {
             if (item.active) {
                 return sum + (item.quantity || 0) * (item.cost || 0);
             }
@@ -100,11 +108,22 @@ async function calculateEventCosts(data, ingredients) {
     // ✅ Custo dos ITENS DO EVENTO (custo real dos ingredientes)
     const ingredientsCost = itemsEventCost;
 
-    // Margem de segurança das proteínas no cardápio (por pessoa): parte de proteína × %
-    const menuSafetyCostPP = (menuStats.proteinCost || 0) * proteinSafetyPct / 100;
-    const menuSafetyPricePP = (menuStats.proteinPrice || 0) * proteinSafetyPct / 100;
-    const menuCostPP = (menuStats.totalCost || 0) + menuSafetyCostPP;
-    const menuPricePP = (menuStats.totalPrice || 0) + menuSafetyPricePP;
+    // Parte do cardápio que o cliente compra (por pessoa): sai do custo e do preço dos pratos
+    let clientMenu = { cost: 0, price: 0 }, clientProtein = { cost: 0, price: 0 };
+    if (CS && cs.enabled && hasActiveMenu && window.PricingRules && window.PricingRules.menuShareBase && window.menuManager && window.menuManager.getActiveMenu) {
+        try {
+            const pratos = await window.menuManager.getActiveMenu();
+            const pred = (ing, cat) => CS.ingrediente(ing.ingredientName || ing.name, cat, data.clientSupply);
+            clientMenu = window.PricingRules.menuShareBase(pratos, ingredients, pred);
+            clientProtein = window.PricingRules.menuShareBase(pratos, ingredients, (ing, cat) => window.PricingRules.isProteinCategory(cat) && pred(ing, cat));
+        } catch (e) { console.warn('⚠️ [useCalculations] insumos do cliente no cardápio:', e); }
+    }
+    // Margem de segurança das proteínas no cardápio (por pessoa): parte de proteína × % (sem a carne do cliente)
+    const menuSafetyCostPP = Math.max(0, (menuStats.proteinCost || 0) - clientProtein.cost) * proteinSafetyPct / 100;
+    const menuSafetyPricePP = Math.max(0, (menuStats.proteinPrice || 0) - clientProtein.price) * proteinSafetyPct / 100;
+    const menuCostPP = Math.max(0, (menuStats.totalCost || 0) - clientMenu.cost) + menuSafetyCostPP;
+    const menuPricePP = Math.max(0, (menuStats.totalPrice || 0) - clientMenu.price) + menuSafetyPricePP;
+    const prepFee = CS ? CS.taxa(data.clientSupply, data.guests) : 0;
     const itemsSafetyCost = itemsCalculated.reduce((sum, item) => sum + (item.safetyCost || 0), 0);
 
     // ✅ Custo do CARDÁPIO (sem margem de lucro, com a margem de segurança) × convidados
@@ -135,9 +154,9 @@ async function calculateEventCosts(data, ingredients) {
     const monthlyRate = (window.PricingRules ? window.PricingRules.get().inflationMonthlyPct : 1) / 100;
     const inflationMultiplier = monthsUntilEvent > 0 ? Math.pow(1 + monthlyRate, monthsUntilEvent) : 1;
     const totalCost = (ingredientsCost + supportCost) * inflationMultiplier + laborCost + transportCost;
-    const totalWithMargin = hasActiveMenu
+    const totalWithMargin = (hasActiveMenu
         ? (menuPriceTotal + supportCost) * inflationMultiplier + laborCost + transportCost
-        : totalCost;
+        : totalCost) + prepFee;
 
     const result = {
         itemsCalculated,
@@ -164,7 +183,14 @@ async function calculateEventCosts(data, ingredients) {
         itemsSafetyCost: itemsSafetyCost,
         totalWithMargin: totalWithMargin,  // Total geral COM margem (cardápio + outros custos)
         menuMarginAmount: menuMarginAmount,  // Valor absoluto da margem
-        hasActiveMenu: hasActiveMenu  // ✅ Flag para saber se tem cardápio
+        hasActiveMenu: hasActiveMenu,  // ✅ Flag para saber se tem cardápio
+        // Insumos do cliente: taxa de preparo (preço) e o que saiu do custo (informativo)
+        clientSupplyOn: !!(CS && CS.ativo(data.clientSupply, data.support)),
+        prepFee: prepFee,
+        clientItemsCost: clientItemsCost,
+        clientMenuCost: clientMenu.cost * (data.guests || 0),
+        clientMenuPrice: clientMenu.price * (data.guests || 0),
+        clientSupportCost: (data.support || []).reduce((t, i) => t + (CS && CS.apoio(i, data.clientSupply) && i.active ? (parseFloat(i.cost) || 0) * (parseFloat(i.quantity) || 0) : 0), 0)
     };
 
     console.log('💰 Cálculo concluído:', {
@@ -244,7 +270,7 @@ function useCalculations(eventData, ingredients = []) {
 
     const supportHash = useMemo(() => {
         const support = eventData.support || [];
-        return support.map(s => `${s.name}_${s.quantity}_${s.cost}_${s.active}`).join('|');
+        return support.map(s => `${s.name}_${s.quantity}_${s.cost}_${s.active}_${s.clientProvides ? 1 : 0}`).join("|");
     }, [eventData.support]);
 
     const ingredientsHash = useMemo(() => {
@@ -317,6 +343,7 @@ function useCalculations(eventData, ingredients = []) {
         eventData.guests,
         eventData.monthsUntilEvent,
         eventData.proteinSafetyPct,
+        JSON.stringify(eventData.clientSupply || null),
         ingredientsHash         // ✅ Usar hash ao invés de array
     ]);
 

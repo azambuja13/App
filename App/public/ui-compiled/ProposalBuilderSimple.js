@@ -93,10 +93,13 @@ function ProposalBuilderSimple({
   const eventFieldsLoadedRef = useRef(false);
   // Proposta antiga (sem regras gravadas): mantém o valor salvo até o usuário mudar algum dado de preço
   const legacySigRef = useRef(null);
+  // Insumos do cliente: lista do que o cliente compra (cardápio × convidados desta proposta)
+  const [listaCliente, setListaCliente] = useState(null);
   const pricingSig = fd => JSON.stringify([parseInt(fd.guests) || 0, fd.selectedMenuId || null, fd.totalType || '', fd.pricingMode || 'markup',
     Number(fd.supportCost) || 0, Number(fd.laborCost) || 0, Number(fd.transportCost) || 0, Math.round((Number(fd.itemsCostPerPerson) || 0) * 100),
     Number(fd.markupPercent) || 0, fd.inflationMonths == null || fd.inflationMonths === '' ? null : Number(fd.inflationMonths) || 0,
-    fd.proteinSafetyPct == null || fd.proteinSafetyPct === '' ? null : Number(fd.proteinSafetyPct) || 0]);
+    fd.proteinSafetyPct == null || fd.proteinSafetyPct === '' ? null : Number(fd.proteinSafetyPct) || 0,
+    fd.clientSupply && fd.clientSupply.enabled ? JSON.stringify(fd.clientSupply) : null]);
 
   // Aguardar backend estar pronto
   useEffect(() => {
@@ -259,6 +262,9 @@ function ProposalBuilderSimple({
         itemsCostPerPerson: proposal.itemsCostPerPerson != null ? Number(proposal.itemsCostPerPerson) : ((Number(proposal.ingredientsCost) || 0) / (Number(proposal.guests) || 1)),
         inflationMonths: proposal.inflationMonths != null ? Number(proposal.inflationMonths) : 0, // propostas antigas: o valor gravado não tinha correção
         proteinSafetyPct: null, // vem das regras gravadas na proposta (pricingSnapshot.proteinSafetyPct; propostas antigas = 0)
+        // Insumos do cliente (out/2026)
+        clientSupply: proposal.clientSupply || null,
+        clientSupplyList: proposal.clientSupplyList || null,
         clientName: proposal.clientName || '',
         clientPhone: proposal.clientPhone || '',
         clientEmail: proposal.clientEmail || '',
@@ -374,6 +380,8 @@ function ProposalBuilderSimple({
             eventDate: firstLoad ? (eventData.eventDate || prev.eventDate) : prev.eventDate,
             inflationMonths: firstLoad && eventData.monthsUntilEvent != null && eventData.monthsUntilEvent !== '' && !isNaN(Number(eventData.monthsUntilEvent)) ? Number(eventData.monthsUntilEvent) : prev.inflationMonths,
             proteinSafetyPct: firstLoad && !proposal && eventData.proteinSafetyPct != null && eventData.proteinSafetyPct !== '' ? Number(eventData.proteinSafetyPct) : prev.proteinSafetyPct,
+            clientSupply: firstLoad && eventData.clientSupply && eventData.clientSupply.enabled ? eventData.clientSupply : prev.clientSupply,
+            clientSupplyList: firstLoad && eventData.clientSupply && eventData.clientSupply.enabled ? (eventData.clientSupplyList || null) : prev.clientSupplyList,
             eventLocation: firstLoad ? (eventData.eventLocation || prev.eventLocation) : prev.eventLocation,
             // Dados do Cliente
             clientName: firstLoad ? clientName : prev.clientName,
@@ -470,6 +478,20 @@ function ProposalBuilderSimple({
       return window.PricingRules.menuProteinBase(dishes, (window.eventState && window.eventState.ingredientsDatabase) || []);
     } catch (e) { return { cost: 0, price: 0 }; }
   };
+  // Parte do cardápio que o cliente compra (custo e preço por pessoa), pelos ingredientes dos pratos
+  const clientShareFor = fd => {
+    const zero = { menu: { cost: 0, price: 0 }, protein: { cost: 0, price: 0 } };
+    try {
+      const CS = window.ClientSupply, PR = window.PricingRules;
+      if (!CS || !PR || !PR.menuShareBase || !fd.clientSupply || !fd.clientSupply.enabled) return zero;
+      const md = fd.selectedMenuData || {};
+      const dishes = (md.menuData && md.menuData.dishes) || md.dishes || [];
+      if (!dishes.length) return zero;
+      const db = (window.eventState && window.eventState.ingredientsDatabase) || [];
+      const pred = (ing, cat) => CS.ingrediente(ing.ingredientName || ing.name, cat, fd.clientSupply);
+      return { menu: PR.menuShareBase(dishes, db, pred), protein: PR.menuShareBase(dishes, db, (ing, cat) => PR.isProteinCategory(cat) && pred(ing, cat)) };
+    } catch (e) { return zero; }
+  };
   const computeProposal = (fd = formData, rulesOverride = null) => {
     const stats = fd.selectedMenuData?.stats || {};
     // Proposta antiga sem os números do cardápio salvos: mantém o valor gravado (não recalcula às cegas)
@@ -484,11 +506,15 @@ function ProposalBuilderSimple({
     }
     // Margem de segurança das proteínas: parte de proteína dos pratos × %
     const safetyPct = proteinPctFor(fd, rulesOverride);
-    const pb = proteinBaseFor(fd);
+    const pbAll = proteinBaseFor(fd);
     const temPreco = Number(stats.totalPrice) > 0;
+    // Insumos do cliente: a parte dos pratos que o cliente compra sai do custo e do preço (e da margem de segurança)
+    const cli = clientShareFor(fd);
+    const pb = { cost: Math.max(0, pbAll.cost - cli.protein.cost), price: Math.max(0, pbAll.price - cli.protein.price) };
     const args = {
-      perPersonCost: (Number(stats.totalCost) || 0) + pb.cost * safetyPct / 100,
-      perPersonPrice: (Number(stats.totalPrice) || Number(stats.totalCost) || 0) + (temPreco ? pb.price : pb.cost) * safetyPct / 100,
+      perPersonCost: Math.max(0, (Number(stats.totalCost) || 0) - cli.menu.cost) + pb.cost * safetyPct / 100,
+      perPersonPrice: Math.max(0, (Number(stats.totalPrice) || Number(stats.totalCost) || 0) - (temPreco ? cli.menu.price : cli.menu.cost)) + (temPreco ? pb.price : pb.cost) * safetyPct / 100,
+      prepFee: window.ClientSupply ? window.ClientSupply.taxa(fd.clientSupply, parseInt(fd.guests) || 0) : 0,
       itemsCostPerPerson: Number(fd.itemsCostPerPerson) || 0,
       guests: parseInt(fd.guests) || 0,
       totalType: fd.totalType,
@@ -505,6 +531,20 @@ function ProposalBuilderSimple({
     const direct = args.perPersonCost * args.guests + args.supportCost + args.laborCost + args.transportCost;
     const fin = (base * args.guests + args.supportCost + args.laborCost + args.transportCost) * (1 + args.extraPct / 100);
     return { directCost: direct, finalTotal: fin, finalTotalRounded: Math.ceil(fin), profit: fin - direct, profitPct: fin > 0 ? (fin - direct) / fin * 100 : 0 };
+  };
+  const csKey = formData.clientSupply && formData.clientSupply.enabled ? JSON.stringify(formData.clientSupply) : '';
+  useEffect(() => {
+    let vivo = true;
+    if (!csKey || !window.ClientSupply) { setListaCliente(null); return; }
+    const db = (window.eventState && window.eventState.ingredientsDatabase) || [];
+    window.ClientSupply.listaDaProposta({ ...formData, pricingSnapshot: pricingSettings }, db).then(l => { if (vivo) setListaCliente(l); }).catch(() => { if (vivo) setListaCliente(null); });
+    return () => { vivo = false; };
+  }, [csKey, formData.selectedMenuId, formData.guests, formData.proteinSafetyPct]);
+  const listaClienteAtual = () => {
+    const cs = formData.clientSupply;
+    if (!cs || !cs.enabled) return null;
+    const salvo = formData.clientSupplyList || {};
+    return { itens: listaCliente || salvo.itens || [], apoio: salvo.apoio || [] };
   };
   // 🔄 Puxar dados do evento aberto para a proposta em edição (com prévia e desfazer)
   const [pullPreview, setPullPreview] = useState(null);
@@ -526,6 +566,9 @@ function ProposalBuilderSimple({
     else if (ed.eventDate && ed.eventDate !== formData.eventDate) patch.inflationMonths = null; // data nova: calcula pelos meses até o evento
     if (ed.eventLocation) patch.eventLocation = ed.eventLocation;
     if (ed.proteinSafetyPct != null && ed.proteinSafetyPct !== '') patch.proteinSafetyPct = Number(ed.proteinSafetyPct) || 0;
+    // Insumos do cliente: a escolha e a lista do evento (inclui o apoio que o cliente traz)
+    patch.clientSupply = ed.clientSupply && ed.clientSupply.enabled ? ed.clientSupply : null;
+    patch.clientSupplyList = patch.clientSupply ? (ed.clientSupplyList || null) : null;
     if (cd.name) {
       patch.clientName = cd.name; patch.clientPhone = cd.phone || ''; patch.clientEmail = cd.email || ''; patch.clientAddress = cd.address || '';
       patch.clientId = cd.id || null;
@@ -588,6 +631,7 @@ function ProposalBuilderSimple({
       add('Apoio e log\xEDstica', brl(formData.supportCost), brl(next.supportCost));
       add('M\xE3o de obra', brl(formData.laborCost), brl(next.laborCost));
       add('Transporte', brl(formData.transportCost), brl(next.transportCost));
+      add('Insumos do cliente', formData.clientSupply && formData.clientSupply.enabled ? 'sim' : 'n\xE3o', next.clientSupply && next.clientSupply.enabled ? 'sim' : 'n\xE3o');
       if (formData.totalType === 'items') add('Lista de compras por pessoa', brl(formData.itemsCostPerPerson), brl(next.itemsCostPerPerson));
       if (pullPreview.useCurrentRules) {
         const r = x => 'impostos ' + pct(x.taxesPct) + ', taxas ' + pct(x.cardFeesPct) + ', fixos ' + pct(x.fixedCostsPct) + ', lucro ' + pct(x.targetProfitPct);
@@ -777,6 +821,10 @@ function ProposalBuilderSimple({
         laborCost: Number(formData.laborCost) || 0,
         supportCost: Number(formData.supportCost) || 0,
         itemsCostPerPerson: Number(formData.itemsCostPerPerson) || 0,
+        // Insumos do cliente: escolha, lista para o cliente (aparece na proposta) e taxa de preparo
+        clientSupply: formData.clientSupply && formData.clientSupply.enabled ? formData.clientSupply : null,
+        clientSupplyList: listaClienteAtual(),
+        prepFee: calcSaved.prepFee || 0,
         ingredientsCost: Math.round((Number(formData.itemsCostPerPerson) || 0) * (parseInt(formData.guests) || 0) * 100) / 100,
         // Regras de preço usadas
         pricingMode: formData.pricingMode,
@@ -1326,18 +1374,26 @@ function ProposalBuilderSimple({
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 } },
         modeBtn('markup', 'Markup', 'Pratos com o markup de cada um + serviços com o markup de serviços'),
         modeBtn('divisor', 'Custos da empresa', 'Custo ÷ (1 − impostos − taxas − custos fixos − lucro)')),
+      window.ClientSupplyProposalBox ? h(window.ClientSupplyProposalBox, {
+        value: formData.clientSupply, onChange: v => { legacySigRef.current = null; handleChange('clientSupply', v); },
+        pratos: (formData.selectedMenuData && ((formData.selectedMenuData.menuData && formData.selectedMenuData.menuData.dishes) || formData.selectedMenuData.dishes)) || [],
+        db: (window.eventState && window.eventState.ingredientsDatabase) || [], guests: parseInt(formData.guests) || 0,
+        lista: listaClienteAtual(),
+        clientCost: (() => { const l = listaClienteAtual(); return l ? l.itens.reduce((t, i) => t + (Number(i.cost) || 0), 0) + l.apoio.reduce((t, i) => t + (Number(i.cost) || 0), 0) : 0; })()
+      }) : null,
       h('div', { className: 'space-y-2 text-sm' },
         line(formData.totalType === 'items' ? 'Comida (lista de compras) — custo' : 'Comida — custo', brl(R.foodCost)),
         R.mode === 'markup' && formData.totalType === 'menu_price' ? line('Comida — preço com markup dos pratos', brl(R.foodPrice)) : null,
         (() => {
           if (formData.totalType === 'items' || R.legacy) return null;
           const sp = proteinPctFor(formData);
-          const amt = proteinBaseFor(formData).cost * sp / 100 * (parseInt(formData.guests) || 0) * (R.inflationFactor || 1);
+          const amt = Math.max(0, proteinBaseFor(formData).cost - clientShareFor(formData).protein.cost) * sp / 100 * (parseInt(formData.guests) || 0) * (R.inflationFactor || 1);
           return sp > 0 && amt > 0.004 ? line('Margem de seguran\xE7a das prote\xEDnas (+' + pct(sp) + ') — j\xE1 inclu\xEDda no custo', brl(amt), { muted: true }) : null;
         })(),
         line('Apoio e log\xEDstica', brl(R.support)),
         line('M\xE3o de obra', brl(R.labor)),
         line('Transporte', brl(R.transport)),
+        R.prepFee > 0 ? line('🧺 Taxa de preparo (' + (parseInt(formData.guests) || 0) + ' × ' + brl(formData.clientSupply && formData.clientSupply.prepFeePerGuest) + ')', brl(R.prepFee)) : null,
         R.mode === 'markup' && (Number(st.serviceMarkupPct) || 0) > 0 ? line('Servi\xE7os com markup de ' + pct(st.serviceMarkupPct), brl(R.servicesPrice)) : null,
         R.inflationAmount > 0 ? line('Corre\xE7\xE3o at\xE9 o evento (' + R.months + (R.months === 1 ? ' m\xEAs' : ' meses') + ' \xD7 ' + pct(st.inflationMonthlyPct) + ') — j\xE1 inclu\xEDda', brl(R.inflationAmount), { muted: true }) : null,
         h('div', { className: 'border-t-2 border-orange-400 pt-2 mt-2' }, line('CUSTO DIRETO', brl(R.directCost), { bold: true })),

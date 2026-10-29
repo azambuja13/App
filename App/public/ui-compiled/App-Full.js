@@ -844,7 +844,8 @@ window.AppFull = function AppFull() {
     labor: state.labor,
     transport: state.transport,
     monthsUntilEvent: state.monthsUntilEvent,
-    proteinSafetyPct: state.proteinSafetyPct
+    proteinSafetyPct: state.proteinSafetyPct,
+    clientSupply: state.clientSupply
   }, state.ingredientsDatabase);
 
   // DEBUG: Verificar resultado dos cálculos
@@ -904,7 +905,9 @@ window.AppFull = function AppFull() {
           active: 0
         };
       }
-      stats[category].total += item.total || 0;
+      // O que o cliente compra não entra no custo da categoria (fica em clientTotal)
+      if (item.clientSupplied) stats[category].clientTotal = (stats[category].clientTotal || 0) + (item.total || 0);
+      else stats[category].total += item.total || 0;
       stats[category].items += 1;
       if (item.active) stats[category].active += 1;
     });
@@ -1362,6 +1365,8 @@ window.AppFull = function AppFull() {
         if (eventData.monthsUntilEvent !== undefined) state.setMonthsUntilEvent(eventData.monthsUntilEvent);
         // Margem de segurança das proteínas do evento (evento sem o campo = padrão de Custos da empresa)
         if (state.setProteinSafetyPct) state.setProteinSafetyPct(eventData.proteinSafetyPct != null && eventData.proteinSafetyPct !== '' ? Number(eventData.proteinSafetyPct) : null);
+        // Insumos do cliente (evento sem o campo = a empresa compra tudo)
+        if (state.setClientSupply) state.setClientSupply(eventData.clientSupply || null);
         // ✅ FIX: NÃO trocar a base de ingredientes pela cópia salva no evento (os preços antigos
         // substituíam os atuais e o auto-save gravava isso na conta). A base atual continua valendo;
         // só entram ingredientes que os itens do evento usam e que não existem mais na base.
@@ -1536,6 +1541,7 @@ window.AppFull = function AppFull() {
       state.setGuests(100);
       state.setMonthsUntilEvent(0);
       if (state.setProteinSafetyPct) state.setProteinSafetyPct(null);
+      if (state.setClientSupply) state.setClientSupply(null);
     }
   };
   const handleExportEvents = () => {
@@ -1678,6 +1684,7 @@ window.AppFull = function AppFull() {
           guests: state.guests,
           monthsUntilEvent: state.monthsUntilEvent,
           proteinSafetyPct: state.proteinSafetyPct,
+          clientSupply: state.clientSupply,
           ingredientsDatabase: state.ingredientsDatabase,
           items: state.items,
           support: state.support,
@@ -2838,6 +2845,9 @@ window.AppFull = function AppFull() {
     inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
     proteinSafetyPct: costs?.proteinSafetyPct || 0,
     proteinSafetyCost: costs?.proteinSafetyCost || 0,
+    prepFee: costs?.prepFee || 0,
+    clientSupplyOn: !!costs?.clientSupplyOn,
+    clientSupplyCost: (costs?.clientItemsCost || 0) + (costs?.clientSupportCost || 0),
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
@@ -2917,6 +2927,9 @@ window.AppFull = function AppFull() {
     inflationMonthlyPct: costs?.inflationMonthlyPct || 1,
     proteinSafetyPct: costs?.proteinSafetyPct || 0,
     proteinSafetyCost: costs?.proteinSafetyCost || 0,
+    prepFee: costs?.prepFee || 0,
+    clientSupplyOn: !!costs?.clientSupplyOn,
+    clientSupplyCost: (costs?.clientItemsCost || 0) + (costs?.clientSupportCost || 0),
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
@@ -3144,12 +3157,20 @@ window.AppFull = function AppFull() {
     className: "bg-white rounded-lg shadow p-6 text-center"
   }, "Carregando vendas...")), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
-  }, window.EventStockPanel && /*#__PURE__*/React.createElement(window.EventStockPanel, {
-    items: costs?.itemsCalculated || [],
+  }, window.ClientSupplyPanel && /*#__PURE__*/React.createElement(window.ClientSupplyPanel, {
+    value: state.clientSupply,
+    onChange: v => state.setClientSupply && state.setClientSupply(v),
+    itemsCalculated: costs?.itemsCalculated || [],
+    support: supportItemsWithTotal,
+    guests: state.guests,
+    costs: costs
+  }), window.EventStockPanel && /*#__PURE__*/React.createElement(window.EventStockPanel, {
+    // O que o cliente compra/traz não sai do estoque
+    items: (costs?.itemsCalculated || []).filter(it => !it.clientSupplied),
     eventId: state.currentEventId,
     eventName: state.eventName,
     ingredients: state.ingredientsDatabase,
-    support: supportItemsWithTotal,
+    support: window.ClientSupply ? window.ClientSupply.filtrarApoio(supportItemsWithTotal, state.clientSupply) : supportItemsWithTotal,
     base: supportBase
   }), /*#__PURE__*/React.createElement(ItemsList, {
     groupedItems: groupedItems,
@@ -3162,6 +3183,7 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement(SupportList, {
     supportItems: supportItemsWithTotal,
     base: supportBase,
+    clientSupplyOn: !!(state.clientSupply && state.clientSupply.enabled),
     onApplyKit: handleApplySupportKit,
     onSaveKit: handleSaveSupportKit,
     onDeleteKit: handleDeleteSupportKit,
@@ -3232,6 +3254,8 @@ window.AppFull = function AppFull() {
       eventLocation: state.eventLocation,
       monthsUntilEvent: state.monthsUntilEvent,
       proteinSafetyPct: state.proteinSafetyPct,
+      clientSupply: state.clientSupply,
+      clientSupplyList: window.ClientSupply && costs ? window.ClientSupply.listaDoEvento(costs.itemsCalculated, supportItemsWithTotal, state.clientSupply) : null,
       clientData: state.clientData,
       proposalData: state.proposalData,
       eventName: state.eventName,

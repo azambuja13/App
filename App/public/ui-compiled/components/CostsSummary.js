@@ -53,7 +53,10 @@ const CostsSummary = React.memo(function CostsSummary({
   inflationMultiplier = 1,
   inflationMonthlyPct = 1,
   proteinSafetyPct = 0,   // margem de segurança das proteínas (%)
-  proteinSafetyCost = 0   // quanto ela somou na comida (já incluído nos totais)
+  proteinSafetyCost = 0,  // quanto ela somou na comida (já incluído nos totais)
+  prepFee = 0,            // insumos do cliente: taxa de preparo (entra no preço)
+  clientSupplyOn = false, // insumos do cliente: há algo que o cliente compra/traz
+  clientSupplyCost = 0    // insumos do cliente: custo que saiu do evento (informativo)
 }) {
   // ✅ Verificar se tem margem do cardápio
   const hasMargin = menuMarginAmount > 0;
@@ -71,8 +74,8 @@ const CostsSummary = React.memo(function CostsSummary({
   const serviceMarkupPct = regras && regras.defaultPricingMode !== 'divisor' ? (Number(regras.serviceMarkupPct) || 0) : 0;
   // Arredondado para cima em reais, como o total da proposta
   const comCorrecao = comida => window.PricingRules && window.PricingRules.eventTotal
-    ? window.PricingRules.eventTotal(comida, supportCost, laborCost, transportCost, mult, regras)
-    : Math.ceil(((comida + supportCost) * mult + laborCost + transportCost) - 1e-9);
+    ? window.PricingRules.eventTotal(comida, supportCost, laborCost, transportCost, mult, regras, prepFee)
+    : Math.ceil(((comida + supportCost) * mult + laborCost + transportCost + prepFee) - 1e-9);
   const totalItensComApoio = comCorrecao(ingredientsCost);  // Total Geral (baseado em itens)
   const totalPratosComApoio = comCorrecao(menuCostTotal);   // Total Pratos + Apoio
   const totalMargemComApoio = comCorrecao(menuPriceTotal);  // Total com Margem + Apoio
@@ -92,7 +95,7 @@ const CostsSummary = React.memo(function CostsSummary({
     const modo = regras && regras.defaultPricingMode === 'divisor' ? 'divisor' : 'markup';
     const c = window.PricingRules.calcProposal({
       perPersonCost: menuCostTotal / guests, perPersonPrice: menuPriceTotal / guests, itemsCostPerPerson: ingredientsCost / guests,
-      guests, totalType: tipo, supportCost, laborCost, transportCost, months: monthsUntilEvent, pricingMode: modo, settings: regras
+      guests, totalType: tipo, supportCost, laborCost, transportCost, months: monthsUntilEvent, pricingMode: modo, settings: regras, prepFee
     });
     const m = window.PricingRules.marginBreakdown(c, regras);
     if (!m) return null;
@@ -180,7 +183,18 @@ const CostsSummary = React.memo(function CostsSummary({
     className: "text-gray-600"
   }, "📈 Correção até o evento (", monthsUntilEvent, " ", monthsUntilEvent === 1 ? 'mês' : 'meses', " × ", String(inflationMonthlyPct).replace('.', ','), "%)"), /*#__PURE__*/React.createElement("span", {
     className: "font-semibold text-gray-800"
-  }, "+", formatCurrency(valorCorrecao)))), /*#__PURE__*/React.createElement("div", {
+  }, "+", formatCurrency(valorCorrecao))), clientSupplyOn && prepFee > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center text-sm",
+    title: "Insumos do cliente: taxa de preparo por convidado (entra no preço)"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-gray-600"
+  }, "\uD83E\uDDFA Taxa de preparo"), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-gray-800"
+  }, formatCurrency(prepFee))), clientSupplyOn && clientSupplyCost > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center text-xs",
+    style: { color: '#9a3412' },
+    title: "O cliente compra esses insumos: n\xE3o entram no custo nem no pre\xE7o"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDFA Insumos do cliente (fora do pre\xE7o)"), /*#__PURE__*/React.createElement("span", null, formatCurrency(clientSupplyCost)))), /*#__PURE__*/React.createElement("div", {
     className: "border-t-2 border-gray-300 pt-4 space-y-2"
   },
   /* ✅ Total dos Itens do Evento (custo real) */

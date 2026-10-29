@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Insumos do cliente:** quando o cliente compra os insumos (todos ou parte), marque o que ele compra. Isso sai do custo e do preço, você cobra uma taxa de preparo por convidado, e a proposta mostra a lista do que o cliente precisa comprar.
 - **Vendas (Premium):** venda de pratos no balcão, mesa, retirada, delivery e encomenda, com **impressão do pedido** em qualquer impressora (térmica 80/58 mm ou folha A4/A5), **estoque de pratos prontos** (marmitas, congelados, bebidas) com validade, **produção sugerida** pelas encomendas e o **resumo do dia** com o lucro bruto.
 - **Margens do evento:** o Resumo mostra a margem bruta, a operacional e a líquida, com a conta.
 - **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias. Agora também com **validade** (aviso antes de vencer), **apoio no estoque** (carvão, copos, gás), **inventário** e lançamentos **sem internet**.
@@ -606,6 +607,30 @@ Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 
 No plano Premium, o quadro **"Estoque deste evento"** fica no topo da aba (veja o capítulo 21).
 
+### 16.1 Insumos do cliente
+
+Use quando o cliente compra os insumos (todos ou parte) e você cobra o preparo, a mão de obra, o apoio e o transporte.
+
+1. Monte o cardápio e gere a lista de compras.
+2. No topo da aba **Itens**, marque **"🧺 O cliente fornece insumos neste evento"**.
+3. Marque o que o cliente compra:
+   - a **categoria inteira** (ex.: Proteínas);
+   - ou só alguns itens, em **"escolher itens"**.
+4. Se quiser, informe a **taxa de preparo por convidado** (R$). Ela entra no preço do evento e da proposta.
+5. Toque em **"📋 Lista de compras do cliente"** para imprimir ou enviar a lista do cliente, com as quantidades já com a perda no preparo.
+
+O que o cliente compra:
+
+- sai do custo do evento e do preço dos pratos (essa parte do cardápio com a sua margem), e também da margem de segurança das proteínas;
+- aparece na lista com a etiqueta **"🧺 cliente compra"** e não entra na sua lista de compras impressa;
+- não sai do estoque e não entra na compra sugerida.
+
+O **Resumo** mostra a **taxa de preparo** e quanto ficou de **insumos do cliente** (fora do preço).
+
+Itens de apoio que o cliente traz (carvão, gelo, descartáveis): marque **"🧺 O cliente traz este item"** no item, na aba Apoio (capítulo 17).
+
+> **Exemplo:** churrasco para 100 pessoas em que o cliente compra todas as carnes. Marque **Proteínas** e uma taxa de preparo de R$ 15,00 por convidado. As carnes saem do custo e do preço, entram R$ 1.500,00 de taxa de preparo, e o cliente recebe a lista: Picanha 36 kg, Fraldinha 21 kg e Linguiça toscana 13 kg.
+
 ---
 
 ## 17. Apoio, transporte e mão de obra
@@ -669,6 +694,10 @@ Toque em **🧰 Kits** para montar a lista de uma vez:
 - **Seus kits:** monte a lista do seu jeito, escreva um nome em **"Salvar a lista atual como kit"** e toque em **Salvar kit**. Entram os itens marcados, com regra, embalagem e preço. O kit fica salvo na sua conta e aparece em todos os aparelhos.
 
 Ao aplicar um kit, os preços que você já tem são mantidos. Os itens que não estão no kit ficam na lista, desmarcados.
+
+### 17.3 Apoio que o cliente traz
+
+Com **"O cliente fornece insumos"** ligado na aba Itens (capítulo 16.1), o editor do item de apoio ganha **"🧺 O cliente traz este item"**. O item fica com a etiqueta **"o cliente traz"**: sai do custo e do preço, não sai do estoque e entra na lista do cliente.
 
 ---
 
@@ -768,6 +797,11 @@ Avisos:
 > - custo direto: R$ 13.896;
 > - valor final no modo Markup: R$ 19.812;
 > - com 240 convidados, o valor recalcula para R$ 38.880.
+
+**Insumos do cliente na proposta:** no quadro Preço da proposta, marque **"🧺 O cliente fornece insumos"**. Escolha as categorias ou os itens do cardápio que o cliente compra e a taxa de preparo por convidado. A proposta nova feita com o evento aberto já vem com a escolha do evento, e **🔄 Puxar dados do evento** também traz essa escolha.
+
+- O preço tira essa parte dos pratos e soma a taxa de preparo (linha **"🧺 Taxa de preparo"**).
+- A proposta (tela, PDF e WhatsApp) ganha a seção **"🧺 Insumos por conta do cliente"**, com a lista do que comprar e as quantidades. Os itens de apoio que o cliente traz vêm do evento.
 
 ### 19.3 Acompanhar
 
