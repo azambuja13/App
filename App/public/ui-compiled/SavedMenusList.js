@@ -19,6 +19,7 @@ function SavedMenusList() {
     return localStorage.getItem('savedMenusList_viewMode') || 'grid';
   });
   const [previewMenuId, setPreviewMenuId] = useState(null);
+  const [atualizando, setAtualizando] = useState(null); // 'todos' | id do cardápio
 
   // Tipos de eventos disponíveis
   const eventTypes = [{
@@ -176,6 +177,9 @@ function SavedMenusList() {
           totalWeight: dish.totalWeight,
           servings: dish.servings || 1,
           // IMPORTANTE: incluir servings!
+          useWeightCalculation: !!dish.useWeightCalculation,
+          profitMargin: Number(dish.profitMargin) || 0,
+          suggestedPrice: Number(dish.suggestedPrice) || 0,
           ingredients: mappedIngredients
         }, dish.portionsPerPerson || 1);
       }
@@ -199,6 +203,27 @@ function SavedMenusList() {
     } catch (error) {
       console.error('Erro ao carregar cardápio:', error);
       alert(`❌ Erro ao carregar cardápio: ${error.message}`);
+    }
+  };
+  // Atualizar pratos: troca a cópia dos pratos pelos dados atuais (mantém as porções por pessoa)
+  const handleRefreshDishes = async menu => {
+    if (!window.MenuRefresh || atualizando) return;
+    const qtd = menu ? 1 : savedMenus.length;
+    if (!qtd) return;
+    const pergunta = menu
+      ? `Atualizar os pratos do cardápio "${menu.name}" com os dados atuais (custo, ingredientes, rendimento e margem)?\n\nAs porções por pessoa são mantidas.`
+      : `Atualizar os pratos de ${qtd} cardápio(s) salvo(s) com os dados atuais (custo, ingredientes, rendimento e margem)?\n\nAs porções por pessoa de cada cardápio são mantidas.`;
+    if (!confirm(pergunta)) return;
+    setAtualizando(menu ? menu.id : 'todos');
+    try {
+      const r = await window.MenuRefresh.atualizarSalvos(menu ? [menu.id] : null);
+      await loadMenus();
+      alert(window.MenuRefresh.textoResumo(r, 'salvos'));
+    } catch (error) {
+      console.error('Erro ao atualizar pratos dos cardápios salvos:', error);
+      alert('❌ Não foi possível atualizar os pratos: ' + (error && error.message ? error.message : 'erro desconhecido'));
+    } finally {
+      setAtualizando(null);
     }
   };
   const handleDuplicate = async menuId => {
@@ -363,7 +388,14 @@ function SavedMenusList() {
     className: "text-2xl font-bold mb-2"
   }, "\uD83D\uDCDA Card\xE1pios Salvos"), /*#__PURE__*/React.createElement("p", {
     className: "text-purple-100"
-  }, "Templates de card\xE1pios reutiliz\xE1veis para seus eventos")), /*#__PURE__*/React.createElement("div", {
+  }, "Templates de card\xE1pios reutiliz\xE1veis para seus eventos"), savedMenus.length > 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleRefreshDishes(null),
+    disabled: !!atualizando,
+    "data-testid": "salvos-atualizar-pratos",
+    className: "mt-4 px-4 py-2 rounded-lg font-medium shadow-md",
+    style: { background: '#ffffff', color: '#4338ca', opacity: atualizando ? 0.6 : 1 },
+    title: "Buscar os dados atuais dos pratos em todos os card\xE1pios salvos. As por\xE7\xF5es por pessoa s\xE3o mantidas."
+  }, atualizando === 'todos' ? "\u23F3 Atualizando..." : "\uD83D\uDD04 Atualizar pratos de todos")), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow-md p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col lg:flex-row gap-4"
@@ -481,6 +513,13 @@ function SavedMenusList() {
     className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors",
     title: "Carregar este card\xE1pio no evento atual"
   }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => handleRefreshDishes(menu),
+    disabled: !!atualizando,
+    "data-refresh-menu": menu.id,
+    className: "px-4 py-2 text-white rounded-lg transition-colors",
+    style: { background: '#0d9488', opacity: atualizando ? 0.6 : 1 },
+    title: "Atualizar os pratos deste card\xE1pio (custo, ingredientes, rendimento e margem)"
+  }, atualizando === menu.id ? "\u23F3" : "\uD83D\uDD04"), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDuplicate(menu.id),
     className: "px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors",
     title: "Duplicar card\xE1pio"

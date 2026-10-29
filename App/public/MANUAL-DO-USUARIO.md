@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Atualizar pratos nos cardápios:** editou um prato (ingredientes, rendimento, margem ou nome)? Toque em **"Atualizar pratos"** na aba Cardápio ou em **"Atualizar pratos de todos"** na aba Salvos. Os cardápios passam a usar os dados atuais do prato, e as porções por pessoa continuam as mesmas.
 - **Insumos do cliente:** quando o cliente compra os insumos (todos ou parte), marque o que ele compra. Isso sai do custo e do preço, você cobra uma taxa de preparo por convidado, e a proposta mostra a lista do que o cliente precisa comprar.
 - **Vendas (Premium):** venda de pratos no balcão, mesa, retirada, delivery e encomenda, com **impressão do pedido** em qualquer impressora (térmica 80/58 mm ou folha A4/A5), **estoque de pratos prontos** (marmitas, congelados, bebidas) com validade, **produção sugerida** pelas encomendas e o **resumo do dia** com o lucro bruto.
 - **Margens do evento:** o Resumo mostra a margem bruta, a operacional e a líquida, com a conta.
@@ -569,6 +570,8 @@ O resumo mostra o custo total e o peso final depois da perda dos ingredientes. A
 
 Use **"Limpar"** para esvaziar o cardápio.
 
+**Atualizar pratos:** o cardápio guarda uma cópia de cada prato. Se você editar um prato depois (ingredientes, rendimento, margem ou nome), toque em **"Atualizar pratos"** para trazer os dados atuais. As porções por pessoa continuam as mesmas. Se a lista de compras já tiver sido gerada, o app pergunta se você quer gerar de novo. Pratos excluídos do cadastro ficam como estavam, e o app avisa quais são.
+
 > **Exemplo:** para 100 convidados, com picanha a 250 g por pessoa, o sistema calcula 25 kg servidos. Na aba Itens, a quantidade a comprar já inclui a perda da limpeza.
 
 ---
@@ -585,8 +588,10 @@ A aba **Salvos** guarda seus cardápios para reutilizar.
   - **Visualizar**;
   - **gerar lista de compras**;
   - **carregar no evento atual**;
+  - **atualizar os pratos** (🔄);
   - **duplicar**;
   - **excluir**.
+- **Atualizar pratos de todos** (no topo) traz os dados atuais dos pratos para todos os cardápios salvos, mantendo as porções por pessoa de cada um. O app avisa quais cardápios mudaram.
 
 > **Dica:** monte cardápios-base ("Churrasco Completo", "Coquetel Corporativo") e use **duplicar** para criar variações para cada cliente.
 

@@ -19,6 +19,7 @@ function MenuPage({
   const [showSaveModal, setShowSaveModal] = React.useState(false);
   const [showMenuGenerator, setShowMenuGenerator] = React.useState(false);
   const [editingPortions, setEditingPortions] = React.useState({}); // { [itemId]: value }
+  const [atualizando, setAtualizando] = React.useState(false);
 
   // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
   const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
@@ -196,6 +197,26 @@ function MenuPage({
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
       alert('Erro ao gerar lista de compras. Veja o console.');
+    }
+  };
+  // Atualizar pratos: troca a cópia de cada prato pelos dados atuais (custo, ingredientes, rendimento, margem)
+  const handleRefreshDishes = async () => {
+    if (!window.MenuRefresh || atualizando) return;
+    setAtualizando(true);
+    try {
+      const r = await window.MenuRefresh.atualizarCardapioAtual();
+      await loadMenu();
+      alert(window.MenuRefresh.textoResumo(r, 'atual'));
+      // A lista de compras (aba Itens) foi gerada com os pratos antigos: oferecer gerar de novo
+      if (r.mudaram.length && (state.items || []).length > 0 &&
+          confirm('Gerar a lista de compras de novo com os pratos atualizados?\n\nOs itens do evento (aba Itens) serão substituídos.')) {
+        await handleGenerateShoppingList();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar pratos do cardápio:', error);
+      alert('❌ Não foi possível atualizar os pratos: ' + (error && error.message ? error.message : 'erro desconhecido'));
+    } finally {
+      setAtualizando(false);
     }
   };
   const handleClearMenu = async () => {
@@ -644,6 +665,13 @@ function MenuPage({
     className: "px-6 py-3 bg-gray-400 text-white rounded-lg font-medium shadow-md opacity-60 cursor-not-allowed",
     title: "🔒 Recurso Premium - Disponível apenas no plano PREMIUM"
   }, "\uD83E\uDD16 Montar com IA \uD83D\uDD12"), menu.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: handleRefreshDishes,
+    disabled: atualizando,
+    "data-testid": "menu-atualizar-pratos",
+    className: "px-6 py-3 text-white rounded-lg transition-colors font-medium shadow-md",
+    style: { background: '#0d9488', opacity: atualizando ? 0.6 : 1 },
+    title: "Buscar os dados atuais dos pratos (custo, ingredientes, rendimento e margem). As porções por pessoa são mantidas."
+  }, atualizando ? "\u23F3 Atualizando..." : "\uD83D\uDD04 Atualizar pratos"), /*#__PURE__*/React.createElement("button", {
     onClick: handleSaveCurrentMenu,
     className: "px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md",
     title: "Salvar este card\xE1pio como template reutiliz\xE1vel"
