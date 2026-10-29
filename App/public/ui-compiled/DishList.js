@@ -26,6 +26,8 @@ const DishList = React.memo(function DishList({
 }) {
   // Referência ao componente global PDFButton
   const PDFButton = window.PDFButton;
+  // Vendas (PREMIUM): pratos marcados "Vender este prato" (etiqueta no card)
+  const vendaDosPratos = (window.DishSale ? window.DishSale.useVendaDosPratos : () => ({}))();
 
   const [dishes, setDishes] = React.useState([]);
   const [filteredDishes, setFilteredDishes] = React.useState([]);
@@ -526,7 +528,8 @@ const DishList = React.memo(function DishList({
     onDuplicate: handleDuplicate,
     onDelete: () => setShowDeleteConfirm(dish.id),
     onAddToMenu: handleAddToMenu,
-    onPrintTechnicalSheet: handlePrintTechnicalSheet
+    onPrintTechnicalSheet: handlePrintTechnicalSheet,
+    venda: vendaDosPratos[String(dish.id)]
   }))), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between items-center mt-6 pt-4 border-t"
   }, /*#__PURE__*/React.createElement("button", {
@@ -588,8 +591,14 @@ const DishCard = React.memo(function DishCard({
   onAddToMenu,
   onPrintTechnicalSheet,
   guests,
-  portionsPerPerson
+  portionsPerPerson,
+  venda
 }) {
+  const seloVenda = venda ? /*#__PURE__*/React.createElement("span", {
+    "data-a-venda": true,
+    title: "Este prato está à venda na aba Vendas (mude no formulário do prato)",
+    style: { display: 'inline-block', background: '#ffedd5', color: '#9a3412', borderRadius: 999, padding: '1px 8px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }
+  }, "\uD83E\uDDFE \xC0 venda \xB7 ", (Number(venda.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), venda.unit === 'kg' ? '/kg' : '') : null;
   // Foto principal (primeira do array)
   const mainPhoto = dish.photos && dish.photos.length > 0 ? dish.photos[0] : null;
   // Custo do prato para os convidados do evento aberto (porções do cardápio ou 1 por pessoa)
@@ -646,7 +655,7 @@ const DishCard = React.memo(function DishCard({
       className: "font-bold text-gray-800"
     }, dish.name), dish.isFavorite && /*#__PURE__*/React.createElement("span", {
       className: "text-yellow-500"
-    }, "\u2B50")), /*#__PURE__*/React.createElement("p", {
+    }, "\u2B50"), seloVenda), /*#__PURE__*/React.createElement("p", {
       className: "text-sm text-gray-600 line-clamp-1"
     }, dish.description), /*#__PURE__*/React.createElement("div", {
       className: "flex items-center space-x-4 mt-2 text-sm text-gray-500"
@@ -748,7 +757,9 @@ const DishCard = React.memo(function DishCard({
     className: "font-bold text-lg"
   }, dish.name)), /*#__PURE__*/React.createElement("div", {
     className: "p-4"
-  }, /*#__PURE__*/React.createElement("p", {
+  }, seloVenda && /*#__PURE__*/React.createElement("div", {
+    style: { marginBottom: 8 }
+  }, seloVenda), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600 mb-4 line-clamp-2 h-10"
   }, dish.description || 'Sem descrição'), dish.technicalSheet && /*#__PURE__*/React.createElement("div", {
     className: "mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
@@ -870,7 +881,8 @@ const DishCard = React.memo(function DishCard({
     prevProps.isInMenu === nextProps.isInMenu &&
     prevProps.guests === nextProps.guests &&
     prevProps.portionsPerPerson === nextProps.portionsPerPerson &&
-    prevProps.dish?.servings === nextProps.dish?.servings
+    prevProps.dish?.servings === nextProps.dish?.servings &&
+    prevProps.venda === nextProps.venda
   );
 });
 

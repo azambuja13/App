@@ -179,7 +179,8 @@ function mensagemErro(e) {
 }
 
 // ====================== Saldos (com o que está na fila) ======================
-function mapaDe(lista) { const m = {}; (lista || []).forEach(s => { m[chaveSaldo(s)] = { ...s, lots: s.lots || [] }; }); return m; }
+// Pratos prontos (módulo Vendas) ficam na aba Vendas, não aqui
+function mapaDe(lista) { const m = {}; (lista || []).forEach(s => { if (s.saleItemId) return; m[chaveSaldo(s)] = { ...s, lots: s.lots || [] }; }); return m; }
 /** Aplica à vista os lançamentos que ainda estão na fila (sem internet) */
 function aplicarFila(mapa, itensFila) {
   if (!itensFila || !itensFila.length) return mapa;
@@ -189,6 +190,7 @@ function aplicarFila(mapa, itensFila) {
     const tp = /\/consume$/.test(f.url) ? 'saida' : /\/movements$/.test(f.url) ? b.type : null;
     if (!tp) return;
     (b.items || []).forEach(i => {
+      if (i.saleItemId) return; // prato pronto: aba Vendas
       const k = chaveItem(i), q = Number(i.quantity) || 0;
       const s = m[k] || (m[k] = { ingredientId: i.ingredientId || null, supportKey: i.ingredientId ? null : supportKey(i.supportKey || i.supportName), supportName: i.supportName, unit: i.unit, quantity: 0, minQuantity: 0, avgCost: 0, lots: [] });
       s.quantity = tp === 'ajuste' ? q : s.quantity + (tp === 'entrada' || tp === 'sobra' ? q : -q);
@@ -575,6 +577,9 @@ function StockPage({ ingredients, support, base }) {
   const [dialogo, setDialogo] = useState(null);
   const [aviso, mostrarAviso] = useAviso();
   const [nFila, setNFila] = useState(f.length);
+  // Vendas (PREMIUM): o estoque dos pratos prontos também fica aqui (window.VendasProntos, de VendasPage.js)
+  const [aba, setAbaS] = useState(() => { try { return localStorage.getItem('stk_aba') || 'insumos'; } catch (e) { return 'insumos'; } });
+  const setAba = a => { setAbaS(a); try { localStorage.setItem('stk_aba', a); } catch (e) {} };
   useEffect(() => { if (nFila > 0 && f.length === 0) carregar(); setNFila(f.length); }, [f.length]);
   const catalogo = useMemo(() => montarCatalogo(ingredients, support, lista), [ingredients, support, lista]);
   const saldos = useMemo(() => aplicarFila(mapaDe(lista), f), [lista, f]);
@@ -595,6 +600,11 @@ function StockPage({ ingredients, support, base }) {
     catch (err) { alert(mensagemErro(err)); }
   };
   if (!premium) return h('div', { className: 'stk card' }, h('h2', { style: { fontSize: 20, fontWeight: 800 } }, '📦 Estoque'), h('p', { className: 'muted' }, 'O controle de estoque de insumos é do plano PREMIUM.'));
+  const comVendas = !!(window.VendasProntos && window.ConfigHelper && window.ConfigHelper.hasFeatureAccess && window.ConfigHelper.hasFeatureAccess('sales'));
+  const abas = comVendas ? h('div', { role: 'tablist', 'data-testid': 'stk-abas', style: { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' } },
+    [['insumos', '🥕 Insumos'], ['prontos', '🍲 Pratos prontos e revenda']].map(([k, n]) => h('button', { key: k, type: 'button', role: 'tab', 'aria-selected': aba === k, onClick: () => setAba(k),
+      style: { borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: '1px solid ' + (aba === k ? '#111827' : '#e5e7eb'), background: aba === k ? '#111827' : '#fff', color: aba === k ? '#fff' : '#374151', padding: '9px 14px' } }, n))) : null;
+  if (comVendas && aba === 'prontos') return h('div', { className: 'stk' }, abas, h(window.VendasProntos));
   const s = saldos;
   const venc = vencimentos(s, catalogo);
   const vencidos = venc.filter(v => v.dias < 0), aVencer = venc.filter(v => v.dias >= 0);
@@ -613,6 +623,7 @@ function StockPage({ ingredients, support, base }) {
   const valorTotal = Object.values(s).reduce((t, x) => t + Math.max(0, x.quantity) * (x.avgCost || 0), 0);
   const temApoio = catalogo.some(e => e.kind === 'sup');
   return h('div', { className: 'stk' },
+    abas,
     h('div', { className: 'card' },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
         h('div', null, h('h2', { style: { fontSize: 22, fontWeight: 800, margin: 0 } }, '📦 Estoque de insumos'),

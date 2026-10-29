@@ -82,6 +82,7 @@ function canvasToPdfBlob(canvas) {
   var y = 0, primeira = true;
   while (y < canvas.height) {
     var h = Math.min(alturaPagPx, canvas.height - y);
+    if (!primeira && h < pxPorMm * 3) break; // sobra de arredondamento (menos de 3 mm): não cria página em branco
     var c = document.createElement('canvas');
     c.width = canvas.width; c.height = h;
     var ctx = c.getContext('2d');

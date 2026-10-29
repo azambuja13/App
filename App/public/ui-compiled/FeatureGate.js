@@ -64,7 +64,9 @@ function FeatureGate({
     analytics: 'Analytics e Relatórios',
     pdfExport: 'Exportação em PDF',
     cloudSync: 'Sincronização na Nuvem',
-    teamAccess: 'Acesso em Equipe'
+    teamAccess: 'Acesso em Equipe',
+    stock: 'Estoque',
+    sales: 'Vendas (PDV e pedidos)'
   };
   const featureDisplayName = featureNames[featureName] || 'Este recurso';
 

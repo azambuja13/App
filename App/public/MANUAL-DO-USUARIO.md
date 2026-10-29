@@ -1,7 +1,7 @@
 # Manual do Usuário
 ## Calculadora de Precificação para Eventos e Churrascos
 
-**Versão do manual:** outubro de 2026. Inclui Agenda, Funil de Vendas, Tarefas, Mensagens prontas e Relatórios.
+**Versão do manual:** outubro de 2026. Inclui Agenda, Funil de Vendas, Tarefas, Mensagens prontas, Relatórios, Estoque e Vendas.
 
 As imagens deste manual usam uma empresa e clientes de exemplo.
 
@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Vendas (Premium):** venda de pratos no balcão, mesa, retirada, delivery e encomenda, com **impressão do pedido** em qualquer impressora (térmica 80/58 mm ou folha A4/A5), **estoque de pratos prontos** (marmitas, congelados, bebidas) com validade, **produção sugerida** pelas encomendas e o **resumo do dia** com o lucro bruto.
 - **Margens do evento:** o Resumo mostra a margem bruta, a operacional e a líquida, com a conta.
 - **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias. Agora também com **validade** (aviso antes de vencer), **apoio no estoque** (carvão, copos, gás), **inventário** e lançamentos **sem internet**.
 - **Apoio automático:** cada item de apoio pode ter uma regra (por convidado, por kg de carne, por hora ou fixo por evento) e a embalagem de compra. O app calcula quanto comprar e arredonda para pacotes inteiros. Também há **kits** prontos por tipo de evento.
@@ -96,6 +97,7 @@ Use o botão **"Fale com o suporte por e-mail"** na tela de acesso.
 - **Itens:** lista de compras do evento.
 - **Apoio:** itens de apoio e logística, transporte e mão de obra.
 - **Estoque:** compras, saldo, validade, apoio, inventário, baixa dos eventos e compra sugerida (Premium).
+- **Vendas:** venda de pratos (PDV), pedidos, encomendas, impressão, estoque de prontos e resumo das vendas (Premium).
 - **Propostas:** criação, envio e acompanhamento das propostas.
 - **WhatsApp:** configuração do envio de propostas em PDF pelo WhatsApp (Premium, no computador).
 - **Empresa (no celular):** abre o painel da empresa, com os dados da empresa, o suporte e este manual.
@@ -529,7 +531,8 @@ Os preços estimados pela IA são uma referência. Confirme sempre com seus forn
 5. Marque **"Descartável após uso"** para itens como sal, açúcar ou vinho de marinada. Eles contam no custo, mas não no peso final.
 6. Defina o **markup (%)**, ou seja, quanto somar ao custo. O preço sugerido aparece por porção ou por 100 g. Embaixo aparecem a **margem real** e o **CMV** (custo ÷ preço). O CMV fica vermelho acima de 40%.
 7. Se quiser, adicione até 3 fotos, observações e a ficha técnica (tempo, temperatura, equipamentos).
-8. Toque em **"Criar Prato"**.
+8. **Vendas (Premium):** marque **"🧾 Vender este prato"** para vendê-lo na aba Vendas, com preço de venda, categoria e estoque de prontos (veja 22.1).
+9. Toque em **"Criar Prato"**.
 
 O resumo mostra o custo total e o peso final depois da perda dos ingredientes. A perda **não** aumenta o custo: ela diminui o peso final, e por isso o custo por 100 g e por porção sobe na medida certa.
 
@@ -900,7 +903,85 @@ O estoque mínimo só muda com internet.
 
 ---
 
-## 22. Planos e recursos
+## 22. Vendas (Premium)
+
+A aba **Vendas** é para quem vende pratos no dia a dia: restaurante, marmitaria, lanchonete, delivery ou quem faz encomendas. Ela tem cinco partes: **Vender**, **Pedidos**, **Itens à venda**, **Estoque** (dos pratos prontos) e **Resumo**.
+
+### 22.1 O que está à venda
+
+**Pratos:** a opção fica no próprio prato. Abra o prato na aba **Pratos** (✏️) e marque **"🧾 Vender este prato"**:
+
+- **Preço de venda:** vem preenchido com o preço sugerido do prato. Prato por porção é vendido por porção; prato calculado por peso (R$/100 g) é vendido por **kg** (preço de 100 g × 10). Você pode mudar o preço e a unidade (porção, unidade ou kg).
+- O custo vem da ficha técnica e aparece com o **CMV** (custo ÷ preço): verde até o CMV desejado (Custos da empresa), amarelo até 5 pontos acima e vermelho acima disso.
+- **Categoria na venda:** agrupa os itens no PDV (ex.: Marmitas, Pratos, Sobremesas).
+- **Controlar estoque de prontos:** para marmitas, congelados e bolos. Você lança o que produziu em **Vendas → Estoque** ou na aba **Estoque → Pratos prontos e revenda**. Pratos feitos na hora não precisam.
+- **Não deixar vender sem saldo:** bloqueia a venda quando acaba. Sem essa opção, o app avisa "sem saldo" e deixa vender (o saldo fica negativo).
+- Toque em **"Salvar Alterações"**. O prato ganha a etiqueta **"🧾 À venda"** na lista de pratos. Para parar de vender, desmarque a opção e salve (os pedidos antigos continuam).
+
+**Itens à venda** (dentro da aba Vendas):
+
+- **"+ Produto de revenda":** bebidas, sobremesas compradas prontas ou itens sem ficha técnica. Informe o preço e, se quiser, o custo.
+- A tabela mostra tudo que está à venda. Dá para ajustar nome, categoria, preço, unidade e estoque ("controla" e "bloqueia sem saldo") sem abrir o prato.
+- **"Tirar":** o item sai do PDV. Para trazer de volta, marque "Mostrar os tirados do cardápio" e toque em **"Voltar"**.
+
+### 22.2 Vender (PDV)
+
+1. Toque nos itens para montar o pedido (cada toque soma 1). Itens por kg pedem o peso.
+2. Em cada linha: **+** e **−**, **"+ observação"** (ex.: "sem cebola") e **×** para tirar.
+3. Escolha o **tipo**: Balcão, Mesa (número da mesa), Retirada, Delivery (endereço e taxa de entrega) ou Encomenda (data e hora).
+4. Nome e telefone do cliente são opcionais no balcão e na mesa, e obrigatórios na retirada, no delivery e na encomenda. Se o telefone já está em Clientes, o pedido fica ligado à ficha.
+5. Desconto, forma de pagamento (Dinheiro, PIX, Crédito, Débito ou Fiado) e **"Já está pago"**. No dinheiro, informe o valor recebido e o app mostra o **troco**.
+6. Toque em **"Finalizar e imprimir"**.
+
+O número do pedido **recomeça todo dia** (001, 002...). **"+ Item avulso"** lança algo fora do cardápio (não mexe no estoque). No celular, o pedido abre pela barra escura **"Ver pedido"**.
+
+### 22.3 Impressão do pedido
+
+Toque em **"🖨️ Impressão"** para configurar:
+
+- **Tamanho do papel:**
+  - **A4 · 2 vias (cliente + recebimento)** (padrão): uma folha A4 dividida ao meio por um pontilhado ("✂ recorte aqui"). Em cima vai a **via do cliente**; embaixo, a **via da empresa**, um comprovante de entrega com "Declaro que recebi os itens deste pedido" e espaço para nome legível, assinatura e data e hora. As duas vias têm logo, dados da empresa, itens, totais e pagamento. Pedido com muitos itens sai em duas folhas, uma via em cada.
+  - Térmica 80 mm, térmica 58 mm, folha A4 ou A5: uma via por página.
+  - Funciona com qualquer impressora instalada no computador ou no celular.
+- **Vias:** via da cozinha (número grande, itens e observações, sem preços) e via do cliente (logo e dados da empresa, preços, pagamento, troco e "Não é documento fiscal"). No formato A4 · 2 vias, a via da cozinha é opcional e sai em outra folha.
+- **Imprimir sozinho ao finalizar** e o **rodapé** da via do cliente.
+- **"Imprimir teste"** para conferir antes.
+
+No navegador abre a janela de impressão. No app do iPhone, o pedido vira PDF para imprimir (AirPrint) ou compartilhar. Na impressora térmica, deixe o papel do driver como rolo de 80 mm (ou 58 mm) e as margens no mínimo.
+
+### 22.4 Pedidos
+
+- **Pedidos do dia:** lista do dia escolhido, com filtro (em aberto, todos ou por situação). Atualiza sozinha a cada 30 segundos.
+- Avance a situação: **Novo → Em preparo → Pronto → Entregue**.
+- **"🖨️ Imprimir"** reimprime, **"Marcar pago"** registra o pagamento do fiado e **"Cancelar"** cancela o pedido. O que saiu do estoque volta.
+- **Encomendas:** as encomendas futuras em aberto, por data. A encomenda só sai do estoque quando é marcada como **Entregue**.
+
+### 22.5 Estoque dos pratos prontos
+
+Fica em dois lugares, com os mesmos dados: **Vendas → 📦 Estoque** e a aba principal **Estoque → 🍲 Pratos prontos e revenda** (a outra parte, **🥕 Insumos**, é o estoque de ingredientes e apoio). Só aparecem os pratos com **"Controlar estoque de prontos"** marcado no próprio prato e os produtos de revenda com **"controla"**.
+
+
+- **"🍲 Produzi / chegou":** lance o que ficou pronto (ou a revenda que chegou, com o custo). A validade é opcional.
+- **Perda** (venceu, estragou) e **Inventário** (o saldo passa a ser o que você contou).
+- **Mínimo:** a quantidade que você quer ter sempre pronta.
+- **Validade:** o aviso aparece no dia anterior. Vencido tem o botão **"Lançar como perda"**.
+- **Produção sugerida:** escolha amanhã, 3, 7 ou 15 dias. Conta: encomendas do período + mínimo − saldo. **"Produzi isso: lançar"** abre o lançamento já preenchido.
+
+O que sai primeiro do estoque é o que vence antes.
+
+> **Exemplo:** você tem 8 marmitas de strogonoff, mínimo de 4 e uma encomenda de 12 para amanhã. A produção sugerida é 12 + 4 − 8 = **8 marmitas**.
+
+### 22.6 Resumo
+
+Escolha Hoje, Ontem, 7 dias ou Este mês e veja: total vendido, número de pedidos (e cancelados), ticket médio, **lucro bruto** (vendas − custo dos itens), o que falta **receber** (fiado e não pagos), as vendas por forma de pagamento e por item, com o lucro de cada um. Os pedidos contam no dia em que foram feitos.
+
+### 22.7 Sem internet
+
+O pedido é registrado e impresso na hora com um número provisório (ex.: **P-4B96**, "sem internet"). Os saldos já descontam o pedido. Quando a conexão volta, ele é enviado sozinho (ou toque em **"Enviar agora"**) e recebe o número do dia. A produção, a perda e o inventário também funcionam sem internet. Mudar a situação de um pedido, cancelar e editar o cardápio precisam de conexão.
+
+---
+
+## 23. Planos e recursos
 
 ### OFFLINE
 
@@ -920,18 +1001,19 @@ O estoque mínimo só muda com internet.
 - Recursos com IA: importar ingredientes, templates, atualizar preços, importar receitas e montar cardápios.
 - Envio de propostas em PDF pelo WhatsApp.
 - Estoque de insumos: compras, validade, apoio, inventário, baixa do evento, sobras, perdas, compra sugerida e lançamentos sem internet.
+- Vendas: pratos à venda (marcados no próprio prato) e produtos de revenda, PDV, pedidos e encomendas, impressão do pedido, estoque de pratos prontos, produção sugerida e resumo das vendas.
 
 Recursos que não fazem parte do seu plano aparecem com um cadeado.
 
 ---
 
-## 23. Uso no celular
+## 24. Uso no celular
 
-### 23.1 App para iPhone
+### 24.1 App para iPhone
 
 O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e senha e seus dados aparecem iguais.
 
-### 23.2 Instalar a versão web na tela inicial
+### 24.2 Instalar a versão web na tela inicial
 
 **iPhone e iPad (Safari):**
 
@@ -945,7 +1027,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 2. Toque no menu de três pontos.
 3. Toque em **"Adicionar à tela inicial"** ou **"Instalar app"** e confirme.
 
-### 23.3 Dicas
+### 24.3 Dicas
 
 - As abas ficam na barra inferior. O botão "Empresa" abre os dados da empresa, o suporte e este manual.
 - No Funil, use o menu "Mover para…" no lugar de arrastar.
@@ -953,7 +1035,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ---
 
-## 24. Solução de problemas
+## 25. Solução de problemas
 
 ### Não consigo entrar
 
@@ -1008,7 +1090,7 @@ O app para iPhone usa a mesma conta da versão web: entre com o mesmo e-mail e s
 
 ---
 
-## 25. Suporte
+## 26. Suporte
 
 - No painel da empresa, use o botão **"Falar com o suporte"**. No celular, o painel abre pelo botão "Empresa" na barra inferior. O botão também aparece na tela de acesso.
 - Ou envie um e-mail para: rafael.oliveira.azambuja@gmail.com

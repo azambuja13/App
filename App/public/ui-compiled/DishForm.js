@@ -54,6 +54,7 @@ const DishForm = React.memo(function DishForm({
   const [ingredientSearch, setIngredientSearch] = React.useState('');
   const [errors, setErrors] = React.useState({});
   const [isSaving, setIsSaving] = React.useState(false);
+  const [venda, setVenda] = React.useState(null); // Vendas (PREMIUM): estado do quadro "Vender este prato"
   const fileInputRef = React.useRef(null);
 
   // Carregar fotos do prato para edição (isolado para não resetar fotos adicionadas pelo usuário)
@@ -797,6 +798,12 @@ const DishForm = React.memo(function DishForm({
       console.log('💾 [DishForm] Ingredientes com isDiscarded:', dishData.ingredients.map(i => ({name: i.ingredientName, isDiscarded: i.isDiscarded})));
       const result = await dishManager.saveItem(dishData);
       if (result.success) {
+        // Vendas: cria/atualiza o item de venda ligado a este prato
+        const idPrato = (result.data && result.data.id) || dish?.id;
+        if (window.DishSale && venda && idPrato) {
+          const rv = await window.DishSale.salvar(idPrato, venda, { name: formData.name });
+          if (rv && rv.erro) alert('O prato foi salvo, mas a venda não foi atualizada: ' + rv.erro);
+        }
         if (onSave) {
           onSave(result.data);
         }
@@ -1083,7 +1090,17 @@ const DishForm = React.memo(function DishForm({
       const totalWeight = calculateTotalWeight;
       return (price * (totalWeight / 100)).toFixed(2);
     }
-  })()))))), /*#__PURE__*/React.createElement("div", {
+  })()))))), window.DishSaleBox && /*#__PURE__*/React.createElement(window.DishSaleBox, {
+    dish: dish,
+    nome: formData.name,
+    categoria: formData.category,
+    precoSugerido: formData.suggestedPrice,
+    porPeso: !formData.useWeightCalculation,
+    custoPorcao: calculateCostPerServing,
+    custoTotal: calculateTotalCost,
+    pesoTotal: calculateTotalWeight,
+    onChange: setVenda
+  }), /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-4 mb-6"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-lg font-semibold text-blue-900 mb-3"
