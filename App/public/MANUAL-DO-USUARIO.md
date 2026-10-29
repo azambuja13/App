@@ -127,9 +127,9 @@ Onde encontrar o painel:
 1. **Ingredientes:** cadastre os ingredientes com o preço que você paga.
 2. **Pratos:** crie os pratos com os ingredientes e defina o markup.
 3. **Cardápio:** adicione os pratos do evento e ajuste o consumo por pessoa.
-4. **Salvar cardápio:** a proposta é montada a partir de um cardápio salvo.
+4. **Salvar cardápio (opcional):** guarde o cardápio para reutilizar em outros eventos.
 5. **Clientes:** cadastre o cliente na aba Clientes ou crie o contato direto no Funil.
-6. **Propostas:** crie a proposta escolhendo o cardápio salvo e o cliente.
+6. **Propostas:** crie a proposta. Ela já vem com o cardápio do evento aberto, e você pode trocar por um cardápio salvo.
 7. **Funil e Agenda:** envie a proposta e acompanhe. Quando ela for aprovada, a data aparece como fechada na Agenda.
 
 > **Exemplo completo:** a Mariana pediu um orçamento de casamento para 120 convidados.
@@ -727,7 +727,7 @@ Com **"O cliente fornece insumos"** ligado na aba Itens (capítulo 16.1), o edit
 - Busque pelo nome e ordene por mais recente, mais antigo, data do evento ou nome.
 - **Carregar:** abre o evento salvo (os dados atuais são substituídos).
 - **Excluir:** remove o evento.
-- **Novo Evento:** começa um evento em branco.
+- **Novo Evento:** começa um evento em branco: limpa o cardápio, os itens, o cliente e os dados do evento. Apoio, mão de obra e transporte ficam, para aproveitar nos próximos eventos.
 
 ### 18.3 Margens do evento
 
@@ -751,7 +751,7 @@ Toque em **"Ver a conta"** para ver cada valor descontado. As taxas, os custos f
 
 1. Na aba **Propostas**, toque em **"Nova Proposta"**.
 2. Dê um nome à proposta. Por exemplo: "Casamento Mariana & Lucas". O nome aparece nas mensagens prontas como {evento}.
-3. Escolha o **cardápio salvo**.
+3. Confira o **cardápio**. A proposta nova já vem com o cardápio do evento aberto (aba Cardápio). Para usar outro, remova e escolha um **cardápio salvo**.
 4. Escolha qual total usar para a comida:
    - **Pratos + markup** (recomendado e padrão);
    - pratos só pelo custo;

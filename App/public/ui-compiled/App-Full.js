@@ -1518,7 +1518,7 @@ window.AppFull = function AppFull() {
       }
     }
   };
-  const handleClearEvent = () => {
+  const handleClearEvent = async () => {
     if (confirm('Deseja limpar o evento atual e criar um novo?')) {
       // Limpar apenas dados específicos do evento
       state.setItems([]);
@@ -1542,6 +1542,11 @@ window.AppFull = function AppFull() {
       state.setMonthsUntilEvent(0);
       if (state.setProteinSafetyPct) state.setProteinSafetyPct(null);
       if (state.setClientSupply) state.setClientSupply(null);
+      // ✅ FIX: o cardápio e o cardápio salvo vinculado pertencem ao evento. Antes ficavam do evento
+      // anterior, e a proposta nova levava os pratos dele.
+      state.setLinkedMenuId(null);
+      state.setLinkedMenuName('');
+      await restaurarCardapioDoEvento([]);
     }
   };
   const handleExportEvents = () => {

@@ -172,8 +172,14 @@ function ProposalBuilderSimple({
 
   // Auto-selecionar cardápio vinculado ao evento (se existir)
   // Também atualiza selectedMenuData quando o cardápio é editado e savedMenus recarrega
+  // ✅ FIX: o cardápio do evento (aba Cardápio) manda. O salvo vinculado só entra se o cardápio do evento
+  // estiver vazio — senão a proposta levava a versão salva (às vezes de outro evento), e não o que está na tela.
   useEffect(() => {
-    if (!proposal && eventData?.linkedMenuId && savedMenus.length > 0) {
+    if (!proposal && eventData?.linkedMenuId && savedMenus.length > 0) (async () => {
+      try {
+        const ativo = window.menuManager ? await window.menuManager.getActiveMenu() : [];
+        if (ativo && ativo.length > 0) return;
+      } catch (e) {}
       const linkedMenu = savedMenus.find(m => m.id === eventData.linkedMenuId);
       if (linkedMenu) {
         // Seleciona se ainda não há menu escolhido, OU atualiza os dados se o vinculado já estava selecionado
@@ -188,14 +194,14 @@ function ProposalBuilderSimple({
       } else {
         console.log('⚠️ [ProposalBuilderSimple] Cardápio vinculado não encontrado:', eventData.linkedMenuId);
       }
-    }
+    })();
   }, [eventData?.linkedMenuId, savedMenus]);
 
   // Auto-selecionar cardápio ativo do evento (se não houver linkedMenuId)
   useEffect(() => {
     const loadActiveMenu = async () => {
-      // Só executar se não há linkedMenuId e nenhum menu já selecionado
-      if (proposal || eventData?.linkedMenuId || formData.selectedMenuId) return;
+      // Proposta nova: usa o cardápio do evento (mesmo com cardápio salvo vinculado), se ninguém escolheu outro
+      if (proposal || (formData.selectedMenuId && formData.selectedMenuId !== eventData?.linkedMenuId)) return;
 
       const menuManager = window.menuManager;
       if (!menuManager) return;
