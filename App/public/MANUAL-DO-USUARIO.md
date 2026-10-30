@@ -9,9 +9,11 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Limpar todas as tarefas:** no Funil, o botão **🧹 Limpar todas** conclui de uma vez todos os lembretes pendentes.
+- **Painel lateral encolhível:** no computador, toque em **«** para encolher o painel da esquerda e ganhar tela. Na aba Vendas ele já fica encolhido e sem os resumos do evento.
 - **Atualizar pratos nos cardápios:** editou um prato (ingredientes, rendimento, margem ou nome)? Toque em **"Atualizar pratos"** na aba Cardápio ou em **"Atualizar pratos de todos"** na aba Salvos. Os cardápios passam a usar os dados atuais do prato, e as porções por pessoa continuam as mesmas.
 - **Insumos do cliente:** quando o cliente compra os insumos (todos ou parte), marque o que ele compra. Isso sai do custo e do preço, você cobra uma taxa de preparo por convidado, e a proposta mostra a lista do que o cliente precisa comprar.
-- **Vendas (Premium):** venda de pratos no balcão, mesa, retirada, delivery e encomenda, com **impressão do pedido** em qualquer impressora (térmica 80/58 mm ou folha A4/A5), **estoque de pratos prontos** (marmitas, congelados, bebidas) com validade, **produção sugerida** pelas encomendas e o **resumo do dia** com o lucro bruto.
+- **Vendas (Premium):** venda de pratos no balcão, mesa, retirada, delivery e encomenda, com **impressão do pedido** em qualquer impressora (térmica 80/58 mm, folha A4/A5 ou **direto na térmica pela USB**, sem janela, no Chrome/Edge), **estoque de pratos prontos** (marmitas, congelados, bebidas) com validade, **produção sugerida** pelas encomendas e o **resumo do dia** com o lucro bruto.
 - **Margens do evento:** o Resumo mostra a margem bruta, a operacional e a líquida, com a conta.
 - **Estoque de insumos (Premium):** registre compras, dê baixa no estoque ao confirmar o evento, lance sobras e perdas e veja a **compra sugerida** para os eventos fechados dos próximos dias. Agora também com **validade** (aviso antes de vencer), **apoio no estoque** (carvão, copos, gás), **inventário** e lançamentos **sem internet**.
 - **Apoio automático:** cada item de apoio pode ter uma regra (por convidado, por kg de carne, por hora ou fixo por evento) e a embalagem de compra. O app calcula quanto comprar e arredonda para pacotes inteiros. Também há **kits** prontos por tipo de evento.
@@ -119,7 +121,7 @@ O painel da empresa reúne:
 
 Onde encontrar o painel:
 
-- **No computador:** ele fica sempre à esquerda da tela.
+- **No computador:** ele fica à esquerda da tela. Toque em **«** (no canto do painel) para encolher e ganhar espaço; toque em **»** para abrir de novo. O app lembra a sua escolha. Na aba **Vendas** ele fica encolhido sozinho, porque venda não é evento.
 - **No celular:** toque em **"Empresa"** na barra inferior. Para voltar, toque em qualquer outra aba.
 
 ### 3.3 Passo a passo de um orçamento
@@ -333,6 +335,7 @@ As tarefas aparecem no **Funil**, na **ficha do cliente** e na **Agenda**.
 - Marque a caixinha para concluir. A tarefa concluída entra na linha do tempo do cliente.
 - O **💬** ao lado da tarefa abre a mensagem pronta certa para ela (capítulo 9).
 - O **×** apaga a tarefa.
+- **🧹 Limpar todas:** marca todas as tarefas pendentes como concluídas de uma vez (no Funil, todas; na ficha do cliente, só as dele). Elas saem da lista, mas não entram na linha do tempo do cliente. O retorno automático de uma proposta que continuar parada volta depois de 3 dias.
 
 ### 8.3 Tarefas automáticas
 
@@ -344,7 +347,7 @@ O sistema cria sozinho estas tarefas, sem repetir para a mesma proposta:
 | Dia seguinte a um evento de proposta aprovada | Agradecer e pedir avaliação | Agradecimento e avaliação (ou Agradecimento, se não houver link de avaliação) |
 | Quase um ano depois do evento | Recontatar para o próximo evento | Recontato |
 
-A tarefa de retorno fecha sozinha quando a proposta muda de status ou é excluída. A tarefa de agradecimento só é criada para eventos dos últimos 7 dias, para não aparecerem tarefas de eventos antigos.
+A tarefa de retorno fecha sozinha quando a proposta muda de status ou é excluída. Se você concluir o retorno e a proposta continuar parada, ele só volta 3 dias depois. A tarefa de agradecimento só é criada para eventos dos últimos 7 dias, para não aparecerem tarefas de eventos antigos.
 
 ### 8.4 Lembretes
 
@@ -981,12 +984,30 @@ Toque em **"🖨️ Impressão"** para configurar:
 - **Tamanho do papel:**
   - **A4 · 2 vias (cliente + recebimento)** (padrão): uma folha A4 dividida ao meio por um pontilhado ("✂ recorte aqui"). Em cima vai a **via do cliente**; embaixo, a **via da empresa**, um comprovante de entrega com "Declaro que recebi os itens deste pedido" e espaço para nome legível, assinatura e data e hora. As duas vias têm logo, dados da empresa, itens, totais e pagamento. Pedido com muitos itens sai em duas folhas, uma via em cada.
   - Térmica 80 mm, térmica 58 mm, folha A4 ou A5: uma via por página.
+  - **Direto na térmica (USB):** manda o pedido direto para a térmica ligada na USB do computador, **sem a janela de impressão**, com negrito, letras grandes e corte do papel. Veja 22.3.1.
   - Funciona com qualquer impressora instalada no computador ou no celular.
 - **Vias:** via da cozinha (número grande, itens e observações, sem preços) e via do cliente (logo e dados da empresa, preços, pagamento, troco e "Não é documento fiscal"). No formato A4 · 2 vias, a via da cozinha é opcional e sai em outra folha.
 - **Imprimir sozinho ao finalizar** e o **rodapé** da via do cliente.
 - **"Imprimir teste"** para conferir antes.
 
 No navegador abre a janela de impressão. No app do iPhone, o pedido vira PDF para imprimir (AirPrint) ou compartilhar. Na impressora térmica, deixe o papel do driver como rolo de 80 mm (ou 58 mm) e as margens no mínimo.
+
+#### 22.3.1 Direto na térmica (USB)
+
+Ideal para o balcão em eventos, com um notebook e a térmica ligada na USB.
+
+1. Use o **Google Chrome** ou o **Microsoft Edge** no computador. Safari e o app do iPhone não acessam a USB; neles, o pedido sai pela janela de impressão como térmica 80 ou 58 mm.
+2. Em **Vendas › 🖨️ Impressão**, escolha **"Direto na térmica (USB)"**.
+3. Em **"Como a impressora aparece no computador"**:
+   - **Porta serial / USB-serial:** impressoras com cabo serial, adaptador USB-serial ou driver de porta COM (Elgin, Bematech e várias genéricas);
+   - **Impressora USB:** impressoras USB que não criam porta serial (por exemplo, Epson TM-T20).
+4. Escolha a largura do papel: 80 mm (48 ou 42 colunas) ou 58 mm (32 colunas).
+5. Toque em **"🔌 Conectar impressora"** e escolha a impressora na lista do navegador. Só precisa fazer isso uma vez em cada navegador.
+6. Toque em **"Imprimir teste"** e depois em **"Salvar"**.
+
+Se a impressora estiver desligada, sem papel ou desconectada, o app avisa e oferece a janela de impressão comum.
+
+> **Dica:** se a impressora não aparecer na lista, troque entre "Porta serial" e "Impressora USB". Se o Mac já usar a impressora pelo driver dela, escolha "Térmica 80 mm".
 
 ### 22.4 Pedidos
 

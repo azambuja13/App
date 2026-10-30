@@ -122,6 +122,26 @@ function CrmTasksPanel({ clientId, collapsible }) {
   C.injectCss();
   const [lista, carregado] = useTasks(clientId);
   const [novo, setNovo] = React.useState(false);
+  const [limpando, setLimpando] = React.useState(false);
+  // Limpar lembretes: conclui todas as tarefas abertas (concluir em vez de apagar: as automáticas não voltam na hora)
+  const limparTodas = async () => {
+    const n = lista.length;
+    if (!n || limpando) return;
+    if (!confirm(`Limpar ${n === 1 ? 'a tarefa pendente' : 'as ' + n + ' tarefas pendentes'}${clientId ? ' deste cliente' : ''}?\n\nElas são marcadas como concluídas e saem da lista. Os retornos automáticos (⏰) só voltam se a proposta continuar parada por mais 3 dias.`)) return;
+    setLimpando(true);
+    try {
+      try {
+        await C.api().clearTasks(clientId ? { clientId } : {});
+      } catch (e) {
+        if (!(e && e.statusCode === 404)) throw e;
+        for (const t of lista) await C.api().updateTask(t.id, { done: true }); // API antiga, sem /clear
+      }
+      avisarMudanca();
+      window.dispatchEvent(new CustomEvent('crm-updated'));
+    } catch (e) {
+      alert('Não foi possível limpar as tarefas: ' + (e && e.message ? e.message : 'erro'));
+    } finally { setLimpando(false); }
+  };
   const cont = { overdue: 0, today: 0 };
   lista.forEach(t => { const g = C.taskGroup(t); if (g === 'overdue') cont.overdue++; else if (g === 'today') cont.today++; });
   const [aberto, setAberto] = React.useState(!collapsible);
@@ -138,7 +158,10 @@ function CrmTasksPanel({ clientId, collapsible }) {
       h('div', { role: collapsible ? 'button' : undefined, onClick: collapsible ? () => setAberto(!aberto) : undefined, style: { cursor: collapsible ? 'pointer' : 'default', minWidth: 0 } },
         h('span', { style: { fontWeight: 800, color: '#111827', fontSize: clientId ? 15 : 17 } }, (collapsible ? (aberto ? '▾ ' : '▸ ') : '') + '✅ Tarefas'),
         h('span', { style: { marginLeft: 8, fontSize: 13, color: cont.overdue ? '#b91c1c' : '#6b7280', fontWeight: cont.overdue ? 700 : 500 } }, resumo)),
-      (aberto || clientId) && !novo && h('button', { onClick: () => setNovo(true), className: 'crm-btn', style: { background: '#fff', color: '#c2410c', border: '1px solid #fed7aa' } }, '+ Nova tarefa')),
+      (aberto || clientId) && !novo && h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        lista.length > 0 && h('button', { onClick: limparTodas, disabled: limpando, 'data-testid': 'tarefas-limpar', title: 'Marcar todas as tarefas pendentes como concluídas',
+          className: 'crm-btn', style: { background: '#fff', color: '#6b7280', border: '1px solid #e5e7eb', opacity: limpando ? 0.5 : 1 } }, limpando ? 'Limpando...' : '🧹 Limpar todas'),
+        h('button', { onClick: () => setNovo(true), className: 'crm-btn', style: { background: '#fff', color: '#c2410c', border: '1px solid #fed7aa' } }, '+ Nova tarefa'))),
     (aberto || clientId) && h('div', { style: { marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 } },
       novo && h(CrmTaskForm, { clientId, onDone: () => setNovo(false), onCancel: () => setNovo(false) }),
       !carregado ? h('div', { className: 'crm-muted' }, 'Carregando...') :

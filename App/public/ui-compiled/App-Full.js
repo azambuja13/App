@@ -161,6 +161,19 @@ window.AppFull = function AppFull() {
   // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
   const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
 
+  // Painel lateral (empresa + resumo) encolhível no computador (out/2026). Em Vendas fica sempre encolhido
+  // (não é evento); dá para abrir ali, mas volta a encolher ao trocar de aba.
+  const [painelEncolhido, setPainelEncolhido] = React.useState(() => { try { return localStorage.getItem('ui_painel_encolhido') === '1'; } catch (e) { return false; } });
+  const [painelAbertoNaVenda, setPainelAbertoNaVenda] = React.useState(false);
+  React.useEffect(() => { setPainelAbertoNaVenda(false); }, [state.activeTab]);
+  const naVenda = state.activeTab === 'sales';
+  const encolhido = naVenda ? !painelAbertoNaVenda : painelEncolhido;
+  const alternarPainel = () => {
+    if (naVenda) { setPainelAbertoNaVenda(v => !v); return; }
+    const novo = !painelEncolhido; setPainelEncolhido(novo);
+    try { localStorage.setItem('ui_painel_encolhido', novo ? '1' : '0'); } catch (e) {}
+  };
+
   // Expor state para debug (window.eventState)
   React.useEffect(() => {
     window.eventState = state;
@@ -2276,11 +2289,34 @@ window.AppFull = function AppFull() {
     className: "min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col lg:flex-row min-h-screen"
+  }, encolhido && /*#__PURE__*/React.createElement("div", {
+    // Painel encolhido (computador): faixa estreita com o botão para abrir
+    className: "hidden lg:flex flex-col items-center gap-3 bg-white shadow-2xl pt-4",
+    style: { width: 52, flex: '0 0 52px' },
+    "data-painel-faixa": "1"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: alternarPainel,
+    title: naVenda ? "Mostrar o painel (empresa e resumo do evento)" : "Mostrar o painel",
+    "aria-label": "Mostrar o painel lateral",
+    className: "rounded-lg text-white shadow-md",
+    style: { width: 36, height: 36, background: 'linear-gradient(135deg,#ea580c,#dc2626)', fontSize: 18, lineHeight: '36px' }
+  }, "\u00BB"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-semibold text-gray-500",
+    style: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', letterSpacing: '.08em' }
+  }, naVenda ? "Painel" : "Resumo e empresa")), /*#__PURE__*/React.createElement("div", {
+    className: `lg:w-96 bg-white shadow-2xl overflow-y-auto ${state.activeTab === 'config' ? 'block' : 'hidden'} ${encolhido ? 'lg:hidden' : 'lg:block'} pb-20 lg:pb-0 mobile-nav-spacer`,
+    "data-painel": encolhido ? 'encolhido' : 'aberto'
   }, /*#__PURE__*/React.createElement("div", {
-    className: `lg:w-96 bg-white shadow-2xl overflow-y-auto ${state.activeTab === 'config' ? 'block' : 'hidden'} lg:block pb-20 lg:pb-0 mobile-nav-spacer`
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "p-6 bg-gradient-to-br from-orange-600 to-red-600 text-white"
-  }, /*#__PURE__*/React.createElement("div", {
+    className: "p-6 bg-gradient-to-br from-orange-600 to-red-600 text-white relative"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: alternarPainel,
+    title: "Encolher o painel para aumentar a tela",
+    "aria-label": "Encolher o painel lateral",
+    className: "hidden lg:flex items-center justify-center rounded-lg text-white",
+    style: { position: 'absolute', top: 8, right: 8, width: 30, height: 30, background: 'rgba(255,255,255,.18)', fontSize: 18, zIndex: 2 }
+  }, "\u00AB"), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-4"
@@ -2868,7 +2904,7 @@ window.AppFull = function AppFull() {
     className: `flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer ${state.activeTab === 'config' ? 'cfg-mobile' : ''}`
   }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } }"), /*#__PURE__*/React.createElement("div", {
     className: "p-8"
-  }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
+  }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between flex-wrap gap-4"

@@ -472,6 +472,11 @@ class PrecificacaoAPI {
         return this.request(`/api/tasks/${taskId}`, { method: 'DELETE' });
     }
 
+    // Limpar lembretes: conclui todas as tarefas abertas ({ scope: 'all'|'overdue', clientId? })
+    async clearTasks(body = {}) {
+        return this.request('/api/tasks/clear', { method: 'POST', body: JSON.stringify(body) });
+    }
+
     // CRM etapa 3 - modelos de mensagem (WhatsApp) e relatórios
     async getMessageTemplates() {
         return this.request('/api/message-templates');

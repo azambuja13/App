@@ -7,7 +7,7 @@
  * API: /api/menu-items, /api/orders, /api/stock (itens de venda com saldo usam o motor do estoque).
  * Sem internet: pedido, produção, perda e inventário vão para a fila do estoque (StockUtils.enviar, clientId)
  * e saem sozinhos quando a conexão volta; o pedido imprime na hora com número provisório.
- * Impressão: window.OrderPrint (80/58 mm, A4/A5; via da cozinha e do cliente).
+ * Impressão: window.OrderPrint (80/58 mm, A4/A5, A4 com 2 vias e direto na térmica pela USB — utils/escpos.js; via da cozinha e do cliente).
  */
 const h = React.createElement;
 const { useState, useEffect, useMemo, useRef } = React;
@@ -177,13 +177,49 @@ function ImpressaoDialog({ onClose }) {
   const togVia = v => setC(x => ({ ...x, vias: via(v) ? x.vias.filter(y => y !== v) : (x.vias || []).concat([v]) }));
   const teste = () => OP.print({ number: 1, type: 'balcao', createdAt: new Date().toISOString(), customerName: 'Cliente TESTE',
     items: [{ name: 'Marmita de strogonoff', quantity: 2, unitPrice: 25, total: 50, notes: 'sem cebola' }, { name: 'Refrigerante lata', quantity: 1, unitPrice: 6, total: 6 }],
-    subtotal: 56, discount: 0, deliveryFee: 0, total: 56, paymentMethod: 'dinheiro', paid: true, cashReceived: 100 }, { formato: c.formato, vias: c.vias });
+    subtotal: 56, discount: 0, deliveryFee: 0, total: 56, paymentMethod: 'dinheiro', paid: true, cashReceived: 100 }, { formato: c.formato, vias: c.vias, escpos: c.escpos });
   const salvar = async () => { if (c.formato !== 'a4dupla' && !(c.vias || []).length) return alert('Escolha ao menos uma via.'); setSalvando(true); await OP.saveConfig(c); setSalvando(false); onClose('Configuração de impressão salva.'); };
-  const FORM = [['a4dupla', 'A4 · 2 vias (cliente + recebimento)'], ['80', 'Térmica 80 mm'], ['58', 'Térmica 58 mm'], ['a4', 'Folha A4'], ['a5', 'Folha A5']];
+  const FORM = [['a4dupla', 'A4 · 2 vias (cliente + recebimento)'], ['80', 'Térmica 80 mm'], ['58', 'Térmica 58 mm'], ['escpos', 'Direto na térmica (USB)'], ['a4', 'Folha A4'], ['a5', 'Folha A5']];
   const dupla = c.formato === 'a4dupla';
+  // Impressão direta (ESC/POS, utils/escpos.js)
+  const EP = window.EscPos;
+  const direto = c.formato === 'escpos';
+  const e = c.escpos || {};
+  const setE = patch => setC(x => ({ ...x, escpos: { ...(x.escpos || {}), ...patch } }));
+  const sup = EP ? EP.suporte() : { serial: false, usb: false, algum: false };
+  const tr = e.transporte === 'usb' ? 'usb' : 'serial';
+  const [conectada, setConectada] = useState(null);
+  useEffect(() => { let vivo = true; if (direto && EP) EP.conectada(tr).then(n => { if (vivo) setConectada(n); }); return () => { vivo = false; }; }, [direto, tr]);
+  const conectar = async () => {
+    try { setConectada(await EP.conectar(tr)); }
+    catch (err) { if (err && err.name !== 'NotFoundError') alert('❌ ' + (err.message || 'Não foi possível conectar.')); }
+  };
+  const esquecer = async () => { await EP.esquecer(tr); setConectada(null); };
   return h(Modal, { titulo: '🖨️ Impressão do pedido', sub: 'Funciona com qualquer impressora instalada no aparelho: térmica ou comum. No iPhone, o pedido vira PDF para imprimir ou compartilhar.', onClose: () => onClose() },
     h('label', { className: 'f' }, 'Tamanho do papel'),
     h('div', { className: 'chips' }, FORM.map(([k, t]) => h('button', { key: k, type: 'button', className: 'chip' + (c.formato === k ? ' on' : ''), onClick: () => setC(x => ({ ...x, formato: k })) }, t))),
+    direto && h('div', { 'data-escpos': 1 },
+      !sup.algum
+        ? h('div', { className: 'aviso a-ama', style: { marginTop: 8 } }, 'Este navegador não imprime direto na USB. Use o Google Chrome ou o Microsoft Edge no computador. Aqui (Safari ou iPhone), o pedido sai pela janela de impressão como térmica ' + ((e.colunas || 48) <= 32 ? '58' : '80') + ' mm.')
+        : h('div', { className: 'aviso a-azul', style: { marginTop: 8 } }, 'Manda o pedido direto para a térmica ligada na USB, sem a janela de impressão, com negrito, letras grandes e corte do papel. Funciona no Chrome e no Edge do computador.'),
+      h('label', { className: 'f' }, 'Como a impressora aparece no computador'),
+      h('div', { className: 'chips' },
+        h('button', { type: 'button', className: 'chip' + (tr === 'serial' ? ' on' : ''), onClick: () => setE({ transporte: 'serial' }) }, 'Porta serial / USB-serial'),
+        h('button', { type: 'button', className: 'chip' + (tr === 'usb' ? ' on' : ''), onClick: () => setE({ transporte: 'usb' }) }, 'Impressora USB')),
+      h('div', { className: 'muted', style: { marginTop: 4 } }, tr === 'serial'
+        ? 'Para impressoras com cabo serial, adaptador USB-serial ou driver de porta COM (Elgin, Bematech, várias genéricas). Se não aparecer na lista ao conectar, escolha "Impressora USB".'
+        : 'Para impressoras USB que não criam porta serial (ex.: Epson TM-T20). Se o Mac já tiver a impressora instalada e ela não aparecer, use "Térmica 80 mm".'),
+      h('label', { className: 'f' }, 'Largura do papel'),
+      h('div', { className: 'chips' }, [[48, '80 mm (48 colunas)'], [42, '80 mm (42 colunas)'], [32, '58 mm (32 colunas)']].map(([n, t]) =>
+        h('button', { key: n, type: 'button', className: 'chip' + ((e.colunas || 48) === n ? ' on' : ''), onClick: () => setE({ colunas: n }) }, t))),
+      tr === 'serial' && h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' } }, 'Velocidade',
+        h('select', { value: e.baud || 9600, onChange: ev => setE({ baud: Number(ev.target.value) }), 'aria-label': 'Velocidade da porta serial', style: { minWidth: 110 } }, [9600, 19200, 38400, 57600, 115200].map(b => h('option', { key: b, value: b }, b))),
+        h('span', { className: 'muted' }, 'Padrão 9600. Na USB com porta COM virtual tanto faz.')),
+      h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 } }, h('input', { type: 'checkbox', checked: e.cortar !== false, onChange: ev => setE({ cortar: ev.target.checked }) }), 'Cortar o papel no fim de cada via'),
+      sup.algum && h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 } },
+        h('button', { type: 'button', className: 'btn b-dk', onClick: conectar, 'data-testid': 'escpos-conectar' }, conectada ? '🔌 Trocar impressora' : '🔌 Conectar impressora'),
+        conectada ? h('span', { className: 'tag t-ok' }, '✓ ' + conectada) : h('span', { className: 'muted' }, 'Nenhuma conectada neste navegador'),
+        conectada && h('button', { type: 'button', className: 'btn b-wh b-sm', onClick: esquecer }, 'Desconectar'))),
     h('label', { className: 'f' }, 'Vias'),
     dupla ? h('div', { className: 'aviso a-azul', style: { marginTop: 4 } }, 'Uma folha A4 dividida por um pontilhado: em cima a via do cliente; embaixo a via da empresa, com "Declaro que recebi os itens deste pedido", nome, assinatura e data. Pedido com muitos itens sai em duas folhas.') : null,
     h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 } }, h('input', { type: 'checkbox', checked: via('cozinha'), onChange: () => togVia('cozinha') }), dupla ? 'Via da cozinha em outra folha (sem preços)' : 'Via da cozinha (sem preços, observações em destaque)'),

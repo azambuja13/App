@@ -11,6 +11,8 @@
  * OrderPrint.html(pedido, { formato, vias, empresa }) → HTML completo
  * OrderPrint.print(pedido, { formato, vias, empresa })
  * OrderPrint.config() / OrderPrint.saveConfig(parcial)   (formato, vias, imprimir ao finalizar, rodapé)
+ * Formato 'escpos' (impressão direta na térmica pela USB, sem janela; utils/escpos.js): só no Chrome/Edge do computador.
+ * Sem suporte (Safari, iPhone) ou com erro, imprime como térmica 80/58 mm pela janela de impressão.
  */
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -19,6 +21,7 @@ const TIPO = { balcao: 'Balcão', mesa: 'Mesa', retirada: 'Retirada', delivery: 
 const PAG = { dinheiro: 'Dinheiro', pix: 'PIX', credito: 'Cartão de crédito', debito: 'Cartão de débito', fiado: 'Fiado (a receber)', outro: 'Outro' };
 const LS = 'vnd_impressao_v1';
 const PADRAO = { formato: 'a4dupla', vias: ['cliente'], imprimirAoFinalizar: true, rodape: 'Obrigado pela preferência!' };
+const ESCPOS = { transporte: 'serial', colunas: 48, baud: 9600, cortar: true, codepage: 2 };
 // v2 (29/10/2026): o padrão passou a ser A4 com 2 vias. Configuração salva antes disso (sem v: 2) volta para o novo padrão
 // de papel e vias, mantendo rodapé e "imprimir ao finalizar".
 const VERSAO = 2;
@@ -29,7 +32,8 @@ function config() {
   if (!s) { try { s = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {} }
   if (s && s.v !== VERSAO) s = { imprimirAoFinalizar: s.imprimirAoFinalizar, rodape: s.rodape };
   const c = { ...PADRAO, ...(s || {}), v: VERSAO };
-  if (!['a4dupla', '80', '58', 'a4', 'a5'].includes(c.formato)) c.formato = PADRAO.formato;
+  if (!['a4dupla', '80', '58', 'a4', 'a5', 'escpos'].includes(c.formato)) c.formato = PADRAO.formato;
+  c.escpos = { ...ESCPOS, ...((s && s.escpos) || {}) };
   if (!Array.isArray(c.vias) || (!c.vias.length && c.formato !== 'a4dupla')) c.vias = PADRAO.vias.slice();
   return c;
 }
@@ -212,14 +216,38 @@ function htmlDupla(p, emp, rodape, comCozinha, forcar) {
 
 function html(p, opts) {
   const c = config();
-  const formato = (opts && opts.formato) || c.formato;
+  let formato = (opts && opts.formato) || c.formato;
+  if (formato === 'escpos') formato = (((opts && opts.escpos) || c.escpos).colunas || 48) <= 32 ? '58' : '80';
   const vias = (opts && opts.vias) || c.vias;
   const emp = (opts && opts.empresa) || empresaAtual();
   if (formato === 'a4dupla') return htmlDupla(p, emp, c.rodape, (vias || []).includes('cozinha'), opts && opts.nivel);
   const corpo = vias.map(v => v === 'cozinha' ? viaCozinha(p) : viaCliente(p, emp, c.rodape)).join('');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pedido ${esc(p.number || p.provisorio || '')}</title><style>${css(formato)}</style></head><body>${corpo}</body></html>`;
 }
+// Impressão direta (ESC/POS). Erro ou navegador sem suporte: janela de impressão como térmica do mesmo tamanho.
+async function printEscPos(p, opts) {
+  const c = config();
+  const e = { ...c.escpos, ...((opts && opts.escpos) || {}) };
+  const vias = (opts && opts.vias) || c.vias;
+  const termica = e.colunas <= 32 ? '58' : '80';
+  const EP = window.EscPos;
+  if (!EP || !EP.suporte()[e.transporte === 'usb' ? 'usb' : 'serial']) return printHtml(p, { ...(opts || {}), formato: termica, vias });
+  try {
+    const bytes = EP.pedido(p, { colunas: e.colunas, vias, empresa: (opts && opts.empresa) || empresaAtual(), rodape: c.rodape, cortar: e.cortar, codepage: e.codepage });
+    await EP.imprimir(bytes, { transporte: e.transporte, baud: e.baud });
+  } catch (err) {
+    console.warn('[OrderPrint] impressão direta falhou:', err && err.message);
+    if (window.confirm(`Não foi possível imprimir direto na térmica.\n\n${err && err.message ? err.message : ''}\n\nAbrir a janela de impressão?`)) {
+      return printHtml(p, { ...(opts || {}), formato: termica, vias });
+    }
+  }
+}
 function print(p, opts) {
+  const formato = (opts && opts.formato) || config().formato;
+  if (formato === 'escpos') return printEscPos(p, opts);
+  return printHtml(p, opts);
+}
+function printHtml(p, opts) {
   const doc = html(p, opts);
   const nome = 'pedido-' + String(p.number || p.provisorio || 'novo').replace(/[^\w-]/g, '') + '.pdf';
   if (window.ShareFile && window.ShareFile.printHtml) return window.ShareFile.printHtml(doc, { fileName: nome });
