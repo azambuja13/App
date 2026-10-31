@@ -75,6 +75,43 @@ const CSS = `
 .vnd .lnk{min-height:0 !important;padding:2px 0 !important;font-size:13px !important;font-weight:inherit}
 .vnd .prod{padding:12px !important;min-height:92px !important;font-size:15px !important}
 @media (max-width:560px){.vnd .grade{grid-template-columns:repeat(2,minmax(0,1fr))}.vnd table{font-size:13px}.vnd th,.vnd td{padding:7px 4px}.vnd td input{width:64px}}
+/* iPhone (out/2026): o aparelho vira o caixa — tela cheia, abas grandes, botões e preços maiores, tabelas viram cartões */
+.vnd .aba .sm{display:none}
+@media (max-width:900px){.vnd-wrap{padding:12px !important}.vnd .pdv{padding-bottom:76px}}
+@media (max-width:560px){
+.vnd-wrap{padding:0 !important}
+.vnd .card{padding:12px;border-radius:12px}
+.vnd .vnd-desc,.vnd .vnd-imp{display:none}
+.vnd .vnd-head{margin-bottom:8px !important}.vnd .vnd-head h2{font-size:21px !important}
+.vnd .vnd-head .btn{min-height:44px !important;min-width:48px;font-size:20px !important;padding:6px 10px !important}
+.vnd .abas{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;overflow:visible;margin-bottom:8px}
+.vnd .aba{display:flex !important;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px !important;padding:6px 2px !important;border-radius:12px;font-size:12px !important;white-space:nowrap}
+.vnd .aba .ic{font-size:21px;line-height:1}.vnd .aba .lg{display:none}.vnd .aba .sm{display:inline}
+.vnd input,.vnd select,.vnd textarea{font-size:16px !important}
+.vnd .chip{min-height:42px !important;font-size:15px !important}
+.vnd .grade{gap:8px}
+.vnd .prod{min-height:104px !important;padding:12px 11px !important;border-radius:14px}
+.vnd .prod .nome{font-size:16px}.vnd .prod .preco{font-size:18px}
+.vnd .barra{left:6px;right:6px;padding:15px 16px;font-size:17px;border-radius:16px}
+.vnd .barra.cheia{background:#ea580c}
+.vnd .linha{padding:10px 0}.vnd .qtd button{min-height:42px !important;width:42px !important;height:42px !important;font-size:20px !important}
+.vnd .total{font-size:24px}
+.vnd .stat{grid-template-columns:1fr 1fr;gap:8px}.vnd .stat b{font-size:20px}
+.vnd table.resp thead{display:none}
+.vnd table.resp,.vnd table.resp tbody,.vnd table.resp tr,.vnd table.resp td{display:block;width:100%}
+.vnd table.resp tr{border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.vnd table.resp td{border:0 !important;padding:3px 0 !important}
+.vnd table.resp td[data-label]::before{content:attr(data-label);display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:2px}
+.vnd table.kv td[data-label]{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px}
+.vnd table.kv td[data-label]::before{display:inline;margin:0;font-size:13px}
+.vnd table.kv td.tit{font-weight:800;font-size:16px;padding-bottom:6px !important}
+.vnd table.resp input.nome-it{max-width:none !important;width:100% !important;font-size:17px !important}
+.vnd table.resp input.preco-it{width:120px !important}
+.vnd table.itens td.est{display:flex;gap:14px;flex-wrap:wrap;align-items:center}.vnd table.itens td.est::before{width:100%}
+.vnd table.itens td.acao{text-align:right;padding-top:8px !important}
+.vnd-modal .fim{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom));background:#fff;margin:0 -16px;padding:2px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 16px rgba(0,0,0,.06)}
+.vnd-modal .fim .btn.b-or{min-height:54px !important;font-size:18px !important}
+}
 `;
 function injectCss() { if (document.getElementById('vnd-css')) return; const st = document.createElement('style'); st.id = 'vnd-css'; st.textContent = CSS; document.head.appendChild(st); }
 
@@ -284,11 +321,11 @@ function Carrinho({ pedido, setPedido, finalizar, salvando, compacto }) {
       h('div', { style: { fontWeight: 700 } }, t.troco != null ? 'Troco: ' + brl(t.troco) : '')),
     h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 } }, h('input', { type: 'checkbox', checked: !!pedido.paid, onChange: e => set('paid', e.target.checked) }), 'Já está pago'),
     h('input', { value: pedido.notes, onChange: e => set('notes', e.target.value), placeholder: 'Observação do pedido', 'aria-label': 'Observação do pedido', style: { width: '100%', marginTop: 8 } }),
-    h('div', { style: { marginTop: 10 } },
+    h('div', { className: 'fim' }, h('div', { style: { marginTop: 10 } },
       t.desc > 0 || t.taxa > 0 ? h('div', { className: 'muted' }, 'Subtotal ' + brl(t.subtotal) + (t.desc > 0 ? ' − desconto ' + brl(t.desc) : '') + (t.taxa > 0 ? ' + entrega ' + brl(t.taxa) : '')) : null,
       h('div', { className: 'total' }, h('span', null, 'Total'), h('span', null, brl(t.total)))),
     h('button', { type: 'button', className: 'btn b-or', style: { width: '100%', marginTop: 12, padding: '14px', fontSize: 16 }, disabled: salvando || !pedido.itens.length, onClick: finalizar },
-      salvando ? 'Registrando...' : ((window.OrderPrint && window.OrderPrint.config().imprimirAoFinalizar) ? 'Finalizar e imprimir' : 'Finalizar pedido')),
+      salvando ? 'Registrando...' : ((window.OrderPrint && window.OrderPrint.config().imprimirAoFinalizar) ? 'Finalizar e imprimir' : 'Finalizar pedido'))),
     pedido.itens.length ? h('button', { type: 'button', className: 'btn b-wh', style: { width: '100%', marginTop: 8 }, onClick: () => { if (confirm('Limpar o pedido?')) setPedido(pedidoVazio()); } }, 'Limpar') : null);
 }
 
@@ -360,7 +397,7 @@ function PDV({ itens, saldos, pedido, setPedido, onFeito, mostrarAviso }) {
             it.controlsStock ? h('span', { className: 'tag ' + (saldo <= 0 ? 't-neg' : saldo <= 3 ? 't-low' : 't-ok') }, saldo <= 0 ? (bloqueado ? 'esgotado' : 'sem saldo') : n2(saldo, 2) + (it.unit === 'kg' ? ' kg' : '')) : null));
       }))),
     h('div', { className: 'card carrinho' }, h('div', { style: { fontWeight: 800, fontSize: 17, marginBottom: 4 } }, '🧾 Pedido'), carrinho),
-    h('div', { className: 'barra', role: 'button', tabIndex: 0, onClick: () => setAberto(true) }, h('span', null, qtdItens ? `Ver pedido (${n2(qtdItens, 0)})` : 'Pedido vazio'), h('span', null, brl(totais(pedido).total))),
+    h('div', { className: 'barra' + (qtdItens ? ' cheia' : ''), role: 'button', tabIndex: 0, onClick: () => setAberto(true) }, h('span', null, qtdItens ? `🧾 Ver pedido (${n2(qtdItens, 0)})` : 'Pedido vazio'), h('span', null, brl(totais(pedido).total))),
     aberto && h(Modal, { titulo: '🧾 Pedido', onClose: () => setAberto(false) }, carrinho),
     avulso && h(Modal, { titulo: 'Item avulso', sub: 'Algo fora do cardápio (taxa, item do dia). Não mexe no estoque.', onClose: () => setAvulso(null) },
       h('label', { className: 'f' }, 'Descrição'), h('input', { value: avulso.nome, onChange: e => setAvulso(a => ({ ...a, nome: e.target.value })), style: { width: '100%' }, autoFocus: true, 'aria-label': 'Descrição' }),
@@ -475,25 +512,25 @@ function Cardapio({ itens, recarregar, mostrarAviso }) {
       h('label', { style: { display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto', fontSize: 14 } }, h('input', { type: 'checkbox', checked: mostrarInativos, onChange: e => setMostrarInativos(e.target.checked) }), 'Mostrar os tirados do cardápio')),
     h('div', { className: 'aviso a-azul' }, '🍽️ Para vender um prato, abra o prato na aba Pratos e marque "Vender este prato" (preço, categoria e estoque ficam lá). Aqui entram os produtos de revenda, como bebidas, e você ajusta preço e estoque de tudo que está à venda.'),
     !lista.length ? null :
-    h('div', { style: { overflowX: 'auto', marginTop: 10 } }, h('table', null,
+    h('div', { style: { overflowX: 'auto', marginTop: 10 } }, h('table', { className: 'resp itens' },
       h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Preço'), h('th', null, 'Estoque'), h('th', null, ''))),
       h('tbody', null, lista.map(it => {
         const m = margemTxt(it);
         return h('tr', { key: it.id, style: { opacity: it.isActive ? 1 : .5 } },
           h('td', null,
-            h('input', { key: 'n' + it.id + it.name, defaultValue: it.name, 'aria-label': 'Nome', style: { width: '100%', maxWidth: 260, fontWeight: 600 }, onBlur: e => { const v = e.target.value.trim(); if (v && v !== it.name) salvar(it, { name: v }); } }),
+            h('input', { key: 'n' + it.id + it.name, defaultValue: it.name, 'aria-label': 'Nome', className: 'nome-it', style: { width: '100%', maxWidth: 260, fontWeight: 600 }, onBlur: e => { const v = e.target.value.trim(); if (v && v !== it.name) salvar(it, { name: v }); } }),
             h('div', { style: { display: 'flex', gap: 6, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' } },
               h('input', { key: 'c' + it.id + it.category, defaultValue: it.category, 'aria-label': 'Categoria', style: { width: 120, padding: '4px 8px', fontSize: 13 }, onBlur: e => { const v = e.target.value.trim(); if (v !== it.category) salvar(it, { category: v }); } }),
               h('span', { className: 'muted', style: { fontSize: 12 } }, it.dishId ? 'prato (ficha técnica)' : 'revenda'),
               m ? h('span', { className: 'tag ' + (m.cmv <= metaCmv() ? 't-ok' : m.cmv <= metaCmv() + 5 ? 't-low' : 't-neg') }, m.txt) : null)),
-          h('td', null,
-            h('input', { key: 'p' + it.id + it.price, defaultValue: String(it.price).replace('.', ','), inputMode: 'decimal', 'aria-label': 'Preço de ' + it.name, style: { width: 80 }, onBlur: e => { const v = parseNum(e.target.value); if (v >= 0 && v !== it.price) salvar(it, { price: v }); } }),
+          h('td', { 'data-label': 'Preço' },
+            h('input', { key: 'p' + it.id + it.price, defaultValue: String(it.price).replace('.', ','), inputMode: 'decimal', 'aria-label': 'Preço de ' + it.name, className: 'preco-it', style: { width: 80 }, onBlur: e => { const v = parseNum(e.target.value); if (v >= 0 && v !== it.price) salvar(it, { price: v }); } }),
             h('select', { value: it.unit, 'aria-label': 'Unidade', style: { marginLeft: 4, padding: '6px' }, onChange: e => salvar(it, { unit: e.target.value }) }, UNIDADES.map(([k, n]) => h('option', { key: k, value: k }, n))),
-            !it.dishId && h('div', { style: { marginTop: 4 } }, h('input', { key: 'k' + it.id + it.cost, defaultValue: it.cost != null ? String(it.cost).replace('.', ',') : '', placeholder: 'custo', inputMode: 'decimal', 'aria-label': 'Custo de ' + it.name, style: { width: 80, padding: '4px 8px', fontSize: 13 }, onBlur: e => { const v = e.target.value === '' ? null : parseNum(e.target.value); if ((v == null || v >= 0) && v !== it.cost) salvar(it, { cost: v }); } }))),
-          h('td', null,
+            !it.dishId && h('div', { style: { marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 } }, h('span', { className: 'muted', style: { fontSize: 12 } }, 'Custo'), h('input', { key: 'k' + it.id + it.cost, defaultValue: it.cost != null ? String(it.cost).replace('.', ',') : '', placeholder: 'custo', inputMode: 'decimal', 'aria-label': 'Custo de ' + it.name, style: { width: 80, padding: '4px 8px', fontSize: 13 }, onBlur: e => { const v = e.target.value === '' ? null : parseNum(e.target.value); if ((v == null || v >= 0) && v !== it.cost) salvar(it, { cost: v }); } }))),
+          h('td', { 'data-label': 'Estoque', className: 'est' },
             h('label', { style: { display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 } }, h('input', { type: 'checkbox', checked: it.controlsStock, onChange: e => salvar(it, { controlsStock: e.target.checked }) }), 'controla'),
             it.controlsStock && h('label', { style: { display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, marginTop: 4 } }, h('input', { type: 'checkbox', checked: it.blockWithoutStock, onChange: e => salvar(it, { blockWithoutStock: e.target.checked }) }), 'bloqueia sem saldo')),
-          h('td', null, it.isActive
+          h('td', { className: 'acao' }, it.isActive
             ? h('button', { type: 'button', className: 'btn b-red b-sm', onClick: () => { if (confirm(`Tirar ${it.name} do cardápio de venda? Os pedidos antigos continuam.`)) salvar(it, { isActive: false }); } }, 'Tirar')
             : h('button', { type: 'button', className: 'btn b-wh b-sm', onClick: () => salvar(it, { isActive: true }) }, 'Voltar')));
       })))),
@@ -569,15 +606,15 @@ function Prontos({ itens, saldos, recarregar, mostrarAviso }) {
       h('span', null, `${v.i.name}: ${n2(v.l.quantity, 3)} ${v.d < 0 ? 'venceu em ' + fmtData(v.l.expiresAt) : v.d === 0 ? 'vence hoje' : 'vence amanhã'}`),
       v.d < 0 ? h('button', { type: 'button', className: 'btn b-red b-sm', onClick: () => perdaLote(v) }, 'Lançar como perda') : null))) : null,
     !controlados.length ? h('div', { className: 'aviso a-azul' }, 'Nenhum item controla estoque. No prato (aba Pratos), marque "Controlar estoque de prontos" (marmitas, congelados); nas bebidas, marque "controla" em Itens à venda.') :
-    h('div', { style: { overflowX: 'auto', marginTop: 12 } }, h('table', null,
+    h('div', { style: { overflowX: 'auto', marginTop: 12 } }, h('table', { className: 'resp kv' },
       h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Saldo'), h('th', null, 'Mínimo'), h('th', null, 'Validade'))),
       h('tbody', null, controlados.map(i => {
         const s = saldos[i.id] || 0, min = i.stock ? i.stock.minQuantity : 0, lots = (i.stock && i.stock.lots) || [];
         return h('tr', { key: i.id },
-          h('td', null, h('b', null, i.name), h('div', { className: 'muted', style: { fontSize: 11 } }, i.category, i.blockWithoutStock ? ' · bloqueia sem saldo' : '')),
-          h('td', null, h('span', { className: 'tag ' + (s <= 0 ? 't-neg' : min > 0 && s < min ? 't-low' : 't-ok') }, n2(s, 3) + (i.unit === 'kg' ? ' kg' : ''))),
-          h('td', null, h('input', { key: i.id + ':' + min, defaultValue: min ? String(min).replace('.', ',') : '', placeholder: '0', inputMode: 'decimal', 'aria-label': 'Mínimo de ' + i.name, style: { width: 64 }, onBlur: e => { if (parseNum(e.target.value || '0') !== min) salvarMin(i, e.target.value || '0'); } })),
-          h('td', null, lots.length ? lots.slice(0, 2).map(l => h('div', { key: l.id, className: 'muted', style: { color: diasAte(l.expiresAt) < 0 ? '#b91c1c' : undefined } }, n2(l.quantity, 3) + ' até ' + fmtData(l.expiresAt))) : h('span', { className: 'muted' }, '—')));
+          h('td', { className: 'tit' }, h('b', null, i.name), h('div', { className: 'muted', style: { fontSize: 11 } }, i.category, i.blockWithoutStock ? ' · bloqueia sem saldo' : '')),
+          h('td', { 'data-label': 'Saldo' }, h('span', { className: 'tag ' + (s <= 0 ? 't-neg' : min > 0 && s < min ? 't-low' : 't-ok') }, n2(s, 3) + (i.unit === 'kg' ? ' kg' : ''))),
+          h('td', { 'data-label': 'Mínimo' }, h('input', { key: i.id + ':' + min, defaultValue: min ? String(min).replace('.', ',') : '', placeholder: '0', inputMode: 'decimal', 'aria-label': 'Mínimo de ' + i.name, style: { width: 64 }, onBlur: e => { if (parseNum(e.target.value || '0') !== min) salvarMin(i, e.target.value || '0'); } })),
+          h('td', { 'data-label': 'Validade' }, lots.length ? lots.slice(0, 2).map(l => h('div', { key: l.id, className: 'muted', style: { color: diasAte(l.expiresAt) < 0 ? '#b91c1c' : undefined } }, n2(l.quantity, 3) + ' até ' + fmtData(l.expiresAt))) : h('span', { className: 'muted' }, '—')));
       })))),
     h('div', { className: 'card', style: { marginTop: 12, boxShadow: 'none', border: '1px solid #e5e7eb' } },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
@@ -585,9 +622,9 @@ function Prontos({ itens, saldos, recarregar, mostrarAviso }) {
         h('div', { className: 'chips' }, [1, 3, 7, 15].map(d => h('button', { key: d, type: 'button', className: 'chip' + (dias === d ? ' on' : ''), onClick: () => setDias(d) }, d === 1 ? 'amanhã' : d + ' dias')))),
       h('div', { className: 'muted', style: { marginTop: 4 } }, 'Encomendas do período + estoque mínimo − saldo.'),
       !plano ? h('div', { className: 'muted', style: { marginTop: 8 } }, 'Calculando...') : !plano.length ? h('div', { className: 'muted', style: { marginTop: 8 } }, 'Nada a produzir: o saldo cobre as encomendas e o mínimo.') :
-      h('div', null, h('table', { style: { marginTop: 8 } },
+      h('div', null, h('table', { className: 'resp kv', style: { marginTop: 8 } },
         h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Encomendas'), h('th', null, 'Saldo'), h('th', null, 'Mínimo'), h('th', null, 'Produzir'))),
-        h('tbody', null, plano.map(p => h('tr', { key: p.saleItemId }, h('td', null, p.name), h('td', null, n2(p.orders, 3)), h('td', { style: { color: p.stock < 0 ? '#b91c1c' : undefined } }, n2(p.stock, 3)), h('td', null, n2(p.minimum, 3)), h('td', { style: { fontWeight: 800 } }, n2(p.produce, 3)))))),
+        h('tbody', null, plano.map(p => h('tr', { key: p.saleItemId }, h('td', { className: 'tit' }, p.name), h('td', { 'data-label': 'Encomendas' }, n2(p.orders, 3)), h('td', { 'data-label': 'Saldo', style: { color: p.stock < 0 ? '#b91c1c' : undefined } }, n2(p.stock, 3)), h('td', { 'data-label': 'Mínimo' }, n2(p.minimum, 3)), h('td', { 'data-label': 'Produzir', style: { fontWeight: 800 } }, n2(p.produce, 3)))))),
         Object.keys(sugestao).length ? h('button', { type: 'button', className: 'btn b-gr b-sm', style: { marginTop: 8 }, onClick: () => setDialogo({ t: 'producao', inicial: sugestao }) }, 'Produzi isso: lançar') : null)),
     dialogo && h(LancarDialog, { tipo: dialogo.t, itens: itens || [], saldos, inicial: dialogo.inicial, onClose: fechar }));
 }
@@ -612,16 +649,16 @@ function Resumo() {
         h('div', null, h('span', { className: 'muted' }, 'Lucro bruto'), h('b', null, brl(r.grossProfit)), h('span', { className: 'muted' }, n2(margem, 1) + '% · vendas − custo dos itens')),
         h('div', null, h('span', { className: 'muted' }, 'A receber'), h('b', { style: { color: r.unpaid > 0 ? '#b45309' : undefined } }, brl(r.unpaid)))),
       h('h4', { style: { margin: '18px 0 6px', fontWeight: 800 } }, 'Por forma de pagamento'),
-      h('table', null, h('thead', null, h('tr', null, h('th', null, 'Forma'), h('th', null, 'Pedidos'), h('th', null, 'Total'), h('th', null, 'A receber'))),
-        h('tbody', null, Object.entries(r.byPayment).map(([k, v]) => h('tr', { key: k }, h('td', null, (PAGS.find(p => p[0] === k) || [0, k === 'sem' ? 'Sem forma' : k])[1]), h('td', null, v.pedidos), h('td', null, brl(v.total)), h('td', null, v.aReceber ? brl(v.aReceber) : '—'))))),
+      h('table', { className: 'resp kv' }, h('thead', null, h('tr', null, h('th', null, 'Forma'), h('th', null, 'Pedidos'), h('th', null, 'Total'), h('th', null, 'A receber'))),
+        h('tbody', null, Object.entries(r.byPayment).map(([k, v]) => h('tr', { key: k }, h('td', { className: 'tit' }, (PAGS.find(p => p[0] === k) || [0, k === 'sem' ? 'Sem forma' : k])[1]), h('td', { 'data-label': 'Pedidos' }, v.pedidos), h('td', { 'data-label': 'Total' }, brl(v.total)), h('td', { 'data-label': 'A receber' }, v.aReceber ? brl(v.aReceber) : '—'))))),
       h('h4', { style: { margin: '18px 0 6px', fontWeight: 800 } }, 'Por item'),
       !r.byItem.length ? h('div', { className: 'muted' }, 'Nenhuma venda no período.') :
-      h('div', { style: { overflowX: 'auto' } }, h('table', null, h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Qtd.'), h('th', null, 'Vendas'), h('th', null, 'Custo'), h('th', null, 'Lucro'))),
-        h('tbody', null, r.byItem.map((i, k) => h('tr', { key: k }, h('td', null, i.name), h('td', null, n2(i.quantity, 3)), h('td', null, brl(i.total)), h('td', null, i.semCusto && !i.cost ? '—' : brl(i.cost)), h('td', { style: { fontWeight: 700 } }, i.semCusto && !i.cost ? '—' : brl(i.total - i.cost)))))))));
+      h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'resp kv' }, h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Qtd.'), h('th', null, 'Vendas'), h('th', null, 'Custo'), h('th', null, 'Lucro'))),
+        h('tbody', null, r.byItem.map((i, k) => h('tr', { key: k }, h('td', { className: 'tit' }, i.name), h('td', { 'data-label': 'Qtd.' }, n2(i.quantity, 3)), h('td', { 'data-label': 'Vendas' }, brl(i.total)), h('td', { 'data-label': 'Custo' }, i.semCusto && !i.cost ? '—' : brl(i.cost)), h('td', { 'data-label': 'Lucro', style: { fontWeight: 700 } }, i.semCusto && !i.cost ? '—' : brl(i.total - i.cost)))))))));
 }
 
 // ====================== Página ======================
-const ABAS = [['vender', '🛒 Vender'], ['pedidos', '🧾 Pedidos'], ['cardapio', '📖 Itens à venda'], ['prontos', '📦 Estoque'], ['resumo', '📊 Resumo']];
+const ABAS = [['vender', '🛒', 'Vender', 'Vender'], ['pedidos', '🧾', 'Pedidos', 'Pedidos'], ['cardapio', '📖', 'Itens à venda', 'Itens'], ['prontos', '📦', 'Estoque', 'Estoque'], ['resumo', '📊', 'Resumo', 'Resumo']];
 function VendasPage() {
   injectCss();
   const premium = temPremium();
@@ -639,11 +676,12 @@ function VendasPage() {
   if (!premium) return h('div', { className: 'vnd card' }, h('h2', { style: { fontSize: 20, fontWeight: 800 } }, '🧾 Vendas'), h('p', { className: 'muted' }, 'A venda de pratos (PDV, pedidos, impressão e estoque de prontos) é do plano PREMIUM.'));
   return h('div', { className: 'vnd' },
     h('div', { className: 'card' },
-      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 } },
-        h('div', null, h('h2', { style: { fontSize: 22, fontWeight: 800, margin: 0 } }, '🧾 Vendas'),
-          h('div', { className: 'muted' }, 'Venda no balcão, pedidos, encomendas e o estoque dos pratos prontos.')),
-        h('button', { type: 'button', className: 'btn b-wh', onClick: () => setImpressao(true) }, '🖨️ Impressão')),
-      h('div', { className: 'abas', role: 'tablist' }, ABAS.map(([k, n]) => h('button', { key: k, type: 'button', role: 'tab', 'aria-selected': aba === k, className: 'aba' + (aba === k ? ' on' : ''), onClick: () => setAba(k) }, n))),
+      h('div', { className: 'vnd-head', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10 } },
+        h('div', { style: { minWidth: 0 } }, h('h2', { style: { fontSize: 22, fontWeight: 800, margin: 0 } }, '🧾 Vendas'),
+          h('div', { className: 'muted vnd-desc' }, 'Venda no balcão, pedidos, encomendas e o estoque dos pratos prontos.')),
+        h('button', { type: 'button', className: 'btn b-wh', 'aria-label': 'Impressão', onClick: () => setImpressao(true) }, '🖨️', h('span', { className: 'vnd-imp' }, ' Impressão'))),
+      h('div', { className: 'abas', role: 'tablist' }, ABAS.map(([k, ic, n, curto]) => h('button', { key: k, type: 'button', role: 'tab', 'aria-selected': aba === k, 'aria-label': n, className: 'aba' + (aba === k ? ' on' : ''), onClick: () => setAba(k) },
+        h('span', { className: 'ic' }, ic), h('span', { className: 'lg' }, ' ' + n), h('span', { className: 'sm' }, curto)))),
       erro && h('div', { className: 'aviso a-ver' }, erro),
       h(Aviso, { aviso }),
       fila.length && aba !== 'pedidos' ? h('div', { className: 'aviso a-azul', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },

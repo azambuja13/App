@@ -326,6 +326,11 @@ class PrecificacaoAPI {
         return this.request(`/api/dishes/${dishId}`);
     }
 
+    // Ajustar os pratos ao CMV desejado ({ cmvPct, scope: 'above'|'all', dryRun })
+    async applyDishCmv(body) {
+        return this.request('/api/dishes/apply-cmv', { method: 'POST', body: JSON.stringify(body), timeoutMs: 90000 });
+    }
+
     async createDish(dish) {
         return this.request('/api/dishes', {
             method: 'POST',

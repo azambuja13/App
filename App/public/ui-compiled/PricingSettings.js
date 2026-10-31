@@ -42,6 +42,78 @@ const FIELDS = [
   ['proteinSafetyPct', 'Margem de segurança das proteínas (%)', 'Carne a mais para não faltar: os ingredientes da categoria Proteínas saem esse % a mais na lista de compras e no custo (depois da perda). Ex.: 15% → 48 kg viram 55,2 kg. Cada evento pode usar outro valor em Dados do Evento. Use 0 para desligar.']
 ];
 
+// ====== Ajustar todos os pratos ao CMV desejado (out/2026) ======
+const brlA = x => (Number(x) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const pctA = x => (Number(x) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+async function atualizarDepoisDoAjuste() {
+  // pratos e cardápios salvos guardados no aparelho: buscar de novo; cardápio do evento: cópia nova dos pratos
+  try { const dm = window.PrecificacaoAPI && window.PrecificacaoAPI.dishManager; if (dm && dm.loadDishes) { dm.cacheTime = null; await dm.loadDishes(true); } } catch (e) {}
+  try { const sm = window.PrecificacaoAPI && window.PrecificacaoAPI.savedMenusManager; if (sm) { sm.menus = []; if (sm.loadMenus) await sm.loadMenus(); } } catch (e) {}
+  try { if (window.MenuRefresh) await window.MenuRefresh.atualizarCardapioAtual(); } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('dishes-prices-updated')); window.dispatchEvent(new Event('menu-updated')); } catch (e) {}
+}
+function CmvAjuste({ cmv, salvoCmv }) {
+  const P = window.PricingRules;
+  const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+  const [prev, setPrev] = useState(null);      // resposta da prévia
+  const [scope, setScope] = useState('above');
+  const [estado, setEstado] = useState('');     // '', 'carregando', 'aplicando'
+  const [msg, setMsg] = useState(null);
+  const valido = cmv >= 9.1 && cmv < 100;
+  if (!api || !api.applyDishCmv) return null;
+  const previa = async () => {
+    setMsg(null);
+    if (!valido) { setMsg({ ok: false, t: 'Informe um CMV entre 9,1% e 99%.' }); return; }
+    setEstado('carregando');
+    try { const r = await api.applyDishCmv({ cmvPct: cmv, scope: 'all', dryRun: true }); setPrev(r.data || r); setScope('above'); }
+    catch (e) { setMsg({ ok: false, t: 'Não foi possível calcular: ' + (e.message || 'erro') }); }
+    finally { setEstado(''); }
+  };
+  const lista = prev ? prev.changes.filter(c => scope === 'all' || c.situacao !== 'abaixo') : [];
+  const aplicar = async () => {
+    if (!lista.length) return;
+    setEstado('aplicando'); setMsg(null);
+    try {
+      if (Math.abs(cmv - salvoCmv) > 0.001) await P.save({ cmvTargetPct: cmv }); // a meta usada passa a ser a meta salva
+      const r = await api.applyDishCmv({ cmvPct: cmv, scope });
+      const d = r.data || r;
+      await atualizarDepoisDoAjuste();
+      setPrev(null);
+      setMsg({ ok: true, t: `✅ ${d.applied} prato(s) ajustado(s) para CMV ${pctA(d.cmvPct)} (markup ${pctA(d.markupPct)}).` + (d.menusUpdated ? ` ${d.menusUpdated} cardápio(s) salvo(s) atualizado(s).` : '') + ' O cardápio do evento aberto também foi atualizado.' });
+    } catch (e) { setMsg({ ok: false, t: 'Não foi possível ajustar: ' + (e.message || 'erro') }); }
+    finally { setEstado(''); }
+  };
+  const c = prev ? prev.counts : null;
+  const nAcima = prev ? prev.changes.filter(x => x.situacao !== 'abaixo').length : 0;
+  const nTodos = prev ? prev.changes.length : 0;
+  return h('div', { className: 'box', 'data-cmv-ajuste': 1, style: { background: '#f0fdf4', borderColor: '#bbf7d0' } },
+    !prev && h('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } },
+      h('div', { className: 'btn', role: 'button', 'data-testid': 'cmv-ajustar', onClick: estado ? undefined : previa, style: { background: '#15803d', color: '#fff', opacity: estado ? .6 : 1 } },
+        estado === 'carregando' ? 'Calculando...' : '🎯 Ajustar todos os pratos a ' + pctA(cmv)),
+      h('div', { className: 'muted', style: { flex: '1 1 200px' } }, 'Recalcula o preço sugerido de cada prato para esta meta. Antes de mudar, mostra quais pratos mudam e quanto.')),
+    prev && h('div', null,
+      h('b', null, `CMV ${pctA(prev.cmvPct)} = markup ${pctA(prev.markupPct)}`),
+      h('div', { className: 'muted', style: { marginTop: 2 } }, `${prev.total} prato(s): ${c.acima} acima da meta, ${c.abaixo} abaixo, ${c.semPreco} sem preço, ${c.iguais} já na meta` + (c.semCusto ? `, ${c.semCusto} sem custo (ficam como estão)` : '') + '.'),
+      h('div', { className: 'seg' },
+        h('div', { className: scope === 'above' ? 'on' : '', role: 'button', 'data-scope': 'above', onClick: () => setScope('above') },
+          h('b', null, `Só os acima da meta (${nAcima})`), h('div', { className: 'muted' }, 'O preço sobe até a meta. Os pratos com margem melhor que a meta ficam como estão.')),
+        h('div', { className: scope === 'all' ? 'on' : '', role: 'button', 'data-scope': 'all', onClick: () => setScope('all') },
+          h('b', null, `Todos (${nTodos})`), h('div', { className: 'muted' }, c.abaixo ? `Inclui os ${c.abaixo} abaixo da meta: esses ficam mais baratos.` : 'Todos os pratos com custo vão para a meta.'))),
+      !lista.length ? h('div', { className: 'muted', style: { marginTop: 8 } }, 'Nenhum prato para mudar nesta opção.') :
+      h('div', { style: { marginTop: 8, maxHeight: 220, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff' } },
+        lista.map(x => h('div', { key: x.id, style: { display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderBottom: '1px solid #f3f4f6', fontSize: 13 } },
+          h('div', { style: { minWidth: 0 } }, h('div', { style: { fontWeight: 600 } }, x.name), h('div', { className: 'muted', style: { fontSize: 12 } }, (x.oldCmv != null ? 'CMV ' + pctA(x.oldCmv) : 'sem preço') + ' · custo ' + brlA(x.base) + '/' + x.unit)),
+          h('div', { style: { whiteSpace: 'nowrap', textAlign: 'right' } },
+            x.oldPrice ? h('span', { className: 'muted', style: { textDecoration: 'line-through', marginRight: 6 } }, brlA(x.oldPrice)) : null,
+            h('b', { style: { color: x.oldPrice && x.newPrice < x.oldPrice ? '#b45309' : '#15803d' } }, brlA(x.newPrice)))))),
+      h('div', { className: 'muted', style: { marginTop: 6 } }, 'Os cardápios salvos e o cardápio do evento aberto também recebem os preços novos (as porções ficam). Propostas já salvas não mudam.'),
+      h('div', { style: { display: 'flex', gap: 8, marginTop: 10 } },
+        h('div', { className: 'btn', role: 'button', onClick: () => setPrev(null), style: { background: '#f3f4f6', flex: 1 } }, 'Cancelar'),
+        h('div', { className: 'btn', role: 'button', 'data-testid': 'cmv-aplicar', onClick: estado || !lista.length ? undefined : aplicar, style: { background: '#15803d', color: '#fff', flex: 2, opacity: estado || !lista.length ? .5 : 1 } },
+          estado === 'aplicando' ? 'Ajustando...' : `Ajustar ${lista.length} prato(s)`))),
+    msg ? h('div', { style: { marginTop: 8, color: msg.ok ? '#15803d' : '#b91c1c', fontWeight: 600, fontSize: 13 } }, msg.t) : null);
+}
+
 function PricingSettings({ onClose }) {
   const P = window.PricingRules;
   const [v, setV] = useState(() => { const g = P.get(); const o = { ...g }; for (const [k] of FIELDS) o[k] = String(g[k]).replace('.', ','); return o; });
@@ -86,7 +158,7 @@ function PricingSettings({ onClose }) {
           h('div', null, '1. Preencha uma vez. Vale para todas as propostas novas (cada proposta guarda os valores do dia em que foi salva).'),
           h('div', null, '2. ', h('b', null, 'Modo Markup:'), ' o preço vem do markup dos pratos. Estes números servem para mostrar o ', h('b', null, 'lucro de verdade'), ' de cada proposta.'),
           h('div', null, '3. ', h('b', null, 'Modo Custos da empresa:'), ' o app calcula o preço para pagar impostos, taxas e custos fixos e ainda sobrar o lucro desejado.'))),
-      FIELDS.map(([k, label, help]) => h('label', { className: 'fld', key: k },
+      FIELDS.map(([k, label, help]) => h(React.Fragment, { key: k }, h('label', { className: 'fld' },
         h('b', null, label),
         h('div', { className: 'row' },
           h('input', { type: 'text', inputMode: 'decimal', value: v[k], onChange: e => set(k, e.target.value.replace(/[^0-9.,]/g, '')), onBlur: () => set(k, String(Math.min(100, Math.max(0, n(v[k])))).replace('.', ',')) }),
@@ -105,7 +177,8 @@ function PricingSettings({ onClose }) {
               ? h('div', { style: { marginTop: 8, color: '#b91c1c', fontSize: 13 } }, '⚠️ Deu ' + calcFixos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% — os custos fixos estão maiores que o faturamento ou quase isso. Confira: o faturamento é o total vendido no mês em R$ (ex.: 80000), não a quantidade de eventos.')
               : h('div', { className: 'row', style: { marginTop: 8 } },
                   h('span', null, '= ', h('span', { style: { fontWeight: 800 } }, calcFixos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%'), ' do faturamento'),
-                  h('div', { className: 'btn', role: 'button', style: { background: '#ea580c', color: '#fff', padding: '6px 10px', fontSize: 13 }, onClick: () => set('fixedCostsPct', String(Math.round(calcFixos * 10) / 10).replace('.', ',')) }, 'Usar este valor'))) : null)),
+                  h('div', { className: 'btn', role: 'button', style: { background: '#ea580c', color: '#fff', padding: '6px 10px', fontSize: 13 }, onClick: () => set('fixedCostsPct', String(Math.round(calcFixos * 10) / 10).replace('.', ',')) }, 'Usar este valor'))) : null),
+        k === 'cmvTargetPct' ? h(CmvAjuste, { cmv: n(v.cmvTargetPct), salvoCmv: Number(P.get().cmvTargetPct) || 30 }) : null)),
       h('div', { className: 'fld' },
         h('b', null, 'Como calcular o preço das propostas novas'),
         h('div', { className: 'seg' },

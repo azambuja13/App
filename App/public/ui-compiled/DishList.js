@@ -153,11 +153,13 @@ const DishList = React.memo(function DishList({
       }
     };
     window.addEventListener('backend-phase2-complete', handlePhase2Complete);
+    window.addEventListener('dishes-prices-updated', handlePhase2Complete); // preços ajustados em Custos da empresa
     window.addEventListener('tab-changed', handleTabChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('backend-phase2-complete', handlePhase2Complete);
+      window.removeEventListener('dishes-prices-updated', handlePhase2Complete);
       window.removeEventListener('tab-changed', handleTabChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

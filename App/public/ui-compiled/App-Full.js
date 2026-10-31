@@ -2903,7 +2903,8 @@ window.AppFull = function AppFull() {
     // esconde o conteúdo desta coluna, menos a barra de abas inferior (que mora aqui dentro)
     className: `flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer ${state.activeTab === 'config' ? 'cfg-mobile' : ''}`
   }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } }"), /*#__PURE__*/React.createElement("div", {
-    className: "p-8"
+    // Vendas no celular: menos margem para os botões ficarem grandes (o aparelho vira o caixa)
+    className: state.activeTab === 'sales' ? "p-8 vnd-wrap" : "p-8"
   }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2974,7 +2975,7 @@ window.AppFull = function AppFull() {
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
-  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
+  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-lg"

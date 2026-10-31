@@ -9,6 +9,8 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Ajustar todos os pratos ao CMV desejado:** em Custos da empresa, um botão recalcula o preço sugerido de todos os pratos para a meta de CMV, com prévia antes de mudar.
+- **Vendas no iPhone:** tela cheia, abas grandes com ícone, preços e botões maiores, o pedido abre de baixo com o total e o botão **Finalizar** sempre à vista, e as listas (itens à venda, estoque e resumo) viram cartões fáceis de ler.
 - **Limpar todas as tarefas:** no Funil, o botão **🧹 Limpar todas** conclui de uma vez todos os lembretes pendentes.
 - **Painel lateral encolhível:** no computador, toque em **«** para encolher o painel da esquerda e ganhar tela. Na aba Vendas ele já fica encolhido e sem os resumos do evento.
 - **Atualizar pratos nos cardápios:** editou um prato (ingredientes, rendimento, margem ou nome)? Toque em **"Atualizar pratos"** na aba Cardápio ou em **"Atualizar pratos de todos"** na aba Salvos. Os cardápios passam a usar os dados atuais do prato, e as porções por pessoa continuam as mesmas.
@@ -174,7 +176,15 @@ No painel da empresa, toque em **"📊 Custos da empresa"**. Os percentuais entr
 | Lucro desejado | quanto do preço deve sobrar de lucro | 20% |
 | Markup sobre serviços | quanto somar ao custo de apoio, mão de obra e transporte | 20% |
 | Correção mensal | correção de comida e apoio até a data do evento | 1% |
+| CMV desejado dos pratos | quanto do preço do prato pode ser custo de ingredientes (custo ÷ preço) | 30% |
 | Margem de segurança das proteínas | carne a mais para não faltar: ingredientes da categoria Proteínas saem esse % a mais na compra e no custo | 15% |
+
+**🎯 Ajustar todos os pratos ao CMV desejado:** logo abaixo do CMV desejado, o botão recalcula o preço sugerido de todos os pratos para a meta (ex.: CMV 30% = markup 233,3%). Antes de mudar, o app mostra cada prato com o preço atual e o novo, e você escolhe:
+
+- **Só os acima da meta** (padrão): sobe o preço de quem está com CMV alto e dá preço a quem não tem. Os pratos com margem melhor que a meta ficam como estão.
+- **Todos:** coloca todos na meta. Os que estavam abaixo ficam mais baratos.
+
+Os cardápios salvos e o cardápio do evento aberto recebem os preços novos (as porções ficam). Propostas já salvas e o preço de venda na aba Vendas não mudam. Pratos sem custo ficam como estão.
 
 A **calculadora de custos fixos** faz a conta: custos fixos do mês ÷ faturamento médio do mês.
 
