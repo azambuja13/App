@@ -4,6 +4,8 @@
  * OrderPrint (Vendas, out/2026) — impressão do pedido em qualquer impressora.
  * Formatos: '80' e '58' (térmica, mm), 'a4' e 'a5' (folha comum) e 'a4dupla' (padrão): uma folha A4 com a via do
  * cliente em cima e a via da empresa (comprovante de entrega, com assinatura) embaixo, separadas por um pontilhado.
+ * 'meiadupla' (nov/2026): as mesmas 2 vias lado a lado em MEIA folha A4 (210 x 148,5 mm, "A5 deitado"), para gastar
+ * metade do papel (ex.: térmica A4 GD-88 em rolo). Pedido grande demais para meia folha sai como 'a4dupla'.
  * Vias: 'cozinha' (número grande, itens e observações, sem preço) e 'cliente' (empresa, preços, pagamento,
  * "Não é documento fiscal"). Cada via numa página: na térmica, o corte fica entre elas.
  * Navegador: janela de impressão (ShareFile.printHtml). App do iPhone: PDF para compartilhar ou imprimir.
@@ -32,9 +34,9 @@ function config() {
   if (!s) { try { s = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {} }
   if (s && s.v !== VERSAO) s = { imprimirAoFinalizar: s.imprimirAoFinalizar, rodape: s.rodape };
   const c = { ...PADRAO, ...(s || {}), v: VERSAO };
-  if (!['a4dupla', '80', '58', 'a4', 'a5', 'escpos'].includes(c.formato)) c.formato = PADRAO.formato;
+  if (!['a4dupla', 'meiadupla', '80', '58', 'a4', 'a5', 'escpos'].includes(c.formato)) c.formato = PADRAO.formato;
   c.escpos = { ...ESCPOS, ...((s && s.escpos) || {}) };
-  if (!Array.isArray(c.vias) || (!c.vias.length && c.formato !== 'a4dupla')) c.vias = PADRAO.vias.slice();
+  if (!Array.isArray(c.vias) || (!c.vias.length && c.formato !== 'a4dupla' && c.formato !== 'meiadupla')) c.vias = PADRAO.vias.slice();
   return c;
 }
 async function saveConfig(parcial) {
@@ -214,6 +216,66 @@ function htmlDupla(p, emp, rodape, comCozinha, forcar) {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pedido ${esc(p.number || p.provisorio || '')}</title><style>${cssDupla(nivel === 'g' ? 'n' : nivel)}</style></head><body>${folhas}${coz}</body></html>`;
 }
 
+// ====================== Meia folha A4 com 2 vias lado a lado ======================
+// Página 210 x 148,5 mm (A4 cortada ao meio = A5 deitado). Cada via ocupa 105 mm de largura.
+// nivel: 'n' poucos itens (letra maior, boa de ler na térmica), 'm' médio, 'c' compacto
+function cssMeia(nivel) {
+  const f = nivel === 'c' ? 7.4 : nivel === 'm' ? 8.4 : 9.8;
+  return `@page{size:210mm 148.5mm;margin:4mm}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}
+body{font-family:'Helvetica Neue',Arial,sans-serif;color:#111;font-size:${f}px;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.folha{width:210mm;height:148.5mm;display:flex;overflow:hidden;position:relative;page-break-after:always;break-after:page}
+.folha:last-child{page-break-after:auto;break-after:auto}
+.folha.cheia{height:auto;min-height:148.5mm;overflow:visible;display:block}
+.meia{width:105mm;height:148.5mm;padding:${nivel === 'c' ? '5mm 5mm 3mm' : '6mm 6mm 4mm'};display:flex;flex-direction:column;overflow:hidden;position:relative}
+.meia + .meia{border-left:0.35mm dashed #444}
+.corte{position:absolute;left:105mm;top:50%;z-index:2;transform:translate(-50%,-50%) rotate(-90deg);font-size:7px;color:#444;line-height:1;white-space:nowrap}
+.corte span{background:#fff;padding:0 2mm}
+.topo{display:flex;justify-content:space-between;gap:3mm;align-items:flex-start}
+.emp{display:flex;gap:2mm;align-items:center;min-width:0}
+.emp img{max-height:${nivel === 'c' ? 8 : 10}mm;max-width:20mm;object-fit:contain}
+.emp b{font-size:${f + 2}px;display:block}.emp div{font-size:${f - 1}px;color:#333}
+.ped{border:0.3mm solid #111;border-radius:1.5mm;padding:1mm 2mm;text-align:right;white-space:nowrap}
+.ped .n{font-size:${nivel === 'c' ? 14 : nivel === 'm' ? 17 : 20}px;font-weight:800;line-height:1.05}
+.ped .l{font-size:${f - 1.6}px;text-transform:uppercase;letter-spacing:.04em;color:#333}
+.faixa{margin:2mm 0 1.5mm;padding:0.8mm 1.5mm;background:#111;color:#fff;font-weight:700;font-size:${f - 1}px;letter-spacing:.04em;text-transform:uppercase;display:flex;justify-content:space-between;gap:2mm}
+.cli{font-size:${f}px;margin-bottom:1mm}.cli b{font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:inherit}
+th{font-size:${f - 1.6}px;text-transform:uppercase;color:#444;text-align:left;border-bottom:0.3mm solid #111;padding:0.6mm 0.8mm}
+td{padding:${nivel === 'c' ? '0.45mm' : '0.8mm'} 0.8mm;border-bottom:0.2mm solid #ddd;vertical-align:top}
+td.q{width:7mm;font-weight:700}td.v,th.v{text-align:right;white-space:nowrap;width:15mm}
+.obs{font-size:${f - 1}px;color:#333}
+.baixo{margin-top:auto;display:flex;flex-direction:column-reverse;gap:1.5mm;padding-top:1.5mm}
+.tot{width:auto;min-width:48mm;align-self:flex-end}.tot td{border:0;padding:0.2mm 0.8mm}.tot .g td{font-size:${f + 2}px;font-weight:800;border-top:0.3mm solid #111;padding-top:0.8mm}
+.nota{font-size:${f - 1}px;color:#333}
+.ass{display:grid;grid-template-columns:1.2fr 1.2fr 0.9fr;gap:3mm;margin-top:${nivel === 'c' ? 5 : 6}mm}
+.ass div{border-top:0.3mm solid #111;padding-top:0.6mm;font-size:${f - 1.6}px;color:#333;text-align:center}
+.dec{font-size:${f - 0.5}px;margin-top:1mm}
+.fiscal{font-size:${f - 1.8}px;color:#555;text-align:center;margin-top:1mm}
+.c{text-align:center}.b{font-weight:700}.m{font-size:9px}.tipo{font-size:14px;font-weight:800;text-transform:uppercase}hr{border:0;border-top:1px dashed #000;margin:2mm 0}
+.coz{padding:8mm 10mm}
+/* Impressão pelo navegador: margem de 4 mm; altura útil 140,5 mm. O Safari imprime ~7% maior: as vias ficam com
+   128 mm de altura para nunca passar para outra página. */
+@media print{
+.folha{width:auto;height:auto;overflow:visible}
+.folha.cheia{min-height:0}
+.meia{width:50%;height:128mm;padding:${nivel === 'c' ? '2mm 3mm 1mm' : '3mm 3mm 2mm'};break-inside:avoid;page-break-inside:avoid}
+.corte{left:50%}
+.coz{padding:0}
+}.coz .num{font-size:34px;font-weight:800}.coz td{font-size:13px}.coz .obs{font-size:12px;font-weight:700;color:#000}`;
+}
+// Linhas (medido) que cabem em cada via de meia folha; mais que isso, sai como 'a4dupla' (meia folha A4 por via)
+// Medido (nov/2026): letra média até 13 itens curtos ou 8 com nome longo; compacta até 20. Fica uma folga para o Safari.
+const MEIA_G = 6, MEIA_N = 11, MEIA_C = 17;
+function htmlMeia(p, emp, rodape, comCozinha, forcar) {
+  const linhas = (p.items || []).reduce((t, i) => t + 1 + (i.notes ? 0.6 : 0) + (String(i.name || '').length > 70 ? 1 : String(i.name || '').length > 40 ? 0.5 : 0), 0) + (p.notes ? 0.8 : 0);
+  const nivel = forcar || (linhas <= MEIA_G ? 'n' : linhas <= MEIA_N ? 'm' : linhas <= MEIA_C ? 'c' : 'g');
+  if (nivel === 'g') return htmlDupla(p, emp, rodape, comCozinha);
+  const coz = comCozinha ? `<div class="folha cheia"><div class="coz">${viaCozinha(p).replace('<div class="via">', '<div>')}</div></div>` : '';
+  return `<!doctype html><html lang="pt-BR" data-pagina="meia"><head><meta charset="utf-8"><title>Pedido ${esc(p.number || p.provisorio || '')}</title><style>${cssMeia(nivel)}</style></head><body>`
+    + `<div class="folha">${viaMeia(p, emp, rodape, 'cliente')}${viaMeia(p, emp, rodape, 'empresa')}<div class="corte"><span>✂ recorte aqui</span></div></div>${coz}</body></html>`;
+}
+
 function html(p, opts) {
   const c = config();
   let formato = (opts && opts.formato) || c.formato;
@@ -221,6 +283,7 @@ function html(p, opts) {
   const vias = (opts && opts.vias) || c.vias;
   const emp = (opts && opts.empresa) || empresaAtual();
   if (formato === 'a4dupla') return htmlDupla(p, emp, c.rodape, (vias || []).includes('cozinha'), opts && opts.nivel);
+  if (formato === 'meiadupla') return htmlMeia(p, emp, c.rodape, (vias || []).includes('cozinha'), opts && opts.nivel);
   const corpo = vias.map(v => v === 'cozinha' ? viaCozinha(p) : viaCliente(p, emp, c.rodape)).join('');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pedido ${esc(p.number || p.provisorio || '')}</title><style>${css(formato)}</style></head><body>${corpo}</body></html>`;
 }
@@ -250,7 +313,9 @@ function print(p, opts) {
 function printHtml(p, opts) {
   const doc = html(p, opts);
   const nome = 'pedido-' + String(p.number || p.provisorio || 'novo').replace(/[^\w-]/g, '') + '.pdf';
-  if (window.ShareFile && window.ShareFile.printHtml) return window.ShareFile.printHtml(doc, { fileName: nome });
+  // Meia folha: o PDF do iPhone sai em páginas de 210 x 148,5 mm
+  const pagina = doc.indexOf('data-pagina="meia"') > 0 ? { w: 210, h: 148.5 } : null;
+  if (window.ShareFile && window.ShareFile.printHtml) return window.ShareFile.printHtml(doc, { fileName: nome, pagina });
   const w = window.open('', '_blank'); if (w) { w.document.write(doc.replace('</body>', '<script>window.onload=function(){window.print()}<\/script></body>')); w.document.close(); }
   return Promise.resolve();
 }

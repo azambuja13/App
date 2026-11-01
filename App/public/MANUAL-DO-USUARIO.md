@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Pedido em meia folha A4:** em Vendas › Impressão, o formato **Meia A4 · 2 vias lado a lado** põe a via do cliente e a da empresa lado a lado em meia folha (210 × 148 mm).
 - **Lista de compras com as receitas atuais:** ao gerar a lista, o app busca as receitas atuais dos pratos. Antes, um prato editado depois de entrar no cardápio (por exemplo, sem laranja) ainda levava o ingrediente antigo para a lista. Na aba Itens, cada ingrediente mostra de qual prato veio (🍽️).
 - **iPhone mais fácil de usar:** cada aba abre direto no conteúdo. O resumo do evento aparece só nas abas do evento (Eventos, Cardápio, Itens e Apoio), recolhido numa barra com o total; toque nela para abrir. O estoque virou cartões e os números de clientes, pratos e propostas ficam 2 por linha.
 - **Ajustar todos os pratos ao CMV desejado:** em Custos da empresa, um botão recalcula o preço sugerido de todos os pratos para a meta de CMV, com prévia antes de mudar.
@@ -999,10 +1000,11 @@ Toque em **"🖨️ Impressão"** para configurar:
 
 - **Tamanho do papel:**
   - **A4 · 2 vias (cliente + recebimento)** (padrão): uma folha A4 dividida ao meio por um pontilhado ("✂ recorte aqui"). Em cima vai a **via do cliente**; embaixo, a **via da empresa**, um comprovante de entrega com "Declaro que recebi os itens deste pedido" e espaço para nome legível, assinatura e data e hora. As duas vias têm logo, dados da empresa, itens, totais e pagamento. Pedido com muitos itens sai em duas folhas, uma via em cada.
+  - **Meia A4 · 2 vias lado a lado:** as mesmas duas vias, uma ao lado da outra, em **meia folha A4** (210 × 148 mm). Gasta metade do papel, bom para a térmica A4 em rolo. Na janela de impressão, escolha o papel **A5 deitado (paisagem)** ou **210 × 148 mm** e escala **100%**. A letra diminui conforme o número de itens; pedido com mais de uns 15 itens sai na folha A4 inteira. No iPhone, o PDF já sai em meia folha.
   - Térmica 80 mm, térmica 58 mm, folha A4 ou A5: uma via por página.
   - **Direto na térmica (USB):** manda o pedido direto para a térmica ligada na USB do computador, **sem a janela de impressão**, com negrito, letras grandes e corte do papel. Veja 22.3.1.
   - Funciona com qualquer impressora instalada no computador ou no celular.
-- **Vias:** via da cozinha (número grande, itens e observações, sem preços) e via do cliente (logo e dados da empresa, preços, pagamento, troco e "Não é documento fiscal"). No formato A4 · 2 vias, a via da cozinha é opcional e sai em outra folha.
+- **Vias:** via da cozinha (número grande, itens e observações, sem preços) e via do cliente (logo e dados da empresa, preços, pagamento, troco e "Não é documento fiscal"). Nos formatos A4 · 2 vias e Meia A4 · 2 vias, a via da cozinha é opcional e sai em outra folha.
 - **Imprimir sozinho ao finalizar** e o **rodapé** da via do cliente.
 - **"Imprimir teste"** para conferir antes.
 

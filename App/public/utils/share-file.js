@@ -72,11 +72,12 @@ function saveFile(file) {
 }
 
 // ---------- PDF a partir de canvas / elemento / HTML ----------
-function canvasToPdfBlob(canvas) {
+function canvasToPdfBlob(canvas, pagina) {
   var J = window.jspdf && window.jspdf.jsPDF;
   if (!J) throw new Error('jsPDF não carregado');
-  var doc = new J({ unit: 'mm', format: 'a4' });
-  var W = 210, H = 297;
+  // pagina = { w, h } em mm (ex.: meia folha A4 = 210 x 148,5); sem ela, A4 em pé
+  var W = (pagina && pagina.w) || 210, H = (pagina && pagina.h) || 297;
+  var doc = pagina ? new J({ unit: 'mm', format: [W, H], orientation: W > H ? 'landscape' : 'portrait' }) : new J({ unit: 'mm', format: 'a4' });
   var pxPorMm = canvas.width / W;
   var alturaPagPx = Math.floor(H * pxPorMm);
   var y = 0, primeira = true;
@@ -119,20 +120,24 @@ function elementToPdfFile(el, fileName, opts) {
     var w = el.scrollWidth, h = el.scrollHeight;
     return window.html2canvas(el, { scale: escala(w, h), useCORS: true, backgroundColor: '#ffffff', ignoreElements: ignore, windowWidth: Math.max(w, 794) });
   }).then(function (canvas) {
-    return new File([canvasToPdfBlob(canvas)], fileName || 'documento.pdf', { type: 'application/pdf' });
+    return new File([canvasToPdfBlob(canvas, opts.pagina)], fileName || 'documento.pdf', { type: 'application/pdf' });
   });
 }
 
-function htmlToPdfFile(html, fileName) {
+function htmlToPdfFile(html, fileName, pdfOpts) {
   return new Promise(function (resolve, reject) {
     var fr = document.createElement('iframe');
-    fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff';
+    // Altura do iframe = altura de uma página: o html2canvas captura o body com no mínimo a altura da janela
+    // (com 1123 px, uma meia folha de 561 px virava 2 páginas no PDF)
+    var pg = pdfOpts && pdfOpts.pagina;
+    var altura = pg && pg.w > 0 && pg.h > 0 ? Math.floor(794 * pg.h / pg.w) : 1123;
+    fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:' + altura + 'px;border:0;background:#fff';
     document.body.appendChild(fr);
     var d = fr.contentWindow.document;
     // sem scripts de impressão automática
     d.open(); d.write(String(html).replace(/<script[\s\S]*?<\/script>/gi, '')); d.close();
     setTimeout(function () {
-      elementToPdfFile(d.body, fileName).then(function (f) { fr.remove(); resolve(f); }, function (e) { fr.remove(); reject(e); });
+      elementToPdfFile(d.body, fileName, pdfOpts).then(function (f) { fr.remove(); resolve(f); }, function (e) { fr.remove(); reject(e); });
     }, 300);
   });
 }
@@ -140,7 +145,7 @@ function htmlToPdfFile(html, fileName) {
 function printHtml(html, opts) {
   opts = opts || {};
   if (isNative()) {
-    return htmlToPdfFile(html, opts.fileName || 'documento.pdf').then(shareFile);
+    return htmlToPdfFile(html, opts.fileName || 'documento.pdf', opts.pagina ? { pagina: opts.pagina } : undefined).then(shareFile);
   }
   var comPrint = String(html).replace(/<\/body>/i, '<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body>');
   var w = null;

@@ -215,9 +215,10 @@ function ImpressaoDialog({ onClose }) {
   const teste = () => OP.print({ number: 1, type: 'balcao', createdAt: new Date().toISOString(), customerName: 'Cliente TESTE',
     items: [{ name: 'Marmita de strogonoff', quantity: 2, unitPrice: 25, total: 50, notes: 'sem cebola' }, { name: 'Refrigerante lata', quantity: 1, unitPrice: 6, total: 6 }],
     subtotal: 56, discount: 0, deliveryFee: 0, total: 56, paymentMethod: 'dinheiro', paid: true, cashReceived: 100 }, { formato: c.formato, vias: c.vias, escpos: c.escpos });
-  const salvar = async () => { if (c.formato !== 'a4dupla' && !(c.vias || []).length) return alert('Escolha ao menos uma via.'); setSalvando(true); await OP.saveConfig(c); setSalvando(false); onClose('Configuração de impressão salva.'); };
-  const FORM = [['a4dupla', 'A4 · 2 vias (cliente + recebimento)'], ['80', 'Térmica 80 mm'], ['58', 'Térmica 58 mm'], ['escpos', 'Direto na térmica (USB)'], ['a4', 'Folha A4'], ['a5', 'Folha A5']];
-  const dupla = c.formato === 'a4dupla';
+  const salvar = async () => { if (c.formato !== 'a4dupla' && c.formato !== 'meiadupla' && !(c.vias || []).length) return alert('Escolha ao menos uma via.'); setSalvando(true); await OP.saveConfig(c); setSalvando(false); onClose('Configuração de impressão salva.'); };
+  const FORM = [['a4dupla', 'A4 · 2 vias (cliente + recebimento)'], ['meiadupla', 'Meia A4 · 2 vias lado a lado'], ['80', 'Térmica 80 mm'], ['58', 'Térmica 58 mm'], ['escpos', 'Direto na térmica (USB)'], ['a4', 'Folha A4'], ['a5', 'Folha A5']];
+  const dupla = c.formato === 'a4dupla' || c.formato === 'meiadupla';
+  const meia = c.formato === 'meiadupla';
   // Impressão direta (ESC/POS, utils/escpos.js)
   const EP = window.EscPos;
   const direto = c.formato === 'escpos';
@@ -258,6 +259,7 @@ function ImpressaoDialog({ onClose }) {
         conectada ? h('span', { className: 'tag t-ok' }, '✓ ' + conectada) : h('span', { className: 'muted' }, 'Nenhuma conectada neste navegador'),
         conectada && h('button', { type: 'button', className: 'btn b-wh b-sm', onClick: esquecer }, 'Desconectar'))),
     h('label', { className: 'f' }, 'Vias'),
+    meia ? h('div', { className: 'aviso a-azul', 'data-meia-aviso': 1, style: { marginTop: 4 } }, 'Metade de uma folha A4 (210 × 148 mm), com as 2 vias lado a lado: à esquerda a do cliente, à direita a da empresa, com assinatura. Na janela de impressão escolha o papel A5 deitado (paisagem) ou 210 × 148 mm e escala 100%. Pedido com muitos itens sai na folha A4 inteira.') :
     dupla ? h('div', { className: 'aviso a-azul', style: { marginTop: 4 } }, 'Uma folha A4 dividida por um pontilhado: em cima a via do cliente; embaixo a via da empresa, com "Declaro que recebi os itens deste pedido", nome, assinatura e data. Pedido com muitos itens sai em duas folhas.') : null,
     h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 } }, h('input', { type: 'checkbox', checked: via('cozinha'), onChange: () => togVia('cozinha') }), dupla ? 'Via da cozinha em outra folha (sem preços)' : 'Via da cozinha (sem preços, observações em destaque)'),
     !dupla && h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 } }, h('input', { type: 'checkbox', checked: via('cliente'), onChange: () => togVia('cliente') }), 'Via do cliente (com preços e pagamento)'),
