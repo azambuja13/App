@@ -50,7 +50,23 @@ const CSS = `
 .stk .line{display:grid;gap:6px;align-items:center;margin-top:8px}
 .stk .x{cursor:pointer;color:#9ca3af;font-size:20px;text-align:center}
 @media (max-width:560px){.stk .line{grid-template-columns:1fr 1fr!important;padding-bottom:10px;border-bottom:1px dashed #e5e7eb}.stk .line .full{grid-column:1 / -1}.stk .line.hdr{display:none}
-.stk table{font-size:13px!important}.stk th,.stk td{padding:7px 4px!important;min-width:0!important;font-size:13px}.stk td:first-child{white-space:normal}.stk td input{width:62px!important}}
+.stk table{font-size:13px!important}.stk th,.stk td{padding:7px 4px!important;min-width:0!important;font-size:13px}.stk td:first-child{white-space:normal}.stk td input{width:62px!important}
+.stk table.cards thead{display:none}
+.stk table.cards,.stk table.cards tbody,.stk table.cards tr,.stk table.cards td{display:block;width:100%}
+.stk table.cards tr{border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.stk table.cards td{border:0!important;padding:3px 0!important;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px!important;text-align:right}
+.stk table.cards td:first-child{display:block;font-size:15px!important;padding-bottom:6px!important;text-align:left}
+.stk table.cards td::before{color:#6b7280;font-size:12.5px;font-weight:600;text-align:left;flex:1 1 auto}
+.stk table.cards td input{width:90px!important;font-size:16px!important}
+.stk table.c-lista td:nth-child(2)::before{content:'Saldo'}
+.stk table.c-lista td:nth-child(3)::before{content:'Mínimo'}
+.stk table.c-lista td:nth-child(4)::before{content:'Custo médio'}
+.stk table.c-lista td:nth-child(5){justify-content:flex-start}
+.stk table.c-compra td:nth-child(2)::before{content:'Precisa'}.stk table.c-compra td:nth-child(3)::before{content:'Estoque'}.stk table.c-compra td:nth-child(4)::before{content:'Comprar'}
+.stk table.c-hist td:nth-child(2)::before{content:'Movimento'}.stk table.c-hist td:nth-child(3)::before{content:'Quantidade'}.stk table.c-hist td:nth-child(4)::before{content:'Saldo'}.stk table.c-hist td:nth-child(5)::before{content:'Preço'}
+.stk table.c-baixa td:nth-child(2)::before{content:'Previsto'}.stk table.c-baixa td:nth-child(3)::before{content:'Em estoque'}.stk table.c-baixa td:nth-child(4)::before{content:'Saiu'}
+.stk table.c-inv td:nth-child(2)::before{content:'No sistema'}.stk table.c-inv td:nth-child(3)::before{content:'Contei'}.stk table.c-inv td:nth-child(4)::before{content:'Diferença'}
+}
 `;
 function injectCss() { if (document.getElementById('stk-css')) return; const st = document.createElement('style'); st.id = 'stk-css'; st.textContent = CSS; document.head.appendChild(st); }
 
@@ -406,7 +422,7 @@ function InventarioDialog({ catalogo, saldos, onClose }) {
         h('option', { value: 'estoque' }, 'Itens com estoque'), h('option', { value: 'todos' }, 'Todos'), cats.map(c => h('option', { key: c, value: c }, c))),
       h('input', { value: busca, onChange: e => setBusca(e.target.value), placeholder: '🔍 Buscar', 'aria-label': 'Buscar', style: { flex: '1 1 160px' } })),
     !lista.length ? h('div', { className: 'muted', style: { marginTop: 14 } }, filtro === 'estoque' ? 'Nenhum item com estoque ainda. Escolha "Todos" para contar pela primeira vez.' : 'Nada encontrado.') :
-    h('div', { style: { overflowX: 'auto', marginTop: 8 } }, h('table', null,
+    h('div', { style: { overflowX: 'auto', marginTop: 8 } }, h('table', { className: 'cards c-inv' },
       h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'No sistema'), h('th', null, 'Contei'), h('th', null, 'Diferença'))),
       h('tbody', null, lista.slice(0, 400).map(e => {
         const s = saldos[e.k], u = unidades(e)[0], v = contado[e.k] == null ? '' : contado[e.k];
@@ -507,7 +523,7 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
     h('div', null,
       h('div', { className: 'muted', style: { marginTop: 12 } }, res.usadas.length ? 'Eventos: ' + res.usadas.map(u => u.nome + (u.dt ? ' (' + fmtData(u.dt) + ')' : '')).join(' · ') : 'Nenhum evento fechado com cardápio no período.'),
       res.semCardapio.length ? h('div', { className: 'aviso a-ama' }, '⚠️ Sem cardápio na proposta (não entram na conta): ' + res.semCardapio.map(u => u.nome).join(', ')) : null,
-      res.linhas.length ? h('div', { style: { overflowX: 'auto' } }, h('table', { style: { marginTop: 12 } },
+      res.linhas.length ? h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'cards c-compra', style: { marginTop: 12 } },
         h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Precisa'), h('th', null, 'Estoque'), h('th', null, 'Comprar'))),
         h('tbody', null, res.linhas.map(l => h('tr', { key: l.e.k },
           h('td', null, l.e.name, l.e.kind === 'sup' ? h('span', { className: 'tag t-sup', style: { marginLeft: 6 } }, 'apoio') : null),
@@ -533,7 +549,7 @@ function HistoricoDialog({ e, onClose }) {
   const pc = precoCadastro(e);
   return h(Modal, { titulo: e.name, sub: 'Movimentos do estoque (mais recentes primeiro)', onClose },
     erro ? h('div', { style: { color: '#b91c1c' } }, erro) : !movs ? h('div', { className: 'muted' }, 'Carregando...') : !movs.length ? h('div', { className: 'muted', style: { marginTop: 10 } }, 'Nenhum movimento ainda.') :
-    h('div', { style: { overflowX: 'auto' } }, h('table', { style: { marginTop: 10 } },
+    h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'cards c-hist', style: { marginTop: 10 } },
       h('thead', null, h('tr', null, h('th', null, 'Data'), h('th', null, 'Movimento'), h('th', null, 'Quantidade'), h('th', null, 'Saldo'), h('th', null, 'Preço'))),
       h('tbody', null, movs.map(m => h('tr', { key: m.id, style: { opacity: m.undone ? .5 : 1 } },
         h('td', null, new Date(m.createdAt).toLocaleDateString('pt-BR')),
@@ -653,7 +669,7 @@ function StockPage({ ingredients, support, base }) {
           h('option', { value: 'estoque' }, 'Com estoque'), h('option', { value: 'baixo' }, 'Abaixo do mínimo'), h('option', { value: 'vencendo' }, 'Vencendo ou vencidos'),
           h('option', { value: 'apoio' }, 'Só apoio'), h('option', { value: 'todos' }, 'Todos os itens'))),
       lista && !linhas.length && h('div', { className: 'muted', style: { marginTop: 16 } }, filtro === 'estoque' && !busca ? 'Nenhum item no estoque ainda. Comece por "Registrar compra" ou pelo inventário.' : 'Nada encontrado.'),
-      linhas.length > 0 && h('div', { style: { overflowX: 'auto', marginTop: 10 } }, h('table', null,
+      linhas.length > 0 && h('div', { style: { overflowX: 'auto', marginTop: 10 } }, h('table', { className: 'cards c-lista' },
         h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Saldo'), h('th', null, 'Mínimo'), h('th', null, 'Custo médio'), h('th', null, ''))),
         h('tbody', null, linhas.slice(0, 400).map(({ e, st }) => {
           const q = st ? st.quantity : 0, min = st ? st.minQuantity : 0, u = unidades(e)[0];
@@ -757,7 +773,7 @@ function BaixaDialog({ previsto, saldos, eventId, eventName, onClose }) {
     } catch (e) { setMsg(mensagemErro(e)); } finally { setSalvando(false); }
   };
   return h(Modal, { titulo: 'Dar baixa no estoque', sub: 'Confira o que saiu para o evento. O previsto é a lista de compras (com perda, rendimento e margem das proteínas) e o apoio controlado. Ajuste o que for diferente.', onClose: () => onClose() },
-    h('div', { style: { overflowX: 'auto' } }, h('table', { style: { marginTop: 10 } },
+    h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'cards c-baixa', style: { marginTop: 10 } },
       h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Previsto'), h('th', null, 'Em estoque'), h('th', null, 'Saiu'))),
       h('tbody', null, previsto.map((p, i) => {
         const st = saldos[p.e.k]; const q = st ? st.quantity : 0; const u = unidades(p.e)[0][0];

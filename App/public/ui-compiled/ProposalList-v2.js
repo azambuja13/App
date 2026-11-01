@@ -386,7 +386,7 @@ function ProposalList({
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold mb-4"
   }, "\uD83D\uDCCB Minhas Propostas"), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 md:grid-cols-4 gap-4"
+    className: "grid grid-cols-2 md:grid-cols-4 gap-4 stats-mob"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Total de Propostas"), /*#__PURE__*/React.createElement("p", {

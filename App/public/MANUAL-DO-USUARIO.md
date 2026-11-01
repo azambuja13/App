@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **iPhone mais fácil de usar:** cada aba abre direto no conteúdo. O resumo do evento aparece só nas abas do evento (Eventos, Cardápio, Itens e Apoio), recolhido numa barra com o total; toque nela para abrir. O estoque virou cartões e os números de clientes, pratos e propostas ficam 2 por linha.
 - **Ajustar todos os pratos ao CMV desejado:** em Custos da empresa, um botão recalcula o preço sugerido de todos os pratos para a meta de CMV, com prévia antes de mudar.
 - **Vendas no iPhone:** tela cheia, abas grandes com ícone, preços e botões maiores, o pedido abre de baixo com o total e o botão **Finalizar** sempre à vista, e as listas (itens à venda, estoque e resumo) viram cartões fáceis de ler.
 - **Limpar todas as tarefas:** no Funil, o botão **🧹 Limpar todas** conclui de uma vez todos os lembretes pendentes.

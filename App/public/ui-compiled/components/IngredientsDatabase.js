@@ -17,6 +17,23 @@
  * @param {Function} props.onAddToEvent - Callback para adicionar ao evento (id)
  * @returns {JSX.Element}
  */
+// Formulário "Novo Ingrediente": 2 colunas; Nome, Categoria e Tipo de Venda em linha inteira no celular
+const ING_FORM_CSS = `
+.grid.ing-form{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+.ing-form .ing-full{grid-column:1 / -1}
+@media (min-width:768px){.ing-form .ing-md-meia{grid-column:auto}}
+.ing-form input,.ing-form select{min-width:0}
+.ing-form .ing-tipo > label{flex:1 1 0;min-width:0;border:2px solid #bfdbfe;background:#fff;border-radius:12px;padding:10px 12px}
+.ing-form .ing-tipo > label.on{border-color:#3b82f6;background:#eff6ff}
+.ing-form .ing-tipo input[type=radio]{flex:0 0 auto;width:18px !important;height:18px !important;min-width:18px;margin:0}
+@media (max-width:767px){
+ .ing-novo{padding:16px !important}
+ .ing-form{gap:12px !important}
+ .ing-form input,.ing-form select{font-size:16px !important}
+ .ing-form .ing-tipo{gap:8px !important}
+ .ing-form .ing-tipo > label span{font-size:14px !important;line-height:1.25}
+ .ing-form p{font-size:11.5px !important;line-height:1.35}
+}`;
 function IngredientsDatabase({
   groupedIngredients = {},
   ingredientsInUse = new Set(),
@@ -607,16 +624,20 @@ function IngredientsDatabase({
   }, "\u2716\uFE0F Limpar")), searchTerm && /*#__PURE__*/React.createElement("p", {
     className: "mt-3 text-sm text-gray-600"
   }, "\uD83D\uDCCA Mostrando ", totalFiltered, " de ", totalOriginal, " ingredientes")), showNewForm && /*#__PURE__*/React.createElement("div", {
-    className: "bg-white rounded-xl shadow-lg p-6 no-print"
+    className: "bg-white rounded-xl shadow-lg p-6 no-print ing-novo"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold text-gray-800 mb-4"
-  }, "Novo Ingrediente"), /*#__PURE__*/React.createElement("div", {
+  }, "Novo Ingrediente"), /*#__PURE__*/React.createElement("style", null, ING_FORM_CSS), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col lg:flex-row gap-6"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex-1"
+    className: "flex-1",
+    style: { minWidth: 0 }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-1 md:grid-cols-2 gap-4"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    // ✅ FIX iPhone: era grid-cols-1 com filhos col-span-2 → o grid criava uma 2ª coluna estreita e os campos se sobrepunham
+    className: "grid grid-cols-2 gap-4 ing-form"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "ing-full ing-md-meia"
+  }, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Nome"), /*#__PURE__*/React.createElement("input", {
     type: "text",
@@ -627,7 +648,9 @@ function IngredientsDatabase({
     }),
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
     placeholder: "Ex: Picanha"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "ing-full ing-md-meia"
+  }, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Categoria"), /*#__PURE__*/React.createElement("select", {
     value: newIngredient.category,
@@ -640,13 +663,13 @@ function IngredientsDatabase({
     key: cat,
     value: cat
   }, cat)))), /*#__PURE__*/React.createElement("div", {
-    className: "col-span-2 bg-blue-50 border-2 border-blue-200 rounded-lg p-4"
+    className: "ing-full bg-blue-50 border-2 border-blue-200 rounded-lg p-4"
   }, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-blue-900 mb-3"
   }, "\uD83D\uDCE6 Tipo de Venda"), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-4"
+    className: "flex gap-4 ing-tipo"
   }, /*#__PURE__*/React.createElement("label", {
-    className: "flex items-center gap-2 cursor-pointer"
+    className: "flex items-center gap-2 cursor-pointer" + (newIngredient.unitType === 'weight' ? ' on' : '')
   }, /*#__PURE__*/React.createElement("input", {
     type: "radio",
     name: "unitType",
@@ -660,7 +683,7 @@ function IngredientsDatabase({
   }), /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-medium text-gray-700"
   }, "\u2696\uFE0F Por Peso (kg/g/L/ml)")), /*#__PURE__*/React.createElement("label", {
-    className: "flex items-center gap-2 cursor-pointer"
+    className: "flex items-center gap-2 cursor-pointer" + (newIngredient.unitType === 'unit' ? ' on' : '')
   }, /*#__PURE__*/React.createElement("input", {
     type: "radio",
     name: "unitType",
@@ -686,6 +709,7 @@ function IngredientsDatabase({
       });
     },
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
+    inputMode: "decimal",
     step: "1",
     placeholder: "0"
   }), /*#__PURE__*/React.createElement("p", {
@@ -703,6 +727,7 @@ function IngredientsDatabase({
       });
     },
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
+    inputMode: "decimal",
     step: "0.1",
     placeholder: "1.0"
   }), /*#__PURE__*/React.createElement("p", {
@@ -720,6 +745,7 @@ function IngredientsDatabase({
       });
     },
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg",
+    inputMode: "decimal",
     step: "0.01",
     placeholder: newIngredient.unitType === 'unit' ? 'Ex: 8.00' : '0.00'
   }), newIngredient.unitType === 'unit' && /*#__PURE__*/React.createElement("p", {
@@ -741,7 +767,7 @@ function IngredientsDatabase({
   }), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-1"
   }, newIngredient.unitType === 'unit' ? "Quantas unidades vem no pacote/caixa" : "Por peso/volume fica salvo por 1 kg/L (ex.: 500 g por R$ 12 vira 1000 g por R$ 24)")), newIngredient.unitType === 'unit' && newIngredient.costPerUnit > 0 && newIngredient.unitSize > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "col-span-2 bg-green-50 border border-green-200 rounded-lg p-3"
+    className: "ing-full bg-green-50 border border-green-200 rounded-lg p-3"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-semibold text-green-900"
   }, "\uD83D\uDCB0 Custo por unidade: R$ ", (parseFloat(newIngredient.costPerUnit) / parseFloat(newIngredient.unitSize)).toFixed(4))))), window.UnitConverter && /*#__PURE__*/React.createElement("div", {

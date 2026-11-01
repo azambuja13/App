@@ -122,6 +122,8 @@ function UnitConverter({ onConvert, defaultUnit = 'kg' }) {
             value: packageSize,
             onChange: (e) => setPackageSize(e.target.value),
             placeholder: 'Ex: 500',
+            inputMode: 'decimal',
+            style: { minWidth: 0 }, // no celular o campo não empurra a unidade para fora do quadro
             className: 'flex-1 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm'
           }),
           React.createElement('select', {
@@ -134,6 +136,7 @@ function UnitConverter({ onConvert, defaultUnit = 'kg' }) {
                 setTargetUnit(compatibleUnits[compatibleUnits.length - 1]);
               }
             },
+            style: { flex: '0 0 auto', width: 84 },
             className: 'px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm'
           },
             React.createElement('option', { value: 'g' }, 'g'),

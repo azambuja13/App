@@ -510,6 +510,18 @@
         font-size: 14px !important;
     }
 
+    /* Números de resumo (clientes, pratos, propostas): 2 por linha no celular (out/2026) */
+    .grid.stats-mob {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* Campos de digitar com text-sm/text-xs: 16px, senão o iPhone dá zoom ao tocar (out/2026) */
+    input.text-sm, select.text-sm, textarea.text-sm,
+    input.text-xs, select.text-xs, textarea.text-xs {
+        font-size: 16px !important;
+    }
+
     /* ============================================
        AJUSTES DE LAYOUT ESPECÍFICOS
        ============================================ */

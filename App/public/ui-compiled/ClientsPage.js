@@ -268,7 +268,7 @@ function ClientsPage() {
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-xl"
   }, "+"), "Novo Cliente")), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-1 md:grid-cols-4 gap-4"
+    className: "grid grid-cols-1 md:grid-cols-4 gap-4 stats-mob"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-4"
   }, /*#__PURE__*/React.createElement("p", {

@@ -165,6 +165,11 @@ window.AppFull = function AppFull() {
   // (não é evento); dá para abrir ali, mas volta a encolher ao trocar de aba.
   const [painelEncolhido, setPainelEncolhido] = React.useState(() => { try { return localStorage.getItem('ui_painel_encolhido') === '1'; } catch (e) { return false; } });
   const [painelAbertoNaVenda, setPainelAbertoNaVenda] = React.useState(false);
+  // Celular (out/2026): o resumo do evento só aparece nas abas do evento e começa recolhido (antes ocupava a tela toda em cima)
+  const ABAS_EVENTO = ['events', 'menu', 'items', 'support'];
+  const abaDeEvento = ABAS_EVENTO.includes(state.activeTab);
+  const [resumoMobAberto, setResumoMobAberto] = React.useState(() => { try { return localStorage.getItem('ui_resumo_mobile') === '1'; } catch (e) { return false; } });
+  const alternarResumoMob = () => setResumoMobAberto(v => { const n = !v; try { localStorage.setItem('ui_resumo_mobile', n ? '1' : '0'); } catch (e) {} return n; });
   React.useEffect(() => { setPainelAbertoNaVenda(false); }, [state.activeTab]);
   const naVenda = state.activeTab === 'sales';
   const encolhido = naVenda ? !painelAbertoNaVenda : painelEncolhido;
@@ -2902,11 +2907,11 @@ window.AppFull = function AppFull() {
     // No celular, a aba 'config' (botão Empresa) mostra só o painel da empresa:
     // esconde o conteúdo desta coluna, menos a barra de abas inferior (que mora aqui dentro)
     className: `flex-1 overflow-y-auto pb-20 lg:pb-0 mobile-nav-spacer ${state.activeTab === 'config' ? 'cfg-mobile' : ''}`
-  }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } }"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } .ev-hdr { padding: 12px 14px !important; margin-bottom: 12px !important; border-radius: 14px !important; } .ev-hdr .text-3xl { font-size: 22px !important; } .ev-hdr h2 { font-size: 18px !important; } .ev-hdr .w-8 { width: 22px !important; height: 22px !important; } .resumo-mob-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fff; border: 1px solid #fed7aa; border-radius: 14px; padding: 12px 14px !important; min-height: 48px; font-weight: 700; color: #111827; box-shadow: 0 1px 4px rgba(0,0,0,.06); } .resumo-mob-bar b { color: #15803d; white-space: nowrap; } .resumo-mob-bar span:first-child { white-space: nowrap; } }"), /*#__PURE__*/React.createElement("div", {
     // Vendas no celular: menos margem para os botões ficarem grandes (o aparelho vira o caixa)
     className: state.activeTab === 'sales' ? "p-8 vnd-wrap" : "p-8"
   }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
-    className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white"
+    className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white ev-hdr" + (abaDeEvento ? "" : " hidden lg:block")
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between flex-wrap gap-4"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2945,8 +2950,16 @@ window.AppFull = function AppFull() {
     className: "text-sm text-blue-100"
   }, "Custo por Pessoa"), /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-bold"
-  }, formatCurrency(costs?.pricePerPerson || 0))))), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement("div", {
-    className: "lg:hidden mb-6"
+  }, formatCurrency(costs?.pricePerPerson || 0))))), abaDeEvento && /*#__PURE__*/React.createElement("div", {
+    className: "lg:hidden mb-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "resumo-mob-bar",
+    "data-resumo-mob": true,
+    "aria-expanded": resumoMobAberto,
+    onClick: alternarResumoMob
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCA Resumo do evento"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, formatCurrency(costs?.totalWithMargin || 0)), resumoMobAberto ? " \u25BE" : " \u25B8")), resumoMobAberto && /*#__PURE__*/React.createElement("div", {
+    style: { marginTop: 8 }
   }, /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
@@ -2975,7 +2988,7 @@ window.AppFull = function AppFull() {
     hasActiveMenu: costs?.hasActiveMenu || false,
     additionalMarkupPercent: state.markupPercent || 0,
     additionalMarkupAmount: state.markupAmount || 0
-  })), state.activeTab !== 'whatsapp' && state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
+  }))), state.activeTab === 'config' && !(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) && /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-lg"
