@@ -157,10 +157,27 @@ function MenuPage({
       console.error('Erro ao remover prato:', error);
     }
   };
-  const handleGenerateShoppingList = async () => {
+  const handleGenerateShoppingList = async opts => {
     try {
       const menuManager = window.menuManager;
       const guests = state.guests || 100;
+
+      // ✅ FIX (nov/2026): o cardápio guarda uma CÓPIA de cada prato (ingredientes de quando o prato entrou
+      // no cardápio/evento). Prato editado depois = lista com ingrediente que não está mais na receita.
+      // Antes de gerar, buscar as receitas atuais (o mesmo que "🔄 Atualizar pratos").
+      let aviso = '';
+      if (!(opts && opts.jaAtualizado) && window.MenuRefresh) {
+        try {
+          const r = await window.MenuRefresh.atualizarCardapioAtual();
+          if (r.mudaram.length) {
+            await loadMenu();
+            aviso += `\n\n🔄 Receitas atualizadas antes de gerar (a cópia no cardápio estava antiga): ${r.mudaram.join(', ')}.`;
+          }
+          if (r.excluidos.length) aviso += `\n\n⚠️ Prato(s) excluído(s) do cadastro, usados como estavam no cardápio: ${r.excluidos.join(', ')}.`;
+        } catch (e) {
+          if (!confirm('⚠️ Não foi possível buscar as receitas atuais dos pratos (' + (e && e.message ? e.message : 'sem conexão') + ').\n\nGerar com a cópia guardada no cardápio? Se algum prato foi editado depois, a lista pode sair diferente da receita.')) return;
+        }
+      }
 
       // ✅ EXPOR ingredientes do state no window.ingredientsManager para MenuManager usar
       if (!window.ingredientsManager) {
@@ -193,7 +210,7 @@ function MenuPage({
 
       // Substituir itens do evento
       state.setItems(newItems);
-      alert(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento.`);
+      alert(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
       alert('Erro ao gerar lista de compras. Veja o console.');
@@ -210,7 +227,7 @@ function MenuPage({
       // A lista de compras (aba Itens) foi gerada com os pratos antigos: oferecer gerar de novo
       if (r.mudaram.length && (state.items || []).length > 0 &&
           confirm('Gerar a lista de compras de novo com os pratos atualizados?\n\nOs itens do evento (aba Itens) serão substituídos.')) {
-        await handleGenerateShoppingList();
+        await handleGenerateShoppingList({ jaAtualizado: true });
       }
     } catch (error) {
       console.error('Erro ao atualizar pratos do cardápio:', error);
@@ -679,7 +696,7 @@ function MenuPage({
     onClick: handleClearMenu,
     className: "px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
   }, "\uD83D\uDDD1\uFE0F Limpar"))), menu.length > 0 && /*#__PURE__*/React.createElement("button", {
-    onClick: handleGenerateShoppingList,
+    onClick: () => handleGenerateShoppingList(),
     className: "px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors font-bold text-lg shadow-lg"
   }, "\uD83D\uDCCB Gerar Lista de Compras (", state.guests, " pessoas)"))), window.SaveMenuModal && /*#__PURE__*/React.createElement(window.SaveMenuModal, {
     isOpen: showSaveModal,

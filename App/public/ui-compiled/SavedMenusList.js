@@ -325,7 +325,20 @@ function SavedMenusList() {
         dishName: d.dishName,
         ingredientsCount: d.dishIngredients?.length || 0
       })));
-      const ingredientsList = await menuManager.generateIngredientsListFromDishes(menu.dishes, guests);
+      // ✅ FIX (nov/2026): usar as receitas atuais dos pratos (a cópia do cardápio salvo pode estar antiga)
+      let pratos = menu.dishes || [];
+      let aviso = '';
+      if (window.MenuRefresh) {
+        try {
+          const r = await window.MenuRefresh.atualizarItens(pratos, { formato: 'salvo', cadastro: eventState.ingredientsDatabase || [] });
+          pratos = r.itens;
+          if (r.mudaram.length) aviso += `\n\n🔄 Usadas as receitas atuais de: ${r.mudaram.join(', ')} (a cópia neste cardápio salvo está antiga; toque em 🔄 no cartão para gravar).`;
+          if (r.excluidos.length) aviso += `\n\n⚠️ Prato(s) excluído(s) do cadastro, usados como estavam: ${r.excluidos.join(', ')}.`;
+        } catch (e) {
+          if (!confirm('⚠️ Não foi possível buscar as receitas atuais dos pratos (' + (e && e.message ? e.message : 'sem conexão') + ').\n\nGerar com a cópia guardada no cardápio salvo? Se algum prato foi editado depois, a lista pode sair diferente da receita.')) return;
+        }
+      }
+      const ingredientsList = await menuManager.generateIngredientsListFromDishes(pratos, guests, true);
       console.log('🔍 [SavedMenusList] ingredientsList retornado:', {
         type: typeof ingredientsList,
         isArray: Array.isArray(ingredientsList),
@@ -363,7 +376,7 @@ function SavedMenusList() {
       console.log('✅ [SavedMenusList] Lista de compras atualizada:', {
         ingredientsCount: ingredientsList.length
       });
-      alert(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento para ${guests} pessoas.`);
+      alert(`✅ Lista de compras gerada a partir do cardápio salvo "${menu.name}"!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento para ${guests} pessoas.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
       alert('❌ Erro ao gerar lista de compras. Veja o console.');

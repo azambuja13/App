@@ -9,6 +9,7 @@ As imagens deste manual usam uma empresa e clientes de exemplo.
 
 ## Novidades desta versão
 
+- **Lista de compras com as receitas atuais:** ao gerar a lista, o app busca as receitas atuais dos pratos. Antes, um prato editado depois de entrar no cardápio (por exemplo, sem laranja) ainda levava o ingrediente antigo para a lista. Na aba Itens, cada ingrediente mostra de qual prato veio (🍽️).
 - **iPhone mais fácil de usar:** cada aba abre direto no conteúdo. O resumo do evento aparece só nas abas do evento (Eventos, Cardápio, Itens e Apoio), recolhido numa barra com o total; toque nela para abrir. O estoque virou cartões e os números de clientes, pratos e propostas ficam 2 por linha.
 - **Ajustar todos os pratos ao CMV desejado:** em Custos da empresa, um botão recalcula o preço sugerido de todos os pratos para a meta de CMV, com prévia antes de mudar.
 - **Vendas no iPhone:** tela cheia, abas grandes com ícone, preços e botões maiores, o pedido abre de baixo com o total e o botão **Finalizar** sempre à vista, e as listas (itens à venda, estoque e resumo) viram cartões fáceis de ler.
@@ -577,7 +578,7 @@ O resumo mostra o custo total e o peso final depois da perda dos ingredientes. A
 1. Na aba **Pratos**, toque em **"Adicionar ao Cardápio"** nos pratos desejados.
 2. Na aba **Cardápio**, ajuste as **porções por pessoa** de cada prato. Nos pratos vendidos por peso, 1 porção = 100 g. Por exemplo, 2,5 porções = 250 g por pessoa.
 3. Confira o custo por pessoa, o valor por pessoa e o total geral.
-4. Toque em **"Gerar Lista de Compras"** para enviar os ingredientes para a aba Itens.
+4. Toque em **"Gerar Lista de Compras"** para enviar os ingredientes para a aba Itens. O app busca antes as receitas atuais dos pratos (precisa de internet; sem internet, ele pergunta se pode usar a cópia guardada no cardápio).
 5. Toque em **"Salvar Cardápio"**, dê um nome, escolha o tipo de evento e, se quiser, escreva uma descrição. Se já existir um cardápio com o mesmo nome, o sistema pergunta se deve sobrescrever.
 
 **Montar com IA (Premium):** informe preferências (por exemplo: churrasco argentino, sem lactose, vegetariano) e toque em "Gerar Cardápio". Os pratos que você ainda não tem são criados sozinhos, com receita e custo, antes de entrar no cardápio.
@@ -621,6 +622,10 @@ A aba **Itens** mostra os ingredientes do evento calculados para o número de co
 - **A Comprar:** quantidade crua, já considerando perda e rendimento.
 - **Comprar (pela embalagem):** a quantidade exata arredondada para cima pelo tamanho da embalagem cadastrada no ingrediente. Por exemplo, 30 g de pimenta → 1 embalagem de 100 g.
 - **Custo Total** de cada item: o custo do que é **usado** no evento. A sobra da embalagem não entra no preço do evento.
+
+Embaixo do nome de cada ingrediente aparece **🍽️ e o nome do prato** (ou pratos) que o usa. Se aparecer um ingrediente que você não esperava, veja ali de qual prato ele veio.
+
+> A lista do botão 🛒 de um **cardápio salvo** (aba Salvos) substitui os itens do evento pelos daquele cardápio, mesmo que o Cardápio do evento seja outro. O aviso diz de qual cardápio salvo a lista veio.
 
 Use **"Imprimir Lista de Compras"** para levar ao fornecedor ou ao mercado.
 

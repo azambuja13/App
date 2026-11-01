@@ -12,6 +12,7 @@
  */
 export function processIngredientsToItems(ingredientsList, guests, allIngredients) {
     const newItems = [];
+    const cadastro = Array.isArray(allIngredients) ? allIngredients : [];
 
     ingredientsList.forEach(ing => {
             // ✅ IMPORTANTE: A quantidade na receita do prato é a quantidade PREPARADA/LÍQUIDA
@@ -42,9 +43,16 @@ export function processIngredientsToItems(ingredientsList, guests, allIngredient
                 obs: 'Perda/rendimento serão aplicados INVERSAMENTE na lista de compras'
             });
 
+            // Nome do cadastro atual (pelo id): é o mesmo ingrediente que o custo usa.
+            // A cópia do prato pode ter um nome antigo.
+            const atual = ing.ingredientId != null && ing.ingredientId !== ''
+                ? cadastro.find(i => String(i.id) === String(ing.ingredientId)) : null;
+            // De quais pratos veio (aparece na aba Itens, para conferir a lista)
+            const origem = [...new Set((ing.dishes || []).map(d => d && d.dishName).filter(Boolean))];
+
             const newItem = {
                 id: Date.now() + Math.random(),
-                name: ing.ingredientName,
+                name: (atual && (atual.name || atual.nome)) || ing.ingredientName,
                 ingredientId: ing.ingredientId,
                 qtyPerPerson: qtyPerPerson, // Quantidade preparada por pessoa
                 unit: ing.unit,
@@ -53,6 +61,7 @@ export function processIngredientsToItems(ingredientsList, guests, allIngredient
                 yieldMultiplier: yieldMultiplier, // ✅ Aplicar rendimento inversamente
                 active: true
             };
+            if (origem.length) newItem.origem = origem;
             console.log('📦 [ShoppingListGenerator] Item criado:', newItem);
             newItems.push(newItem);
         });
