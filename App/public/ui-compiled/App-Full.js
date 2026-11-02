@@ -2403,7 +2403,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] opacity-90 truncate max-w-[120px]"
   }, state.licensedTo), state.licenseExpiry && /*#__PURE__*/React.createElement("span", {
     className: "text-[9px] opacity-75 mt-0.5"
-  }, "At\xE9 ", new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("a", {
+  }, new Date(state.licenseExpiry).getFullYear() >= new Date().getFullYear() + 50 ? "\u267E\uFE0F Vital\xEDcia" : "At\xE9 " + new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("a", {
     href: window.supportMailto ? window.supportMailto() : 'mailto:rafael.oliveira.azambuja@gmail.com',
     className: "mx-4 my-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50"
   }, "\u2709\uFE0F Falar com o suporte"), /*#__PURE__*/React.createElement("div", {
@@ -2415,6 +2415,10 @@ window.AppFull = function AppFull() {
     onClick: () => window.openChangePassword && window.openChangePassword(),
     className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
   }, "\uD83D\uDD11 Alterar senha"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    onClick: () => window.openOfflineData && window.openOfflineData(),
+    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+  }, "\uD83D\uDCBE Dados deste computador (backup)"), /*#__PURE__*/React.createElement("div", {
     role: "button",
     onClick: () => {
       if (window.ConfigHelper) { window.ConfigHelper._cachedPlan = null; window.ConfigHelper._cacheTime = null; }

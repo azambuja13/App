@@ -587,9 +587,22 @@ window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey)
         } catch (e) { /* sem licença anterior */ }
     }
 
-    const changed = !!oldId && oldId !== newId;
+    // ✅ nov/2026: mesma pessoa identificada de jeitos diferentes (e-mail x chave de licença, ex.: Offline → Vitalício)
+    // NÃO é troca de conta. Compara pelos e-mails (a chave traz o e-mail em base64).
+    const emailsDe = (window.OfflineMigration && window.OfflineMigration.emailsDe) || function (l) { return l.filter(function (v) { return v && String(v).indexOf('@') > 0; }).map(norm); };
+    const oldIds = [oldId];
+    try {
+        const idb = window.indexedDBStorage;
+        if (idb) oldIds.push(await idb.get('licensedEmail', null), await idb.get('appLicenseKey', null));
+    } catch (e) { }
+    const oldEmails = emailsDe(oldIds);
+    const newEmails = emailsDe([newEmail, newLicenseKey]);
+    const mesmaPessoa = oldEmails.some(function (e) { return newEmails.indexOf(e) >= 0; });
+    const changed = !!oldId && oldId !== newId && !mesmaPessoa;
     if (changed) {
         console.log('🔄 [Conta] Troca de conta detectada - limpando dados locais da conta anterior');
+        // Antes de limpar: cópia de resguardo (só a conta dona vê depois, em "Dados deste computador")
+        try { if (window.OfflineMigration) await window.OfflineMigration.guardarResguardo('troca de conta', oldIds); } catch (e) { }
         const lsKeys = [
             'precificacao_event_data', 'eventPricingData', 'precificacao_company_data', 'temp_precificacao_company_data', 'precificacao_company_data_timestamp',
             'company_name', 'company_phone', 'company_email', 'company_address', 'company_history',
