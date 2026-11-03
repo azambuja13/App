@@ -48,75 +48,74 @@ function detectStorageType() {
 
 
 const DB_NAME = 'precificacao_db';
-const DB_VERSION = 1;
-const STORE_NAME = 'eventData';
+const STORE_NAME = 'keyValueStore';
+const LEGADO = 'eventData';
 
-/**
- * Abre conexão com IndexedDB
- * @returns {Promise<IDBDatabase>}
+/*
+ * ✅ nov/2026: o banco "precificacao_db" está na versão 3 (IndexedDBStorageService) e o dado vai em
+ * "keyValueStore" ({ key, value }). Antes este arquivo abria a versão 1 com a store "eventData":
+ * dava VersionError e o salvamento do plano Offline (ex.: dados da empresa) caía em erro.
  */
+function idbService() {
+    return (typeof window !== 'undefined' && window.indexedDBStorage) || null;
+}
+
+/** Abre o banco na versão que ele já tem (não cria nem muda a versão) */
 function openIndexedDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
+        const request = indexedDB.open(DB_NAME);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
-
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-            }
-        };
     });
 }
 
-/**
- * Salva dados no IndexedDB
- * @param {string} key
- * @param {any} data
- */
 async function saveToIndexedDB(key, data) {
+    const svc = idbService();
+    if (svc) return svc.set(key, data);
     const db = await openIndexedDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-
-    store.put({ key, data, timestamp: Date.now() });
-
-    return new Promise((resolve, reject) => {
-        tx.oncomplete = () => {
-            db.close();
-            resolve();
-        };
-        tx.onerror = () => {
-            db.close();
-            reject(tx.error);
-        };
-    });
+    try {
+        if (!db.objectStoreNames.contains(STORE_NAME)) throw new Error('IndexedDB sem a store ' + STORE_NAME);
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).put({ key, value: data });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    } finally { db.close(); }
 }
 
-/**
- * Carrega dados do IndexedDB
- * @param {string} key
- */
 async function loadFromIndexedDB(key) {
+    const svc = idbService();
+    if (svc) {
+        const v = await svc.get(key, null);
+        if (v !== null && v !== undefined) return v;
+    }
+    // Sem o serviço, ou dado antigo gravado na store "eventData" ({ key, data })
     const db = await openIndexedDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
+    try {
+        const ler = (store, campo) => new Promise((resolve) => {
+            if (!db.objectStoreNames.contains(store)) return resolve(null);
+            const req = db.transaction(store, 'readonly').objectStore(store).get(key);
+            req.onsuccess = () => resolve(req.result ? req.result[campo] : null);
+            req.onerror = () => resolve(null);
+        });
+        const v = svc ? null : await ler(STORE_NAME, 'value');
+        return v !== null && v !== undefined ? v : await ler(LEGADO, 'data');
+    } finally { db.close(); }
+}
 
-    return new Promise((resolve, reject) => {
-        const request = store.get(key);
-
-        request.onsuccess = () => {
-            db.close();
-            resolve(request.result ? request.result.data : null);
-        };
-
-        request.onerror = () => {
-            db.close();
-            reject(request.error);
-        };
-    });
+async function removeFromIndexedDB(key) {
+    const svc = idbService();
+    if (svc && typeof svc.remove === 'function') return svc.remove(key);
+    const db = await openIndexedDB();
+    try {
+        if (!db.objectStoreNames.contains(STORE_NAME)) return;
+        await new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).delete(key);
+            tx.oncomplete = resolve; tx.onerror = resolve;
+        });
+    } finally { db.close(); }
 }
 
 /**
@@ -340,12 +339,7 @@ export async function smartRemove(key) {
         localStorage.removeItem(`${key}_cache_timestamp`);
     } else {
         // IndexedDB
-        const db = await openIndexedDB();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(key);
-        await new Promise((resolve) => { tx.oncomplete = resolve; });
-        db.close();
+        await removeFromIndexedDB(key);
     }
 }
 

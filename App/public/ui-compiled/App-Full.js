@@ -386,6 +386,12 @@ window.AppFull = function AppFull() {
             const backend = await window.PrecificacaoAPI.initializeApp(licenseKey);
             window.appBackend = backend;
             window.backendInitialized = true; // Marcar como inicializado
+            // Validade real da licença (servidor). Corrige quem tinha a data da chave guardada como vencimento.
+            window.PrecificacaoAPI.api.request('/api/auth/me').then(r => {
+              const exp = r && r.success && r.data && r.data.licenseExpiry;
+              if (!exp) return;
+              state.setLicenseExpiry(exp);
+            }).catch(() => {});
             console.log('✅ Backend inicializado com sucesso');
 
             // Atualizar progresso: servidor conectado
@@ -1943,7 +1949,7 @@ window.AppFull = function AppFull() {
 
         // Atualizar estado
         state.setLicenseValid(true);
-        state.setLicenseExpiry(result.expiryDate);
+        state.setLicenseExpiry(result.licenseExpiry || result.expiryDate); // validade do servidor (a data da chave é a da compra)
         state.setLicensedTo(result.clientName);
         state.setLicensedEmail(result.email);
         state.setLicenseError('');
@@ -2212,7 +2218,7 @@ window.AppFull = function AppFull() {
 
         // Atualizar estado
         state.setLicenseValid(true);
-        state.setLicenseExpiry(result.expiryDate);
+        state.setLicenseExpiry(result.licenseExpiry || result.expiryDate); // validade do servidor (a data da chave é a da compra)
         state.setLicensedTo(result.clientName);
         state.setLicensedEmail(result.email);
         state.setLicenseError('');
@@ -2417,31 +2423,53 @@ window.AppFull = function AppFull() {
     className: "text-[10px] opacity-90 truncate max-w-[120px]"
   }, state.licensedTo), state.licenseExpiry && /*#__PURE__*/React.createElement("span", {
     className: "text-[9px] opacity-75 mt-0.5"
-  }, new Date(state.licenseExpiry).getFullYear() >= new Date().getFullYear() + 50 ? "\u267E\uFE0F Vital\xEDcia" : "At\xE9 " + new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*/React.createElement("a", {
-    href: window.supportMailto ? window.supportMailto() : 'mailto:rafael.oliveira.azambuja@gmail.com',
-    className: "mx-4 my-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50"
-  }, "\u2709\uFE0F Falar com o suporte"), /*#__PURE__*/React.createElement("div", {
+  }, new Date(state.licenseExpiry).getFullYear() >= new Date().getFullYear() + 50 ? "\u267E\uFE0F Vital\xEDcia" : "At\xE9 " + new Date(state.licenseExpiry).toLocaleDateString('pt-BR')))))), /*#__PURE__*//*#__PURE__*/React.createElement("details", {
+    className: "cfg-menu mx-4 my-3 rounded-lg border-2 border-orange-200 bg-white",
+    open: (() => { try { return localStorage.getItem('ui_cfg_menu_aberto') === '1'; } catch (e) { return false; } })(),
+    onToggle: e => { try { localStorage.setItem('ui_cfg_menu_aberto', e.currentTarget.open ? '1' : '0'); } catch (x) {} }
+  }, /*#__PURE__*/React.createElement("summary", {
+    style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", cursor: "pointer", color: "#c2410c", fontSize: 14, fontWeight: 700, userSelect: "none" }
+  }, "\u2699\uFE0F Configura\xE7\xF5es e ferramentas", /*#__PURE__*/React.createElement("span", {
+    className: "cfg-chev",
+    style: { transition: "transform .15s" }
+  }, "\u25BE")), /*#__PURE__*/React.createElement("div", {
+    style: { padding: "0 6px 6px", borderTop: "1px solid #fed7aa" }
+  }, /*#__PURE__*/React.createElement("div", {
     role: "button",
+    className: "hover:bg-orange-50",
     onClick: () => window.openPricingSettings && window.openPricingSettings(),
-    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
   }, "\uD83D\uDCCA Custos da empresa (impostos, taxas, lucro)"), /*#__PURE__*/React.createElement("div", {
     role: "button",
+    className: "hover:bg-orange-50",
+    onClick: () => window.openDepreciation && window.openDepreciation(),
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
+  }, "\uD83E\uDDEE Deprecia\xE7\xE3o de equipamentos"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    className: "hover:bg-orange-50",
     onClick: () => window.openChangePassword && window.openChangePassword(),
-    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
   }, "\uD83D\uDD11 Alterar senha"), /*#__PURE__*/React.createElement("div", {
     role: "button",
+    className: "hover:bg-orange-50",
     onClick: () => window.openOfflineData && window.openOfflineData(),
-    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
   }, "\uD83D\uDCBE Dados deste computador (backup)"), /*#__PURE__*/React.createElement("div", {
     role: "button",
+    className: "hover:bg-orange-50",
     onClick: () => {
       if (window.ConfigHelper) { window.ConfigHelper._cachedPlan = null; window.ConfigHelper._cacheTime = null; }
       if (window.ConfigHelper && !window.ConfigHelper.hasFeatureAccess('whatsapp')) { alert('📱 O envio de propostas pelo WhatsApp é do plano PREMIUM.'); return; }
       state.setActiveTab('whatsapp');
       try { window.scrollTo(0, 0); } catch (e) {}
     },
-    className: "mx-4 mb-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-green-200 bg-white text-green-700 text-sm font-semibold hover:bg-green-50 cursor-pointer"
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#15803d" }
   }, "\uD83D\uDCF1 WhatsApp (envio de propostas)"), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    className: "hover:bg-orange-50",
+    onClick: () => { window.location.href = window.supportMailto ? window.supportMailto() : 'mailto:rafael.oliveira.azambuja@gmail.com'; },
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
+  }, "\u2709\uFE0F Falar com o suporte"))), /*#__PURE__*/React.createElement("div", {
     className: "p-4 border-t border-gray-200 bg-blue-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg p-4 shadow-md border-2 border-blue-200"
@@ -2887,11 +2915,7 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")), /*#__PURE__*/React.createElement("div", {
-    role: "button",
-    onClick: () => window.openDepreciation && window.openDepreciation(),
-    className: "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
-  }, "\uD83E\uDDEE Deprecia\xE7\xE3o de equipamentos"))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,

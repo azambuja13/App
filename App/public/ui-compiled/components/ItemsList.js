@@ -348,7 +348,7 @@ const ItemsList = React.memo(function ItemsList({
         color: '#6c757d',
         fontSize: '10px'
       }
-    }, "(baseado em Quantidade)")))), /*#__PURE__*/React.createElement("tbody", null, categoryItems.map((item, idx) => {
+    }, "(quantidade exata)")))), /*#__PURE__*/React.createElement("tbody", null, categoryItems.map((item, idx) => {
       const isUnitType = item.unitType === 'unit' || item.unit === 'un';
 
       // ✅ qtyPerPerson agora é LÍQUIDO (vem do MenuPage)

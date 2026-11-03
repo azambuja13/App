@@ -344,7 +344,10 @@ class LicenseValidator {
         try {
             await this.init();
             await this.storage.set('appLicenseKey', licenseKey);
-            await this.storage.set('licenseExpiry', licenseData.expiryDate.toISOString());
+            // ✅ nov/2026: validade REAL vem do servidor (/api/auth/me). A data da chave é a data em que
+            // a chave foi gerada (não o vencimento) — usá-la mostrava "Até <data da compra>" e escondia o "Vitalícia".
+            const validade = licenseData.licenseExpiry ? new Date(licenseData.licenseExpiry) : licenseData.expiryDate;
+            await this.storage.set('licenseExpiry', validade.toISOString());
             await this.storage.set('licensedTo', licenseData.clientName);
             await this.storage.set('licensedEmail', licenseData.email);
             await this.storage.set('licenseType', licenseData.licenseType || 'STD');
