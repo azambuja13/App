@@ -1279,6 +1279,20 @@ window.AppFull = function AppFull() {
       quantity: 1
     });
   };
+  // Depreciação de equipamentos → Apoio (ui-compiled/DepreciationCalc.js): cria ou atualiza pelo nome
+  window.__upsertSupportItem = item => {
+    const nm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const atual = state.support || [];
+    const existe = atual.find(x => nm(x.name) === nm(item.name));
+    if (existe) {
+      state.setSupport(atual.map(x => x.id === existe.id ? { ...x, cost: item.cost, active: true } : x));
+      return 'updated';
+    }
+    const novo = { id: Date.now(), name: item.name, cost: item.cost || 0, quantity: item.quantity || 1, active: true,
+      rule: item.rule || 'manual', factor: item.factor || 0, groupSize: 0, unit: item.unit || 'un', packSize: 0, packLabel: '', qtyOverride: false };
+    state.setSupport([...atual, window.SupportRules ? window.SupportRules.applyRules([novo], supportBase)[0] : novo]);
+    return 'added';
+  };
   const handleStartEditingSupport = item => {
     state.setEditingSupport({
       ...item
@@ -2873,7 +2887,11 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")), /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    onClick: () => window.openDepreciation && window.openDepreciation(),
+    className: "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-orange-200 bg-white text-orange-700 text-sm font-semibold hover:bg-orange-50 cursor-pointer"
+  }, "\uD83E\uDDEE Deprecia\xE7\xE3o de equipamentos"))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,
