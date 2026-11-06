@@ -47,6 +47,8 @@ function ProposalBuilderSimple({
     guests: 0,
     observations: '',
     markupPercent: 0,
+    // Valor final escolhido (nov/2026): trava o valor e calcula o ajuste % (desconto/acréscimo)
+    targetTotal: null,
     // Margem padrão 0%
     // Dados da empresa
     companyName: '',
@@ -280,6 +282,7 @@ function ProposalBuilderSimple({
         guests: proposal.guests || 0,
         observations: proposal.observations || '',
         markupPercent: proposal.markupPercent || 0,
+        targetTotal: Number(proposal.targetTotal) > 0 ? Number(proposal.targetTotal) : null,
         companyName: proposal.companyName || '',
         companyPhone: proposal.companyPhone || '',
         companyEmail: proposal.companyEmail || '',
@@ -538,6 +541,40 @@ function ProposalBuilderSimple({
     const fin = (base * args.guests + args.supportCost + args.laborCost + args.transportCost) * (1 + args.extraPct / 100);
     return { directCost: direct, finalTotal: fin, finalTotalRounded: Math.ceil(fin), profit: fin - direct, profitPct: fin > 0 ? (fin - direct) / fin * 100 : 0 };
   };
+  // Valor final escolhido: o ajuste final (%) que faz o valor arredondado bater exatamente
+  const ajusteParaValor = (fd, alvo) => {
+    alvo = Math.round(Number(alvo));
+    if (!(alvo > 0)) return null;
+    const r0 = computeProposal({ ...fd, markupPercent: 0 });
+    const sub = Number(r0 && (r0.subtotal != null ? r0.subtotal : r0.finalTotal)) || 0;
+    if (!r0 || r0.legacy || !(sub > 0)) return null;
+    let x = (alvo / sub - 1) * 100;
+    for (let i = 0; i < 8; i++) {
+      const r = computeProposal({ ...fd, markupPercent: x });
+      const v = r.finalTotalRounded != null ? r.finalTotalRounded : Math.ceil(r.finalTotal || 0);
+      if (v === alvo) return x;
+      x += (v > alvo ? -1 : 1) * Math.max(1e-7, Math.abs(v - alvo) / sub * 100 / 2);
+    }
+    return x;
+  };
+  const aplicarValorFinal = v => {
+    const alvo = Math.round(Number(v));
+    if (!(alvo > 0)) { setFormData(prev => ({ ...prev, targetTotal: null })); return; }
+    const x = ajusteParaValor(formData, alvo);
+    if (x == null) { alert('Não dá para calcular o ajuste: escolha o cardápio e os convidados primeiro.'); return; }
+    legacySigRef.current = null;
+    setFormData(prev => ({ ...prev, targetTotal: alvo, markupPercent: x }));
+  };
+  const sigValor = formData.targetTotal ? pricingSig({ ...formData, markupPercent: 0 }) + JSON.stringify(pricingSettings || {}) : '';
+  useEffect(() => {
+    if (!formData.targetTotal) return;
+    const r = computeProposal();
+    if (!r || r.legacy) return;
+    const v = r.finalTotalRounded != null ? r.finalTotalRounded : Math.ceil(r.finalTotal || 0);
+    if (v === formData.targetTotal) return;
+    const x = ajusteParaValor(formData, formData.targetTotal);
+    if (x != null && Math.abs(x - (Number(formData.markupPercent) || 0)) > 1e-9) setFormData(prev => ({ ...prev, markupPercent: x }));
+  }, [sigValor, formData.targetTotal]);
   const csKey = formData.clientSupply && formData.clientSupply.enabled ? JSON.stringify(formData.clientSupply) : '';
   useEffect(() => {
     let vivo = true;
@@ -555,6 +592,33 @@ function ProposalBuilderSimple({
   // 🔄 Puxar dados do evento aberto para a proposta em edição (com prévia e desfazer)
   const [pullPreview, setPullPreview] = useState(null);
   const [pullUndo, setPullUndo] = useState(null);
+  const [pratosMsg, setPratosMsg] = useState('');
+  // nov/2026: estatísticas de uma lista de pratos com a mesma conta do cardápio (MenuManager.getStatistics)
+  const statsDoCardapio = async lista => {
+    const mm = window.menuManager;
+    const ativos = (lista || []).filter(i => i && i.active !== false);
+    try {
+      if (mm && mm.getStatistics) return await mm.getStatistics.call({ getActiveMenu: () => ativos, groupByCategory: mm.groupByCategory ? mm.groupByCategory.bind(mm) : () => ({}) });
+    } catch (e) { console.warn('⚠️ [Proposta] Não consegui calcular o cardápio:', e && e.message); }
+    return null;
+  };
+  const pratosDe = md => (md && md.menuData && Array.isArray(md.menuData.dishes)) ? md.menuData.dishes : ((md && md.dishes) || []);
+  // Pratos da proposta com as receitas atuais (a proposta guarda uma cópia de cada prato)
+  const atualizarPratosProposta = async () => {
+    if (!window.MenuRefresh || !formData.selectedMenuData) return;
+    setPratosMsg('⏳ Buscando os pratos...');
+    try {
+      const r = await window.MenuRefresh.atualizarItens(pratosDe(formData.selectedMenuData), { formato: 'atual' });
+      const exc = r.excluidos.length ? ' Excluídos do cadastro (ficaram como estavam): ' + r.excluidos.join(', ') + '.' : '';
+      if (!r.mudaram.length) { setPratosMsg('✅ Os pratos já estão com as receitas atuais.' + exc); return; }
+      const stats = await statsDoCardapio(r.itens);
+      legacySigRef.current = null;
+      setFormData(prev => ({ ...prev, selectedMenuData: { ...prev.selectedMenuData, dishes: r.itens, menuData: { ...(prev.selectedMenuData.menuData || {}), dishes: r.itens },
+        stats: stats ? { ...(prev.selectedMenuData.stats || {}), ...stats } : prev.selectedMenuData.stats } }));
+      setPratosMsg('🔄 ' + r.mudaram.length + ' prato(s) com receita nova: ' + r.mudaram.join(', ') + '.' + exc +
+        (formData.totalType === 'items' ? ' Atenção: o custo da comida desta proposta vem da LISTA DE COMPRAS do evento — gere a lista de novo no evento e use "Puxar dados do evento", ou escolha o total dos pratos abaixo.' : ' Confira o valor e salve.'));
+    } catch (e) { setPratosMsg('❌ ' + ((e && e.message) || 'Não foi possível atualizar os pratos.')); }
+  };
   const RULE_KEYS = ['taxesPct', 'cardFeesPct', 'fixedCostsPct', 'targetProfitPct', 'serviceMarkupPct', 'inflationMonthlyPct'];
   const sameRules = (a, b) => !a || !b || RULE_KEYS.every(k => (Number(a[k]) || 0) === (Number(b[k]) || 0));
   const currentRules = () => window.PricingRules ? window.PricingRules.get() : null;
@@ -587,16 +651,42 @@ function ProposalBuilderSimple({
     }
     return patch;
   };
-  const openPull = () => {
+  const openPull = async () => {
     if (!eventHasData) return;
     const cur = currentRules();
     const rulesDiffer = !!(cur && pricingSettings && !sameRules(pricingSettings, cur));
-    setPullPreview({ patch: buildEventPatch(), rulesDiffer, useCurrentRules: rulesDiffer });
+    const patch = buildEventPatch();
+    // nov/2026: proposta com o cardápio do evento também puxa os pratos (com as receitas atuais)
+    let menuInfo = null;
+    try {
+      const mm = window.menuManager;
+      const usaEvento = !formData.selectedMenuData || formData.selectedMenuId === 'active-menu';
+      const ativo = mm && usaEvento ? await mm.getActiveMenu() : [];
+      if (ativo && ativo.length) {
+        let itens = ativo;
+        if (window.MenuRefresh && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+          try { itens = (await window.MenuRefresh.atualizarItens(ativo, { formato: 'atual' })).itens; } catch (e) { itens = ativo; }
+        }
+        const sig = l => (l || []).map(i => [i.dishId, i.portionsPerPerson, Math.round((Number(i.dishCost) || 0) * 100), i.active !== false].join(':')).sort().join('|');
+        const antes = pratosDe(formData.selectedMenuData);
+        if (sig(antes) !== sig(itens)) {
+          const stats = await statsDoCardapio(itens);
+          patch.selectedMenuId = 'active-menu';
+          patch.selectedMenuData = { ...(formData.selectedMenuData || {}), id: 'active-menu', name: (formData.selectedMenuData && formData.selectedMenuData.name) || (eventData && eventData.linkedMenuName) || 'Cardápio do Evento',
+            menuData: { ...((formData.selectedMenuData && formData.selectedMenuData.menuData) || {}), dishes: itens, eventType: ((formData.selectedMenuData && formData.selectedMenuData.menuData) || {}).eventType || 'custom' },
+            dishes: itens, stats: stats || (formData.selectedMenuData && formData.selectedMenuData.stats) || { totalCost: 0, totalPrice: 0, totalDishes: itens.length } };
+          const ids = new Set(antes.map(i => i.dishId)), idsDepois = new Set(itens.map(i => i.dishId));
+          menuInfo = { antes: antes.length, depois: itens.length, novos: itens.filter(i => !ids.has(i.dishId)).map(i => i.dishName), saem: antes.filter(i => !idsDepois.has(i.dishId)).map(i => i.dishName) };
+        }
+      }
+    } catch (e) { console.warn('⚠️ [Proposta] Não consegui ler o cardápio do evento:', e && e.message); }
+    setPullPreview({ patch, rulesDiffer, useCurrentRules: rulesDiffer, menuInfo });
   };
   const applyPull = () => {
     if (!pullPreview) return;
     const keys = Object.keys(pullPreview.patch);
     setPullUndo({ prev: keys.reduce((o, k) => { o[k] = formData[k]; return o; }, {}), pricingSettings, costs });
+    if (pullPreview.patch.selectedMenuData) legacySigRef.current = null; // cardápio novo: recalcula
     setFormData(prev => ({ ...prev, ...pullPreview.patch }));
     if (pullPreview.useCurrentRules) setPricingSettings(currentRules());
     if (eventData && eventData.costs) setCosts(eventData.costs);
@@ -639,6 +729,11 @@ function ProposalBuilderSimple({
       add('Transporte', brl(formData.transportCost), brl(next.transportCost));
       add('Insumos do cliente', formData.clientSupply && formData.clientSupply.enabled ? 'sim' : 'n\xE3o', next.clientSupply && next.clientSupply.enabled ? 'sim' : 'n\xE3o');
       if (formData.totalType === 'items') add('Lista de compras por pessoa', brl(formData.itemsCostPerPerson), brl(next.itemsCostPerPerson));
+      if (pullPreview.menuInfo) {
+        const mi = pullPreview.menuInfo;
+        add('Pratos do cardápio', mi.antes + ' prato(s)', mi.depois + ' prato(s)' + (mi.novos.length ? ' · entram: ' + mi.novos.join(', ') : '') + (mi.saem.length ? ' · saem: ' + mi.saem.join(', ') : '') + (!mi.novos.length && !mi.saem.length ? ' · receitas/porções atualizadas' : ''));
+        add('Custo do cardápio por pessoa', brl((formData.selectedMenuData && formData.selectedMenuData.stats || {}).totalCost), brl((next.selectedMenuData.stats || {}).totalCost));
+      }
       if (pullPreview.useCurrentRules) {
         const r = x => 'impostos ' + pct(x.taxesPct) + ', taxas ' + pct(x.cardFeesPct) + ', fixos ' + pct(x.fixedCostsPct) + ', lucro ' + pct(x.targetProfitPct);
         add('Custos da empresa', r(pricingSettings || {}), r(nextRules || {}));
@@ -846,6 +941,7 @@ function ProposalBuilderSimple({
         markup: Number(formData.markupPercent) || 0,
         totalCost: roundedTotalCost,
         markupPercent: Number(formData.markupPercent) || 0,
+        targetTotal: formData.targetTotal || null, // valor final escolhido (travado)
         markupAmount: roundedFinalTotal - roundedTotalCost,  // ✅ Valor da margem adicional em R$
         finalTotal: roundedFinalTotal
         // dishes já foi definido na linha 384 - não duplicar aqui!
@@ -971,7 +1067,9 @@ function ProposalBuilderSimple({
   })()))), /*#__PURE__*/React.createElement("button", {
     onClick: handleRemoveMenu,
     className: "ml-4 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-  }, "\uD83D\uDDD1\uFE0F")), (() => {
+  }, "\uD83D\uDDD1\uFE0F")), window.MenuRefresh ? (h => h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 } },
+    h('div', { role: 'button', 'data-testid': 'prop-atualizar-pratos', onClick: atualizarPratosProposta, style: { border: '1px solid #fdba74', background: '#fff7ed', color: '#9a3412', borderRadius: 10, padding: '6px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' } }, '🔄 Atualizar pratos (receitas atuais)'),
+    pratosMsg ? h('span', { 'data-testid': 'prop-pratos-msg', style: { fontSize: 12, color: '#374151', flex: '1 1 260px' } }, pratosMsg) : null))(React.createElement) : null, (() => {
     // ✅ Seletor de tipo de total para a proposta
     const totalPrice = formData.selectedMenuData.stats?.totalPrice || 0;
     const totalCost = formData.selectedMenuData.stats?.totalCost || 0;
@@ -985,6 +1083,16 @@ function ProposalBuilderSimple({
     /*#__PURE__*/React.createElement("p", {
       className: "text-sm font-semibold text-gray-700 mb-3"
     }, "\uD83D\uDCB0 Qual total usar na proposta?"),
+    (() => {
+      const ipp = Number(formData.itemsCostPerPerson) || 0;
+      if (formData.totalType !== 'items' || !(ipp > 0) || !(totalCost > 0)) return null;
+      const r = ipp / totalCost;
+      if (r >= 0.6 && r <= 1.6) return null;
+      return /*#__PURE__*/React.createElement("div", { 'data-testid': 'aviso-lista-pratos', style: { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '8px 10px', fontSize: 13, marginBottom: 10 } },
+        '⚠️ A lista de compras do evento dá R$ ' + ipp.toFixed(2) + '/pessoa, mas os pratos deste cardápio dão R$ ' + totalCost.toFixed(2) + '/pessoa. ',
+        'A lista provavelmente foi gerada com outros pratos. Gere a lista de compras de novo no evento e use "Puxar dados do evento", ou use o total dos pratos. ',
+        /*#__PURE__*/React.createElement("span", { role: 'button', 'data-testid': 'usar-total-pratos', onClick: () => { legacySigRef.current = null; handleChange('totalType', 'menu_cost'); }, style: { textDecoration: 'underline', fontWeight: 700, cursor: 'pointer' } }, 'Usar o total dos pratos'));
+    })(),
     /*#__PURE__*/React.createElement("div", {
       className: "space-y-2"
     },
@@ -1417,9 +1525,36 @@ function ProposalBuilderSimple({
               onChange: e => handleChange('proteinSafetyPct', e.target.value === '' ? 0 : Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))),
               className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
           h('label', { className: 'text-xs text-gray-600' }, 'Ajuste final (%) — desconto ou acr\xE9scimo',
-            h('input', { type: 'number', step: 1, value: formData.markupPercent === 0 ? 0 : formData.markupPercent,
-              onChange: e => { const v = parseFloat(e.target.value); handleChange('markupPercent', isNaN(v) ? 0 : v); },
-              className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' }))),
+            h('input', { type: 'number', step: 1, 'data-testid': 'ajuste-pct', value: formData.markupPercent === 0 ? 0 : (Number.isInteger(Number(formData.markupPercent)) ? formData.markupPercent : Math.round(Number(formData.markupPercent) * 100) / 100),
+              onChange: e => { const v = parseFloat(e.target.value); setFormData(prev => ({ ...prev, markupPercent: isNaN(v) ? 0 : v, targetTotal: null })); },
+              className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
+          R.legacy && !(Number((formData.selectedMenuData && formData.selectedMenuData.stats || {}).totalCost) > 0) ? null : (() => {
+            // Valor final escolhido (nov/2026): digita o valor redondo e o ajuste % sai sozinho
+            const atual = R.finalTotalRounded || Math.ceil(R.finalTotal || 0);
+            const passo = atual >= 10000 ? 100 : atual >= 2000 ? 50 : 10;
+            let baixo = Math.floor(atual / passo) * passo; if (baixo === atual) baixo -= passo;
+            let alto = Math.ceil(atual / passo) * passo; if (alto === atual) alto += passo;
+            const brl0 = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            const aplicarCampo = el => { const t = String(el.value || '').replace(/[^\d,.]/g, ''); const v = t.includes(',') ? parseFloat(t.replace(/\./g, '').replace(',', '.')) : parseFloat(t.replace(/\.(?=\d{3}(\D|$))/g, '')); if (!t) { if (formData.targetTotal) aplicarValorFinal(null); return; } if (v > 0 && Math.round(v) !== formData.targetTotal) aplicarValorFinal(v); };
+            const chip = v => v > 0 ? h('span', { role: 'button', key: v, 'data-valor': v, onClick: () => aplicarValorFinal(v), style: { border: '1px solid #fdba74', background: '#fff', color: '#9a3412', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' } }, (v < atual ? '↓ ' : '↑ ') + brl0(v)) : null;
+            return h('div', { style: { gridColumn: '1 / -1' }, 'data-testid': 'valor-final-box' },
+              h('label', { className: 'text-xs text-gray-600' }, 'Valor final (R$) — para arredondar: o ajuste % e o desconto saem sozinhos',
+                h('input', { key: 'vf-' + (formData.targetTotal || 'x') + '-' + atual, type: 'text', inputMode: 'decimal', 'data-testid': 'valor-final', defaultValue: formData.targetTotal ? String(formData.targetTotal) : '',
+                  placeholder: 'Ex.: ' + String(baixo), onBlur: e => aplicarCampo(e.target), onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); aplicarCampo(e.target); } },
+                  className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
+              h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' } },
+                h('span', { className: 'text-xs text-gray-500' }, 'Arredondar:'), chip(baixo), chip(alto),
+                formData.targetTotal ? h('span', { role: 'button', 'data-testid': 'destravar', onClick: () => setFormData(prev => ({ ...prev, targetTotal: null, markupPercent: 0 })), style: { fontSize: 12, color: '#6b7280', textDecoration: 'underline', cursor: 'pointer' } }, 'voltar ao calculado') : null),
+              formData.targetTotal ? (() => {
+                const semAjuste = computeProposal({ ...formData, markupPercent: 0 });
+                const base = semAjuste.finalTotalRounded || Math.ceil(semAjuste.finalTotal || 0);
+                const dif = formData.targetTotal - base;
+                return h('div', { 'data-testid': 'valor-travado', style: { marginTop: 6, fontSize: 12, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '6px 8px', color: '#7c2d12' } },
+                  '🔒 Valor travado em ' + brl0(formData.targetTotal) + ' (calculado: ' + brl0(base) + '). ',
+                  dif < 0 ? 'Desconto de ' + brl(-dif) + ' (' + pct(-(Number(formData.markupPercent) || 0)) + ').' : dif > 0 ? 'Acréscimo de ' + brl(dif) + ' (' + pct(Number(formData.markupPercent) || 0) + ').' : 'Sem ajuste.',
+                  ' Se mudar convidados ou custos, o valor continua o mesmo e o ajuste é refeito.');
+              })() : null);
+          })()),
         R.doubleMargin ? h('div', { className: 'bg-yellow-50 border border-yellow-300 rounded p-2 text-yellow-800 text-xs' }, '⚠️ Os pratos j\xE1 t\xEAm markup. O ajuste final de ' + pct(formData.markupPercent) + ' entra em cima disso (margem sobre margem).') : null,
         h('div', { className: 'mt-4 pt-4 border-t-2 border-green-400 flex justify-between bg-green-50 rounded-lg p-3' },
           h('span', { className: 'text-lg font-bold text-green-800' }, 'VALOR FINAL'),

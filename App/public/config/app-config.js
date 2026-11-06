@@ -380,7 +380,12 @@ const ConfigHelper = {
                 'whatsapp', // Integração WhatsApp - EXCLUSIVO PREMIUM
                 'crm', // CRM: funil de vendas e ficha do cliente - EXCLUSIVO PREMIUM
                 'stock', // Estoque de insumos - EXCLUSIVO PREMIUM
-                'sales' // Vendas: PDV, pedidos e impressão - EXCLUSIVO PREMIUM
+                'sales', // Vendas: PDV, pedidos e impressão - EXCLUSIVO PREMIUM
+                'finance', // Financeiro: contas a pagar/receber, fluxo de caixa e DRE - EXCLUSIVO PREMIUM
+                'reports', // Relatórios: visão geral, propostas × financeiro, eventos, clientes, compras - EXCLUSIVO PREMIUM
+                'proposalLink', // Link rastreado da proposta (avisa quando o cliente abre) - EXCLUSIVO PREMIUM
+                'contracts', // Contrato com assinatura eletrônica - EXCLUSIVO PREMIUM
+                'team' // Equipe: outras pessoas na mesma conta, com perfil - EXCLUSIVO PREMIUM
             ]
         };
 
@@ -406,7 +411,12 @@ const ConfigHelper = {
             'whatsapp',
             'crm',
             'stock',
-            'sales'
+            'sales',
+            'finance',
+            'reports',
+            'proposalLink',
+            'contracts',
+            'team'
         ];
 
         return allPremiumFeatures.filter(feature => !this.hasFeatureAccess(feature));

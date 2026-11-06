@@ -11,6 +11,8 @@
  *   - inventário guiado: lista para contar e lançar os ajustes de uma vez;
  *   - sem internet: compra, baixa, sobra, perda e inventário ficam numa fila no aparelho (com clientId)
  *     e são enviados sozinhos quando a conexão volta, sem lançar duas vezes.
+ * Fornecedores (nov/2026): compra com fornecedor (o preço pago vira o preço dele), compra sugerida separada
+ *   por fornecedor (preferido ou mais barato) com pedido pelo WhatsApp e sub-aba "🚚 Fornecedores" (SuppliersPage.js).
  * window.StockPage({ ingredients, support, base })   aba Estoque
  * window.EventStockPanel({ items, eventId, eventName, ingredients, support, base })   topo da aba Itens
  * API: /api/stock (ingredientes em g, ml ou un; apoio na unidade do item).
@@ -62,6 +64,7 @@ const CSS = `
 .stk table.c-lista td:nth-child(3)::before{content:'Mínimo'}
 .stk table.c-lista td:nth-child(4)::before{content:'Custo médio'}
 .stk table.c-lista td:nth-child(5){justify-content:flex-start}
+.stk table.c-forn td:nth-child(2)::before{content:'Comprar'}.stk table.c-forn td:nth-child(3)::before{content:'Preço'}.stk table.c-forn td:nth-child(4)::before{content:'Estimado'}
 .stk table.c-compra td:nth-child(2)::before{content:'Precisa'}.stk table.c-compra td:nth-child(3)::before{content:'Estoque'}.stk table.c-compra td:nth-child(4)::before{content:'Comprar'}
 .stk table.c-hist td:nth-child(2)::before{content:'Movimento'}.stk table.c-hist td:nth-child(3)::before{content:'Quantidade'}.stk table.c-hist td:nth-child(4)::before{content:'Saldo'}.stk table.c-hist td:nth-child(5)::before{content:'Preço'}
 .stk table.c-baixa td:nth-child(2)::before{content:'Previsto'}.stk table.c-baixa td:nth-child(3)::before{content:'Em estoque'}.stk table.c-baixa td:nth-child(4)::before{content:'Saiu'}
@@ -288,9 +291,23 @@ function linhasValidas(linhas, catalogo) {
 const MSG_FILA = 'Sem internet: o lançamento ficou guardado neste aparelho e será enviado sozinho quando a conexão voltar.';
 
 // ====================== Registrar compra ======================
-function CompraDialog({ catalogo, inicial, onClose, onSaved }) {
+function CompraDialog({ catalogo, inicial, fornecedorInicial, onClose, onSaved }) {
   const [linhas, setLinhas] = useState(inicial && inicial.length ? inicial : [linhaVazia(), linhaVazia(), linhaVazia()]);
   const [obs, setObs] = useState('');
+  // Fornecedor (nov/2026): opcional; o preço pago vira o preço atual dele
+  const SU = window.SupplierUtils;
+  const [fornecedores, setFornecedores] = useState([]);
+  const [fornecedor, setFornecedor] = useState(fornecedorInicial || '');
+  // Financeiro (nov/2026): a compra vira conta paga ou a pagar
+  const FU = window.FinanceUtils && window.FinanceUtils.temPremium() ? window.FinanceUtils : null;
+  const [fin, setFin] = useState({ modo: 'pago', venc: '', forma: 'pix' });
+  useEffect(() => { if (SU) SU.carregarFornecedores().then(setFornecedores).catch(() => {}); }, []);
+  const novoFornecedor = async () => {
+    const nome = (prompt('Nome do novo fornecedor:') || '').trim();
+    if (!nome || !SU) return;
+    try { const f = await SU.req('/api/suppliers', { method: 'POST', body: JSON.stringify({ name: nome }) }); SU.limparCache(); setFornecedores(l => l.concat([f]).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))); setFornecedor(f.id); }
+    catch (e) { setMsg(mensagemErro(e)); }
+  };
   const [msg, setMsg] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [precos, setPrecos] = useState(null); // etapa 2: atualizar preço do cadastro (ingredientes)
@@ -302,17 +319,29 @@ function CompraDialog({ catalogo, inicial, onClose, onSaved }) {
     if (validos.some(l => l.valorNum != null && !(l.valorNum >= 0))) return setMsg('Valor pago inválido.');
     setSalvando(true); setMsg(null);
     try {
-      const r = await enviar('/api/stock/movements', { type: 'entrada', note: obs || null,
+      const r = await enviar('/api/stock/movements', { type: 'entrada', note: obs || null, ...(fornecedor ? { supplierId: fornecedor } : {}),
         items: validos.map(l => ({ ...refBody(l.e), quantity: l.base, unitCost: l.valorNum != null && l.valorNum > 0 ? l.valorNum / l.base : null, expiresAt: l.validade || null })) }, `Compra (${validos.length} ${validos.length === 1 ? 'item' : 'itens'})`);
       onSaved && onSaved();
-      if (r && r.queued) return onClose(MSG_FILA);
+      if (fornecedor && SU) SU.limparCache();
+      if (r && r.queued) return onClose(MSG_FILA + (FU && fin.modo !== 'nao' ? ' Lance a conta no Financeiro depois.' : ''));
+      // Financeiro: só quando tem o valor pago
+      const totalPago = validos.reduce((t, l) => t + (l.valorNum > 0 ? l.valorNum : 0), 0);
+      let avisoFin = '';
+      if (FU && fin.modo !== 'nao' && totalPago > 0) {
+        try {
+          const f = fornecedores.find(x => x.id === fornecedor);
+          await FU.lancarCompra({ batchId: r && r.batchId, total: totalPago, supplierId: fornecedor || null, supplierName: f && f.name, itens: validos.length,
+            pago: fin.modo === 'pago', paymentMethod: fin.modo === 'pago' ? fin.forma : null, dueDate: fin.modo === 'depois' ? (fin.venc || null) : null });
+          avisoFin = fin.modo === 'pago' ? ' Lançada no Financeiro como paga.' : ' Conta a pagar criada no Financeiro.';
+        } catch (e) { avisoFin = ' (Não consegui lançar no Financeiro: ' + mensagemErro(e) + ')'; }
+      }
       // Pergunta se atualiza o preço do cadastro dos ingredientes (sugere o último pago)
       const mudou = validos.filter(l => l.valorNum > 0 && l.e.kind === 'ing').map(l => {
         const atual = precoCadastro(l.e);
         const novo = l.valorNum / l.base * atual.base;
         return { e: l.e, atual: atual.valor, novo: Math.round(novo * 100) / 100, rotulo: atual.rotulo, marcado: true };
       }).filter(x => Math.abs(x.novo - x.atual) > Math.max(0.01, x.atual * 0.005));
-      if (mudou.length) setPrecos(mudou); else onClose('Compra registrada.');
+      if (mudou.length) { setPrecos(mudou); if (avisoFin) setMsg(avisoFin.trim()); } else onClose('Compra registrada.' + avisoFin);
     } catch (e) { setMsg(mensagemErro(e)); }
     finally { setSalvando(false); }
   };
@@ -348,8 +377,21 @@ function CompraDialog({ catalogo, inicial, onClose, onSaved }) {
         h('div', { role: 'button', className: 'btn b-or', style: { flex: 2, opacity: salvando ? .6 : 1 }, onClick: salvando ? undefined : aplicarPrecos }, salvando ? 'Atualizando...' : 'Atualizar os marcados')));
   }
   return h(Modal, { titulo: '🛒 Registrar compra', sub: 'O que chegou: quantidade, o valor total pago (opcional) e a validade (opcional, para avisar antes de vencer).', onClose: () => onClose() },
+    SU ? h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' } },
+      h('span', { style: { fontWeight: 700, fontSize: 14 } }, '🚚 Fornecedor'),
+      h('select', { value: fornecedor, onChange: e => setFornecedor(e.target.value), 'aria-label': 'Fornecedor', 'data-testid': 'compra-fornecedor', style: { flex: '1 1 200px' } },
+        h('option', { value: '' }, 'Sem fornecedor'), fornecedores.map(f => h('option', { key: f.id, value: f.id }, f.name))),
+      h('div', { role: 'button', className: 'btn b-wh b-sm', onClick: novoFornecedor }, '+ Novo')) : null,
     h(Linhas, { catalogo, linhas, setLinhas, comPreco: true, comValidade: true }),
-    h('input', { value: obs, onChange: e => setObs(e.target.value), placeholder: 'Observação (fornecedor, nota...)', 'aria-label': 'Observação', style: { width: '100%', marginTop: 12 } }),
+    h('input', { value: obs, onChange: e => setObs(e.target.value), placeholder: 'Observação (nota fiscal...)', 'aria-label': 'Observação', style: { width: '100%', marginTop: 12 } }),
+    FU ? h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, padding: '8px 10px', background: '#f9fafb', borderRadius: 10 }, 'data-testid': 'compra-fin' },
+      h('span', { style: { fontWeight: 700, fontSize: 14 } }, '💰 Financeiro'),
+      h('select', { value: fin.modo, 'aria-label': 'Lançar no financeiro', 'data-testid': 'compra-fin-modo', onChange: e => setFin(o => ({ ...o, modo: e.target.value })) },
+        h('option', { value: 'pago' }, 'Paguei agora'), h('option', { value: 'depois' }, 'Vou pagar depois'), h('option', { value: 'nao' }, 'Não lançar')),
+      fin.modo === 'pago' ? h('select', { value: fin.forma, 'aria-label': 'Forma de pagamento', onChange: e => setFin(o => ({ ...o, forma: e.target.value })) },
+        [['pix', 'PIX'], ['dinheiro', 'Dinheiro'], ['debito', 'Débito'], ['credito', 'Crédito'], ['boleto', 'Boleto'], ['transferencia', 'Transferência']].map(([k, n]) => h('option', { key: k, value: k }, n))) : null,
+      fin.modo === 'depois' ? h('input', { type: 'date', value: fin.venc, 'aria-label': 'Vencimento', 'data-testid': 'compra-fin-venc', onChange: e => setFin(o => ({ ...o, venc: e.target.value })), style: { width: 160 } }) : null,
+      h('span', { className: 'muted', style: { fontSize: 12 } }, 'usa o valor pago das linhas')) : null,
     msg && h('div', { style: { color: '#b91c1c', marginTop: 10, fontWeight: 600 } }, msg),
     h('div', { style: { display: 'flex', gap: 8, marginTop: 16 } },
       h('div', { role: 'button', className: 'btn b-wh', style: { flex: 1 }, onClick: () => onClose() }, 'Cancelar'),
@@ -483,6 +525,15 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
   const [erro, setErro] = useState('');
   const [copiado, setCopiado] = useState(false);
   const db = useMemo(() => catalogo.filter(e => e.kind === 'ing').map(e => e.ing), [catalogo]);
+  // Fornecedores (nov/2026): separa a compra pelo preferido (ou o mais barato) de cada ingrediente
+  const SU = window.SupplierUtils;
+  const [porForn, setPorForn] = useState(() => { try { return localStorage.getItem('stk_plano_forn') !== '0'; } catch (e) { return true; } });
+  const [forns, setForns] = useState(null);
+  useEffect(() => {
+    if (!SU) return;
+    Promise.all([SU.carregarPrecos(true), SU.carregarFornecedores()]).then(([precos, lista]) => setForns({ melhor: SU.melhorPorIngrediente(precos), lista })).catch(() => setForns({ melhor: new Map(), lista: [] }));
+  }, []);
+  const mudarPorForn = v => { setPorForn(v); try { localStorage.setItem('stk_plano_forn', v ? '1' : '0'); } catch (e) {} };
   useEffect(() => {
     let vivo = true; setRes(null); setErro('');
     (async () => {
@@ -515,6 +566,21 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
     return () => { vivo = false; };
   }, [dias]);
   const textoLista = () => res ? ['Lista de compras (' + dias + ' dias)', ...res.linhas.map(l => `- ${l.e.name}: ${fmtQtd(l.comprar, l.e)}`)].join('\n') : '';
+  const paraCompra = ls => ls.map(l => { const f = unidades(l.e)[0][1]; return { nome: nomeLista(l.e), k: l.e.k, qtd: String(Math.round(l.comprar / f * 1000) / 1000).replace('.', ','), fator: f, valor: '', validade: '' }; });
+  const grupos = (() => {
+    if (!res || !forns || !SU) return null;
+    const m = new Map(), info = new Map(forns.lista.map(f => [f.id, f]));
+    res.linhas.forEach(l => {
+      const p = l.e.kind === 'ing' ? forns.melhor.get(l.e.id) : null;
+      const k = p ? p.supplierId : '';
+      if (!m.has(k)) m.set(k, { forn: p ? (info.get(k) || { id: k, name: p.supplierName, whatsapp: p.whatsapp }) : null, linhas: [], total: 0 });
+      const g = m.get(k), custo = p ? l.comprar * p.unitCost : 0;
+      g.linhas.push({ ...l, preco: p, custo }); g.total += custo;
+    });
+    return [...m.values()].sort((a, b) => (a.forn ? 0 : 1) - (b.forn ? 0 : 1) || String(a.forn && a.forn.name).localeCompare(String(b.forn && b.forn.name), 'pt-BR'));
+  })();
+  const empresa = () => { try { return (window.eventState && window.eventState.proposalData && window.eventState.proposalData.companyName) || ''; } catch (e) { return ''; } };
+  const textoPedido = g => [`Olá${g.forn.contactName ? ', ' + g.forn.contactName.split(' ')[0] : ''}! Gostaria de fazer um pedido${empresa() ? ' (' + empresa() + ')' : ''}:`, '', ...g.linhas.map(l => `- ${l.e.name}: ${fmtQtd(l.comprar, l.e)}`), '', 'Pode me confirmar o valor e a entrega? Obrigado!'].join('\n');
   const copiar = async () => { try { await navigator.clipboard.writeText(textoLista()); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } catch (e) { alert('Não consegui copiar.'); } };
   const temApoio = (support || []).some(i => i && i.stockControlled);
   return h(Modal, { titulo: '🧾 Compra sugerida', sub: 'Eventos fechados (proposta aprovada) do período, menos o que já tem no estoque, mais o estoque mínimo.' + (temApoio ? ' O apoio controlado entra pela regra de cada item.' : ''), onClose },
@@ -523,6 +589,24 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
     h('div', null,
       h('div', { className: 'muted', style: { marginTop: 12 } }, res.usadas.length ? 'Eventos: ' + res.usadas.map(u => u.nome + (u.dt ? ' (' + fmtData(u.dt) + ')' : '')).join(' · ') : 'Nenhum evento fechado com cardápio no período.'),
       res.semCardapio.length ? h('div', { className: 'aviso a-ama' }, '⚠️ Sem cardápio na proposta (não entram na conta): ' + res.semCardapio.map(u => u.nome).join(', ')) : null,
+      res.linhas.length && SU ? h('div', { style: { display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' } },
+        h('div', { role: 'button', className: 'btn b-sm ' + (!porForn ? 'b-or' : 'b-wh'), onClick: () => mudarPorForn(false) }, 'Lista única'),
+        h('div', { role: 'button', className: 'btn b-sm ' + (porForn ? 'b-or' : 'b-wh'), 'data-testid': 'plano-por-forn', onClick: () => mudarPorForn(true) }, '🚚 Por fornecedor')) : null,
+      res.linhas.length && SU && porForn ? (!grupos ? h('div', { className: 'muted', style: { marginTop: 12 } }, 'Carregando fornecedores...') :
+        h('div', { 'data-testid': 'plano-grupos' }, grupos.map(g => h('div', { key: g.forn ? g.forn.id : 'sem', style: { border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, marginTop: 12 } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+            h('div', null, h('div', { style: { fontWeight: 800, fontSize: 16 } }, g.forn ? '🚚 ' + g.forn.name : '❔ Sem fornecedor cadastrado'),
+              h('div', { className: 'muted' }, g.forn ? `${g.linhas.length} item(ns) · estimado ${brl(g.total)}` + (g.forn.minOrder && g.total < g.forn.minOrder ? ` · abaixo do pedido mínimo (${brl(g.forn.minOrder)})` : '') : 'Cadastre os preços na sub-aba Fornecedores para separar.')),
+            h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+              g.forn && g.forn.whatsapp ? h('a', { className: 'btn b-wh b-sm', href: SU.waLink(g.forn.whatsapp, textoPedido(g)), target: '_blank', rel: 'noopener', style: { textDecoration: 'none' }, 'data-testid': 'plano-wa' }, '📲 Pedir no WhatsApp') : null,
+              h('div', { role: 'button', className: 'btn b-gr b-sm', onClick: () => onComprar(paraCompra(g.linhas), g.forn ? g.forn.id : '') }, 'Comprei: registrar'))),
+          h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'cards c-forn', style: { marginTop: 8 } },
+            h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Comprar'), h('th', null, 'Preço'), h('th', null, 'Estimado'))),
+            h('tbody', null, g.linhas.map(l => h('tr', { key: l.e.k },
+              h('td', null, l.e.name, l.e.kind === 'sup' ? h('span', { className: 'tag t-sup', style: { marginLeft: 6 } }, 'apoio') : null),
+              h('td', { style: { fontWeight: 800 } }, fmtQtd(l.comprar, l.e)),
+              h('td', null, l.preco ? brl(SU.precoTela(l.preco.unitCost, l.e.ing)) + '/' + SU.tipoIng(l.e.ing) : '—'),
+              h('td', null, l.preco ? brl(l.custo) : '—')))))))))) :
       res.linhas.length ? h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'cards c-compra', style: { marginTop: 12 } },
         h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Precisa'), h('th', null, 'Estoque'), h('th', null, 'Comprar'))),
         h('tbody', null, res.linhas.map(l => h('tr', { key: l.e.k },
@@ -534,7 +618,7 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
       res.linhas.length ? h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 } },
         h('div', { role: 'button', className: 'btn b-wh', onClick: copiar }, copiado ? '✓ Copiado' : 'Copiar lista'),
         h('a', { className: 'btn b-wh', href: 'https://wa.me/?text=' + encodeURIComponent(textoLista()), target: '_blank', rel: 'noopener', style: { textDecoration: 'none' } }, 'Enviar pelo WhatsApp'),
-        h('div', { role: 'button', className: 'btn b-gr', onClick: () => onComprar(res.linhas.map(l => { const f = unidades(l.e)[0][1]; return { nome: nomeLista(l.e), k: l.e.k, qtd: String(Math.round(l.comprar / f * 1000) / 1000).replace('.', ','), fator: f, valor: '', validade: '' }; })) }, 'Comprei: registrar a compra')) : null));
+        h('div', { role: 'button', className: 'btn b-gr', onClick: () => onComprar(paraCompra(res.linhas)) }, 'Comprei: registrar a compra')) : null));
 }
 
 // ====================== Histórico de um item ======================
@@ -553,7 +637,7 @@ function HistoricoDialog({ e, onClose }) {
       h('thead', null, h('tr', null, h('th', null, 'Data'), h('th', null, 'Movimento'), h('th', null, 'Quantidade'), h('th', null, 'Saldo'), h('th', null, 'Preço'))),
       h('tbody', null, movs.map(m => h('tr', { key: m.id, style: { opacity: m.undone ? .5 : 1 } },
         h('td', null, new Date(m.createdAt).toLocaleDateString('pt-BR')),
-        h('td', null, (NOME[m.type] || m.type) + (m.eventName ? ' · ' + m.eventName : '') + (m.undone ? ' (desfeita)' : '') + (m.expiresAt ? ' · validade ' + fmtData(m.expiresAt) : '') + (m.note ? ' — ' + m.note : '')),
+        h('td', null, (NOME[m.type] || m.type) + (m.eventName ? ' · ' + m.eventName : '') + (m.undone ? ' (desfeita)' : '') + (m.supplierName ? ' · ' + m.supplierName : '') + (m.expiresAt ? ' · validade ' + fmtData(m.expiresAt) : '') + (m.note ? ' — ' + m.note : '')),
         h('td', { style: { color: m.quantity < 0 ? '#b91c1c' : '#166534', fontWeight: 600 } }, (m.quantity > 0 ? '+' : '') + fmtQtd(m.quantity, e)),
         h('td', null, fmtQtd(m.balanceAfter, e)),
         h('td', null, m.unitCost != null && m.type === 'entrada' ? brl(m.unitCost * pc.base) + '/' + pc.rotulo : '')))))));
@@ -622,10 +706,13 @@ function StockPage({ ingredients, support, base }) {
   };
   if (!premium) return h('div', { className: 'stk card' }, h('h2', { style: { fontSize: 20, fontWeight: 800 } }, '📦 Estoque'), h('p', { className: 'muted' }, 'O controle de estoque de insumos é do plano PREMIUM.'));
   const comVendas = !!(window.VendasProntos && window.ConfigHelper && window.ConfigHelper.hasFeatureAccess && window.ConfigHelper.hasFeatureAccess('sales'));
-  const abas = comVendas ? h('div', { role: 'tablist', 'data-testid': 'stk-abas', style: { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' } },
-    [['insumos', '🥕 Insumos'], ['prontos', '🍲 Pratos prontos e revenda']].map(([k, n]) => h('button', { key: k, type: 'button', role: 'tab', 'aria-selected': aba === k, onClick: () => setAba(k),
+  const comForn = !!window.SuppliersPage;
+  const listaAbas = [['insumos', '🥕 Insumos']].concat(comForn ? [['fornecedores', '🚚 Fornecedores']] : [], comVendas ? [['prontos', '🍲 Pratos prontos e revenda']] : []);
+  const abas = listaAbas.length > 1 ? h('div', { role: 'tablist', 'data-testid': 'stk-abas', style: { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' } },
+    listaAbas.map(([k, n]) => h('button', { key: k, type: 'button', role: 'tab', 'aria-selected': aba === k, onClick: () => setAba(k),
       style: { borderRadius: 999, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: '1px solid ' + (aba === k ? '#111827' : '#e5e7eb'), background: aba === k ? '#111827' : '#fff', color: aba === k ? '#fff' : '#374151', padding: '9px 14px' } }, n))) : null;
   if (comVendas && aba === 'prontos') return h('div', { className: 'stk' }, abas, h(window.VendasProntos));
+  if (comForn && aba === 'fornecedores') return h('div', { className: 'stk' }, abas, h(window.SuppliersPage, { ingredients }));
   const s = saldos;
   const venc = vencimentos(s, catalogo);
   const vencidos = venc.filter(v => v.dias < 0), aVencer = venc.filter(v => v.dias >= 0);
@@ -687,10 +774,10 @@ function StockPage({ ingredients, support, base }) {
               v ? h('span', { className: 'tag ' + (v.dias < 0 ? 't-venc' : 't-exp'), title: 'Validade ' + fmtData(v.lot.expiresAt) }, v.dias < 0 ? 'vencido' : textoVence(v.dias)) : null,
               e.kind === 'sup' ? h('span', { className: 'tag t-sup' }, 'apoio') : null)));
         }))))),
-    dialogo && dialogo.k === 'compra' && h(CompraDialog, { catalogo, inicial: dialogo.inicial, onClose: fechar, onSaved: carregar }),
+    dialogo && dialogo.k === 'compra' && h(CompraDialog, { catalogo, inicial: dialogo.inicial, fornecedorInicial: dialogo.fornecedor, onClose: fechar, onSaved: carregar }),
     dialogo && dialogo.k === 'mov' && h(MovDialog, { catalogo, tipoInicial: dialogo.tipo, onClose: fechar, onSaved: carregar }),
     dialogo && dialogo.k === 'inv' && h(InventarioDialog, { catalogo, saldos: s, onClose: fechar }),
-    dialogo && dialogo.k === 'plano' && lista && h(PlanoDialog, { catalogo, saldos: s, support, base, onClose: () => setDialogo(null), onComprar: inicial => setDialogo({ k: 'compra', inicial }) }),
+    dialogo && dialogo.k === 'plano' && lista && h(PlanoDialog, { catalogo, saldos: s, support, base, onClose: () => setDialogo(null), onComprar: (inicial, fornecedor) => setDialogo({ k: 'compra', inicial, fornecedor }) }),
     dialogo && dialogo.k === 'hist' && h(HistoricoDialog, { e: dialogo.e, onClose: () => setDialogo(null) }));
 }
 

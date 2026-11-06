@@ -6,6 +6,9 @@
  * em negociação (propostas enviadas). Fonte: propostas do backend.
  */
 const h = React.createElement;
+let agendaMemo = null; // últimas propostas da agenda nesta sessão (abre na hora ao voltar para a aba)
+const contaAtual = () => String((window.PrecificacaoAPI && window.PrecificacaoAPI.api && window.PrecificacaoAPI.api.licenseKey) || localStorage.getItem('licenseKey') || '');
+const memoDaConta = m => (m && m.k === contaAtual() ? m.v : null);
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const FECHADA = ['accepted', 'approved'];
@@ -71,8 +74,10 @@ function CalendarPage() {
   const hojeKey = keyOf(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
   const [ano, setAno] = React.useState(hoje.getFullYear());
   const [mes, setMes] = React.useState(hoje.getMonth());
-  const [propostas, setPropostas] = React.useState([]);
-  const [carregando, setCarregando] = React.useState(true);
+  // ⚡ Abre na hora com o que já foi carregado nesta sessão e atualiza em segundo plano
+  const [propostas, setPropostasState] = React.useState(() => memoDaConta(agendaMemo) || []);
+  const setPropostas = v => { agendaMemo = { k: contaAtual(), v }; setPropostasState(v); };
+  const [carregando, setCarregando] = React.useState(() => !memoDaConta(agendaMemo));
   const [diaSel, setDiaSel] = React.useState(hojeKey);
   const [previewId, setPreviewId] = React.useState(null);
   // Tarefas do CRM (plano Premium) aparecem no dia em que vencem

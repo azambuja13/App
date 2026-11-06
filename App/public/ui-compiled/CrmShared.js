@@ -120,7 +120,7 @@ const templatesStore = {
     return this._p;
   }
 };
-const TEMPLATE_VARS = ['cliente', 'primeiro_nome', 'evento', 'data', 'convidados', 'valor', 'empresa', 'link_avaliacao'];
+const TEMPLATE_VARS = ['cliente', 'primeiro_nome', 'evento', 'data', 'convidados', 'valor', 'empresa', 'link_avaliacao', 'link_proposta'];
 // Troca as variáveis {x} e limpa o que ficou vazio: "()", espaços duplos, espaço antes de pontuação
 function fillTemplate(body, vars) {
   let t = String(body || '').replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] != null && vars[k] !== '' ? String(vars[k]) : (TEMPLATE_VARS.includes(k) ? '' : m)));

@@ -32,6 +32,18 @@ function ProposalList({
   const [selectedProposals, setSelectedProposals] = React.useState([]);
   const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = React.useState(false);
   const [showDeleted, setShowDeleted] = React.useState(false); // ✅ Mostrar propostas deletadas
+  // 🔗 nov/2026: quem abriu o link rastreado (Premium)
+  const [linksInfo, setLinksInfo] = React.useState(() => (window.PropostaLinks && window.PropostaLinks._cache) || {});
+  React.useEffect(() => {
+    if (!window.PropostaLinks || (window.ConfigHelper && typeof window.ConfigHelper.hasFeatureAccess === 'function' && !window.ConfigHelper.hasFeatureAccess('proposalLink'))) return;
+    let vivo = true;
+    const ler = force => window.PropostaLinks.resumo(force).then(r => { if (vivo) setLinksInfo(r || {}); });
+    ler(false);
+    const f = () => ler(true);
+    window.addEventListener('propostas-links-changed', f);
+    const t = setInterval(f, 120000);
+    return () => { vivo = false; window.removeEventListener('propostas-links-changed', f); clearInterval(t); };
+  }, []);
 
   // Aguardar backend estar pronto antes de carregar
   React.useEffect(() => {
@@ -458,6 +470,7 @@ function ProposalList({
   }, filteredProposals.map(proposal => /*#__PURE__*/React.createElement(ProposalCard, {
     key: proposal.id,
     proposal: proposal,
+    linkInfo: linksInfo[proposal.id],
     onEdit: onEdit,
     onSelect: onSelect,
     onUpdateStatus: handleUpdateStatus,
@@ -536,6 +549,7 @@ function ProposalList({
  */
 function ProposalCard({
   proposal,
+  linkInfo,
   onEdit,
   onSelect,
   onUpdateStatus,
@@ -594,7 +608,12 @@ function ProposalCard({
     className: `px-3 py-1 rounded-full text-xs font-bold ${typeBadge.color}`
   }, typeBadge.icon, " ", typeBadge.label)), /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-gray-600"
-  }, "\uD83D\uDCCB ", proposal.proposalNumber, " \u2022 \uD83D\uDCC5 ", window.formatDate(proposal.createdAt))))), /*#__PURE__*/React.createElement("div", {
+  }, proposal.proposalNumber ? "\uD83D\uDCCB " + proposal.proposalNumber + " \u2022 " : "", proposal.guests ? "\uD83D\uDC65 " + proposal.guests + " convidados \u2022 " : "", proposal.eventDate ? "\uD83C\uDF89 evento " + window.formatDate(proposal.eventDate) + " \u2022 " : "", "\uD83D\uDCC5 criada " + window.formatDate(proposal.createdAt)), linkInfo && window.PropostaLinks && /*#__PURE__*/React.createElement("p", {
+    // 🔗 link rastreado: quantas vezes o cliente abriu
+    role: "button",
+    onClick: () => window.openPropostaLink && window.openPropostaLink({ proposal }),
+    className: `inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer ${linkInfo.views ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`
+  }, window.PropostaLinks.texto(linkInfo))))), /*#__PURE__*/React.createElement("div", {
     // ✅ Grade que quebra em linhas: no celular os 5 quadros (Pratos, Custo, Margem, Valor Final, Por Pessoa) saíam da tela
     className: "grid gap-2 mb-4",
     style: { gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))' }
@@ -637,7 +656,7 @@ function ProposalCard({
   }, proposal.dishes.slice(0, 5).map((dish, index) => /*#__PURE__*/React.createElement("span", {
     key: index,
     className: "px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
-  }, dish.dishName, " (", dish.quantity, "x)")), proposal.dishes.length > 5 && /*#__PURE__*/React.createElement("span", {
+  }, dish.dishName, (dish.quantity || dish.portionsPerPerson) ? " (" + (dish.quantity || dish.portionsPerPerson) + "x)" : "")), proposal.dishes.length > 5 && /*#__PURE__*/React.createElement("span", {
     className: "px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-medium"
   }, "+", proposal.dishes.length - 5, " mais"))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-2 pt-4 border-t"
@@ -661,7 +680,15 @@ function ProposalCard({
     onClick: () => window.CRM.openMessage({ proposal }),
     title: "Mensagem pronta no WhatsApp",
     className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-  }, "\uD83D\uDCAC WhatsApp"), onSelect && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCAC WhatsApp"), window.openPropostaLink && /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.openPropostaLink({ proposal }),
+    title: "Link da proposta: avisa quando o cliente abrir",
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+  }, "\uD83D\uDD17 Link"), window.openContrato && /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.openContrato({ proposal }),
+    title: "Contrato para o cliente assinar pelo celular",
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+  }, "\uD83D\uDCDD Contrato"), onSelect && /*#__PURE__*/React.createElement("button", {
     onClick: () => onSelect(proposal),
     className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
   }, "Ver Detalhes"), /*#__PURE__*/React.createElement("button", {

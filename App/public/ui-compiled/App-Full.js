@@ -51,6 +51,7 @@ function ProposalTabButton({
   };
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: handleClick,
+    "data-tab": "proposals",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition relative ${isActive ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : hasAccess ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-gray-50 cursor-pointer'}`
   }, !hasAccess && /*#__PURE__*/React.createElement("svg", {
     className: "w-3.5 h-3.5",
@@ -105,6 +106,7 @@ function WhatsAppTabButton({
   };
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     onClick: handleClick,
+    "data-tab": "proposals",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition relative ${isActive ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-md' : hasAccess ? 'text-gray-600 hover:bg-gray-100' : 'text-gray-400 hover:bg-gray-50 cursor-pointer'}`
   }, !hasAccess && /*#__PURE__*/React.createElement("svg", {
     className: "w-3.5 h-3.5",
@@ -157,6 +159,17 @@ window.AppFull = function AppFull() {
   // Estado Global
   // ====================================
   const state = useEventState();
+
+  // 👥 Equipe (nov/2026): quem é da equipe não vê as abas que o perfil não usa
+  const [equipeVer, setEquipeVer] = React.useState(0);
+  React.useEffect(() => {
+    const f = () => setEquipeVer(v => v + 1);
+    window.addEventListener('equipe-changed', f);
+    return () => window.removeEventListener('equipe-changed', f);
+  }, []);
+  React.useEffect(() => {
+    if (window.Equipe && !window.Equipe.podeVer(state.activeTab)) state.setActiveTab(window.Equipe.primeiraAba());
+  }, [state.activeTab, equipeVer]);
 
   // Hook de plano - atualiza quando plano muda (escuta evento 'plan-changed')
   const { isPremium } = window.usePlan ? window.usePlan() : { isPremium: true };
@@ -1839,7 +1852,19 @@ window.AppFull = function AppFull() {
   // ====================================
   // Handlers: Propostas
   // ====================================
-  const handleEditProposal = proposal => {
+  const handleEditProposal = async proposal => {
+    // ⚡ A lista de propostas é leve (sem fotos): para editar, busca a proposta completa
+    if (proposal && proposal._lite && proposal.id) {
+      const pm = window.PrecificacaoAPI && window.PrecificacaoAPI.proposalManager;
+      try {
+        const full = pm && pm.getById ? await pm.getById(proposal.id) : null;
+        if (!full || full._lite) throw new Error('Não foi possível abrir a proposta completa. Confira a internet e tente de novo.');
+        proposal = full;
+      } catch (e) {
+        alert('❌ ' + (e && e.message ? e.message : 'Não foi possível abrir a proposta.'));
+        return;
+      }
+    }
     setEditingProposal(proposal);
     setShowProposalBuilder(true);
   };
@@ -2449,7 +2474,14 @@ window.AppFull = function AppFull() {
     className: "hover:bg-orange-50",
     onClick: () => window.openChangePassword && window.openChangePassword(),
     style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
-  }, "\uD83D\uDD11 Alterar senha"), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDD11 Alterar senha"), window.Equipe && window.Equipe.souDono() && /*#__PURE__*/React.createElement("div", {
+    role: "button",
+    className: "hover:bg-orange-50",
+    onClick: () => window.openEquipe && window.openEquipe(),
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#c2410c" }
+  }, "\uD83D\uDC65 Equipe (acesso de outras pessoas)"), window.Equipe && !window.Equipe.souDono() && /*#__PURE__*/React.createElement("div", {
+    style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",fontSize:13,color: "#6b7280" }
+  }, "\uD83D\uDC64 Voc\xEA entrou como ", window.Equipe.rotulo()), /*#__PURE__*/React.createElement("div", {
     role: "button",
     className: "hover:bg-orange-50",
     onClick: () => window.openOfflineData && window.openOfflineData(),
@@ -2463,6 +2495,7 @@ window.AppFull = function AppFull() {
       state.setActiveTab('whatsapp');
       try { window.scrollTo(0, 0); } catch (e) {}
     },
+    "data-tab": "whatsapp",
     style: { display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",textDecoration:"none", color: "#15803d" }
   }, "\uD83D\uDCF1 WhatsApp (envio de propostas)"), /*#__PURE__*/React.createElement("div", {
     role: "button",
@@ -2915,7 +2948,7 @@ window.AppFull = function AppFull() {
     d: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
   })), "\uD83D\uDCBE Salvar Dados da Empresa"), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-gray-500 mt-2 text-center"
-  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && /*#__PURE__*/React.createElement(CostsSummary, {
+  }, "Os dados ser\xE3o automaticamente usados em todas as novas propostas")))), state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'stock' && state.activeTab !== 'sales' && state.activeTab !== 'finance' && state.activeTab !== 'reports' && /*#__PURE__*/React.createElement(CostsSummary, {
     categoryStats: categoryStats,
     supportCost: costs?.supportCost || 0,
     laborCost: costs?.laborCost || 0,
@@ -2956,7 +2989,7 @@ window.AppFull = function AppFull() {
   }, /*#__PURE__*/React.createElement("style", null, "@media (max-width: 1023px) { .cfg-mobile { flex: 0 0 auto !important; padding-bottom: 0 !important; } .cfg-mobile > :not(.mobile-bottom-nav) { display: none !important; } .ev-hdr { padding: 12px 14px !important; margin-bottom: 12px !important; border-radius: 14px !important; } .ev-hdr .text-3xl { font-size: 22px !important; } .ev-hdr h2 { font-size: 18px !important; } .ev-hdr .w-8 { width: 22px !important; height: 22px !important; } .resumo-mob-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fff; border: 1px solid #fed7aa; border-radius: 14px; padding: 12px 14px !important; min-height: 48px; font-weight: 700; color: #111827; box-shadow: 0 1px 4px rgba(0,0,0,.06); } .resumo-mob-bar b { color: #15803d; white-space: nowrap; } .resumo-mob-bar span:first-child { white-space: nowrap; } }"), /*#__PURE__*/React.createElement("div", {
     // Vendas no celular: menos margem para os botões ficarem grandes (o aparelho vira o caixa)
     className: state.activeTab === 'sales' ? "p-8 vnd-wrap" : "p-8"
-  }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
+  }, state.activeTab !== 'calendar' && state.activeTab !== 'pipeline' && state.activeTab !== 'sales' && state.activeTab !== 'finance' && state.activeTab !== 'reports' && (state.clientData?.name || state.eventName || state.guests > 0) && /*#__PURE__*/React.createElement("div", {
     className: "mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white ev-hdr" + (abaDeEvento ? "" : " hidden lg:block")
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between flex-wrap gap-4"
@@ -3099,21 +3132,26 @@ window.AppFull = function AppFull() {
     className: "hidden lg:flex flex-wrap gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('calendar'),
+    "data-tab": "calendar",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'calendar' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCC6 Agenda"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('pipeline'),
+    "data-tab": "pipeline",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'pipeline' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83C\uDFAF Funil", window.CrmTaskBadge && /*#__PURE__*/React.createElement(window.CrmTaskBadge, null)), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
+    "data-tab": "clients",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'clients' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "users",
     className: "w-4 h-4"
   }), "Clientes"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('events'),
+    "data-tab": "events",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'events' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCC5 Eventos"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('ingredients'),
+    "data-tab": "ingredients",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'ingredients' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "database",
@@ -3124,15 +3162,19 @@ window.AppFull = function AppFull() {
     className: "sm:hidden"
   }, "Ingred.")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('dishes'),
+    "data-tab": "dishes",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'dishes' ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83C\uDF7D\uFE0F Pratos"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('menu'),
+    "data-tab": "menu",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'menu' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCCB Card\xE1pio"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('saved-menus'),
+    "data-tab": "saved-menus",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'saved-menus' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCBE Salvos"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('items'),
+    "data-tab": "items",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'items' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "package",
@@ -3143,19 +3185,31 @@ window.AppFull = function AppFull() {
     className: "sm:hidden"
   }, "Itens")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('support'),
+    "data-tab": "support",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'support' ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "settings",
     className: "w-4 h-4"
   }), "Apoio"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('stock'),
+    "data-tab": "stock",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'stock' ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
   }, "\uD83D\uDCE6 Estoque"), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('sales'),
+    "data-tab": "sales",
     className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'sales' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
-  }, "\uD83E\uDDFE Vendas"), /*#__PURE__*/React.createElement(ProposalTabButton, {
+  }, "\uD83E\uDDFE Vendas"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('finance'),
+    "data-tab": "finance",
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'finance' ? 'bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
+  }, "\uD83D\uDCB0 Financeiro"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('reports'),
+    "data-tab": "reports",
+    className: `flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition ${state.activeTab === 'reports' ? 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`
+  }, "\uD83D\uDCCA Relat\xF3rios"), /*#__PURE__*/React.createElement(ProposalTabButton, {
     isActive: state.activeTab === 'proposals',
-    onClick: () => state.setActiveTab('proposals')
+    onClick: () => state.setActiveTab('proposals'),
+    "data-tab": "proposals"
   })), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement(IngredientsDatabase, {
@@ -3256,7 +3310,19 @@ window.AppFull = function AppFull() {
     requiredPlan: "premium"
   }, window.VendasPage ? /*#__PURE__*/React.createElement(window.VendasPage, null) : /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-6 text-center"
-  }, "Carregando vendas...")), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
+  }, "Carregando vendas...")), state.activeTab === 'finance' && /*#__PURE__*/React.createElement(FeatureGate, {
+    featureName: "finance",
+    requiredPlan: "premium"
+  }, window.FinanceiroPage ? /*#__PURE__*/React.createElement(window.FinanceiroPage, null) : /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-lg shadow p-6 text-center"
+  }, "Carregando financeiro...")), state.activeTab === 'reports' && /*#__PURE__*/React.createElement(FeatureGate, {
+    featureName: "reports",
+    requiredPlan: "premium"
+  }, window.RelatoriosPage ? /*#__PURE__*/React.createElement(window.RelatoriosPage, {
+    onIr: aba => state.setActiveTab(aba)
+  }) : /*#__PURE__*/React.createElement("div", {
+    className: "bg-white rounded-lg shadow p-6 text-center"
+  }, "Carregando relat\xF3rios...")), state.activeTab === 'items' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, window.ClientSupplyPanel && /*#__PURE__*/React.createElement(window.ClientSupplyPanel, {
     value: state.clientSupply,
@@ -3443,6 +3509,7 @@ window.AppFull = function AppFull() {
     className: "flex justify-around items-center py-1.5 px-1 border-b border-gray-100"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('calendar'),
+    "data-tab": "calendar",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'calendar' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3458,6 +3525,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Agenda")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('pipeline'),
+    "data-tab": "pipeline",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'pipeline' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3473,6 +3541,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Funil", window.CrmTaskBadge && /*#__PURE__*/React.createElement(window.CrmTaskBadge, null))), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('clients'),
+    "data-tab": "clients",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'clients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3488,6 +3557,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Clientes")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('events'),
+    "data-tab": "events",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'events' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3503,6 +3573,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Eventos")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('ingredients'),
+    "data-tab": "ingredients",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'ingredients' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
@@ -3510,6 +3581,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Ingred.")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('stock'),
+    "data-tab": "stock",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'stock' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
@@ -3517,22 +3589,41 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Estoque")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('dishes'),
+    "data-tab": "dishes",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'dishes' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83C\uDF7D\uFE0F"), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
-  }, "Pratos"))), /*#__PURE__*/React.createElement("div", {
+  }, "Pratos")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('reports'),
+    "data-tab": "reports",
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'reports' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm"
+  }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Relat\xF3rios"))), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-around items-center py-1.5 px-1"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('sales'),
+    "data-tab": "sales",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'sales' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
   }, "\uD83E\uDDFE"), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] font-medium mt-0.5"
   }, "Vendas")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => state.setActiveTab('finance'),
+    "data-tab": "finance",
+    className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'finance' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm"
+  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-medium mt-0.5"
+  }, "Financeiro")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('menu'),
+    "data-tab": "menu",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'menu' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
@@ -3540,6 +3631,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Card\xE1pio")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('saved-menus'),
+    "data-tab": "saved-menus",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'saved-menus' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
@@ -3547,6 +3639,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Salvos")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('items'),
+    "data-tab": "items",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'items' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3562,6 +3655,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Itens")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('support'),
+    "data-tab": "support",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'support' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",
@@ -3577,6 +3671,7 @@ window.AppFull = function AppFull() {
     className: "text-[10px] font-medium mt-0.5"
   }, "Apoio")), /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('proposals'),
+    "data-tab": "proposals",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'proposals' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("svg", {
     className: "w-4 h-4",

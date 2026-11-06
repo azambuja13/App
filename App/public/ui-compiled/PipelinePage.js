@@ -6,12 +6,17 @@
  * Mudar de etapa: menu "Mover para…" (celular e computador) ou arrastar (computador).
  */
 const h = React.createElement;
+let funilMemo = null; // último funil montado nesta sessão (abre na hora ao voltar para a aba)
+const contaAtual = () => String((window.PrecificacaoAPI && window.PrecificacaoAPI.api && window.PrecificacaoAPI.api.licenseKey) || localStorage.getItem('licenseKey') || '');
+const memoDaConta = m => (m && m.k === contaAtual() ? m.v : null);
 
 function PipelinePage() {
   const C = window.CRM;
   C.injectCss();
-  const [items, setItems] = React.useState([]);
-  const [carregando, setCarregando] = React.useState(true);
+  // ⚡ Abre na hora com o que já foi carregado nesta sessão e atualiza em segundo plano
+  const [items, setItemsState] = React.useState(() => memoDaConta(funilMemo) || []);
+  const setItems = v => { funilMemo = { k: contaAtual(), v }; setItemsState(v); };
+  const [carregando, setCarregando] = React.useState(() => !memoDaConta(funilMemo));
   const [busca, setBusca] = React.useState('');
   const [todosPerdidos, setTodosPerdidos] = React.useState(false);
   const [origem, setOrigem] = React.useState('');

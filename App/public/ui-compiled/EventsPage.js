@@ -17,8 +17,15 @@ function EventsPage({
     useState,
     useEffect
   } = React;
-  const [savedEvents, setSavedEvents] = useState([]);
-  const [clients, setClients] = useState([]);
+  // ⚡ Abre na hora com os eventos/clientes já carregados no app e atualiza em segundo plano
+  const [savedEvents, setSavedEvents] = useState(() => {
+    const m = window.PrecificacaoAPI && window.PrecificacaoAPI.eventManager;
+    return m && Array.isArray(m.events) ? m.events : [];
+  });
+  const [clients, setClients] = useState(() => {
+    const m = window.PrecificacaoAPI && window.PrecificacaoAPI.clientManager;
+    return m && Array.isArray(m.clients) ? m.clients : [];
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [sortBy, setSortBy] = useState('recent');

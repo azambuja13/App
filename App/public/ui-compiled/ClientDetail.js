@@ -17,6 +17,8 @@ function descreverAtividade(a) {
   }
   if (a.type === 'proposal_created') return { icon: '📄', titulo: 'Proposta criada' + (meta.title ? ': ' + meta.title : ''), texto: null };
   if (a.type === 'task_done') return { icon: '✅', titulo: 'Tarefa concluída', texto: a.content };
+  if (a.type === 'proposal_view') return { icon: '👁️', titulo: meta.primeira === false ? 'Abriu a proposta de novo' : 'Abriu a proposta', texto: a.content };
+  if (a.type === 'contract_signed') return { icon: '✍️', titulo: 'Assinou o contrato', texto: a.content };
   const t = C.ACTIVITY[a.type] || { icon: '•', label: a.type };
   return { icon: t.icon, titulo: t.label, texto: a.content };
 }

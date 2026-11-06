@@ -99,7 +99,7 @@ function companyName() {
   } catch (e) { return ''; }
 }
 
-function varsFor(client, proposal, reviewLink) {
+function varsFor(client, proposal, reviewLink, linkProposta) {
   const C = window.CRM;
   const p = proposal || {};
   const dados = p.proposalData || {};
@@ -115,7 +115,8 @@ function varsFor(client, proposal, reviewLink) {
     convidados: conv ? String(conv) : '',
     valor: valor ? C.brl(valor) : '',
     empresa: companyName(),
-    link_avaliacao: reviewLink || ''
+    link_avaliacao: reviewLink || '',
+    link_proposta: linkProposta || ''
   };
 }
 
@@ -136,6 +137,18 @@ function MessageDialog({ ctx, onClose }) {
   const [enviando, setEnviando] = React.useState(false);
 
   const [vinculos, setVinculos] = React.useState(META.vinculos || {});
+  // 🔗 nov/2026: link rastreado da proposta ({link_proposta}): avisa quando o cliente abre
+  const [links, setLinks] = React.useState({});
+  const [gerandoLink, setGerandoLink] = React.useState(false);
+  const linkPremium = !window.ConfigHelper || typeof window.ConfigHelper.hasFeatureAccess !== 'function' || window.ConfigHelper.hasFeatureAccess('proposalLink');
+  const pedirLink = async (pid) => {
+    const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+    if (!api || !pid || !linkPremium) return null;
+    if (links[pid]) return links[pid];
+    setGerandoLink(true);
+    try { const r = await api.request('/api/proposals/' + pid + '/link', { method: 'POST' }); const url = r && r.data && r.data.url; if (url) setLinks(l => ({ ...l, [pid]: url })); if (window.PropostaLinks) window.PropostaLinks.resumo(true); return url; }
+    catch (e) { return null; } finally { setGerandoLink(false); }
+  };
   React.useEffect(() => { C.templatesStore.load().then(setDados); carregarVinculos().then(v => setVinculos({ ...v })); }, []);
   React.useEffect(() => {
     const api = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
@@ -174,8 +187,15 @@ function MessageDialog({ ctx, onClose }) {
   React.useEffect(() => {
     setErroEnvio('');
     if (!modelo) return;
-    setTexto(C.fillTemplate(modelo.body, varsFor(cliente, proposta, dados && dados.reviewLink)));
+    setTexto(C.fillTemplate(modelo.body, varsFor(cliente, proposta, dados && dados.reviewLink, proposta && links[proposta.id])));
+    if (proposta && proposta.id && !links[proposta.id] && /\{link_proposta\}/.test(modelo.body || '')) pedirLink(proposta.id);
   }, [chave, propostaId, cliente, dados]);
+  // Modelo com {link_proposta}: preenche de novo quando o link chega
+  const linkAtual = proposta && links[proposta.id];
+  React.useEffect(() => {
+    if (!modelo || !linkAtual || !/\{link_proposta\}/.test(modelo.body || '')) return;
+    setTexto(C.fillTemplate(modelo.body, varsFor(cliente, proposta, dados && dados.reviewLink, linkAtual)));
+  }, [linkAtual]);
 
   const telefone = (cliente && cliente.phone) || (proposta && (proposta.clientPhone || (proposta.proposalData || {}).clientPhone)) || '';
   const wa = C.waLink(telefone);
@@ -199,7 +219,7 @@ function MessageDialog({ ctx, onClose }) {
       if (vinc && vinc.name) {
         // Mensagem ligada a um modelo aprovado: manda sempre o modelo (a Meta entrega mesmo fora das 24 h).
         // O texto livre fora das 24 h é aceito pela API mas NÃO é entregue (a falha só chega depois, por webhook).
-        const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink));
+        const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink, proposta && links[proposta.id]));
         await api.request('/api/company/whatsapp/send-template', { method: 'POST', body: JSON.stringify({ to: telefone, name: vinc.name, language: vinc.language, ...prm }) });
         registrar();
         alert('✅ Enviado pelo modelo da Meta "' + vinc.name + '" (vai o texto aprovado do modelo, com os dados do cliente).');
@@ -242,6 +262,7 @@ function MessageDialog({ ctx, onClose }) {
           h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
             templates.map(t => h('div', { key: t.key, role: 'button', onClick: () => setChave(t.key), style: chip(t.key === chave) }, t.title)))),
         h('textarea', { value: texto, onChange: e => setTexto(e.target.value), rows: 6, className: 'crm-input', style: { fontSize: 15, lineHeight: 1.45 } }),
+        proposta && proposta.id && linkPremium && !(links[proposta.id] && texto.includes(links[proposta.id])) && h('div', { role: 'button', onClick: async () => { const url = await pedirLink(proposta.id); if (url) setTexto(t => (t.trim() ? t.trim() + '\n\n' : '') + 'Proposta: ' + url); }, style: { fontSize: 13, color: '#c2410c', cursor: 'pointer', fontWeight: 600 } }, gerandoLink ? 'Gerando link...' : '🔗 Incluir o link da proposta (avisa quando o cliente abrir)'),
         !wa && h('div', { style: { fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px' } }, 'Este cliente não tem telefone cadastrado. Copie o texto ou cadastre o telefone na aba Clientes.'),
         erroEnvio && h('div', { style: { fontSize: 13, color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px' } }, '❌ ' + erroEnvio + (/Abrir no/.test(erroEnvio) ? '' : ' Use "Abrir no app" para enviar pelo seu WhatsApp.')),
         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },

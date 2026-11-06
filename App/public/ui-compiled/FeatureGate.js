@@ -66,6 +66,11 @@ function FeatureGate({
     cloudSync: 'Sincronização na Nuvem',
     teamAccess: 'Acesso em Equipe',
     stock: 'Estoque',
+    finance: 'Financeiro',
+    reports: 'Relatórios',
+    proposalLink: 'Link rastreado da proposta',
+    contracts: 'Contrato com assinatura',
+    team: 'Equipe',
     sales: 'Vendas (PDV e pedidos)'
   };
   const featureDisplayName = featureNames[featureName] || 'Este recurso';

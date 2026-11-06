@@ -112,7 +112,38 @@ class PrecificacaoAPI {
         return response;
     }
 
+    /**
+     * ⚡ nov/2026: a mesma consulta (GET) pedida por duas telas ao mesmo tempo, ou de novo em
+     * menos de 2,5 s, usa uma só requisição. Qualquer gravação (POST/PUT/PATCH/DELETE) zera isso.
+     * Também guarda a última resposta de cada consulta (ultimo) para as telas abrirem na hora.
+     */
     async request(endpoint, options = {}, isRetry = false) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!this._gets) { this._gets = new Map(); this._ultimo = new Map(); }
+        if (method !== 'GET') { this._gets.clear(); return this._request(endpoint, options, isRetry); }
+        if (isRetry || options.body || options.noDedupe) return this._request(endpoint, options, isRetry);
+        const chave = (this.licenseKey || '') + '|' + endpoint;
+        const hit = this._gets.get(chave);
+        const copia = v => { try { return typeof structuredClone === 'function' ? structuredClone(v) : JSON.parse(JSON.stringify(v)); } catch (e) { return v; } };
+        if (hit && hit.p) return hit.p.then(copia);
+        if (hit && Date.now() - hit.t < 2500) return Promise.resolve(copia(hit.v));
+        const p = this._request(endpoint, options, isRetry);
+        const reg = { p };
+        this._gets.set(chave, reg);
+        p.then(v => {
+            if (this._gets.get(chave) === reg) this._gets.set(chave, { v, t: Date.now() });
+            this._ultimo.set(chave, v);
+        }, () => { if (this._gets.get(chave) === reg) this._gets.delete(chave); });
+        return p;
+    }
+
+    /** Última resposta recebida desta consulta nesta sessão (ou null) — para mostrar na hora e atualizar depois */
+    ultimo(endpoint) {
+        const v = this._ultimo && this._ultimo.get((this.licenseKey || '') + '|' + endpoint);
+        return v === undefined ? null : v;
+    }
+
+    async _request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
         const method = String(options.method || 'GET').toUpperCase();
         const OC = window.OfflineCache;
@@ -247,7 +278,8 @@ class PrecificacaoAPI {
 
     // EVENTOS
     async getEvents() {
-        return this.request('/api/events');
+        // ⚡ Lista leve (nov/2026): sem o estado completo; o evento inteiro vem em getEvent(id)
+        return this.request('/api/events?lite=1');
     }
 
     async getEvent(eventId) {
@@ -403,7 +435,8 @@ class PrecificacaoAPI {
 
     // CLIENTES
     async getClients() {
-        return this.request('/api/clients');
+        // ⚡ Lista leve: as propostas de cada cliente vêm só com status/etapa (sem fotos)
+        return this.request('/api/clients?lite=1');
     }
 
     async createClient(client) {
@@ -527,7 +560,12 @@ class PrecificacaoAPI {
 
     // PROPOSTAS
     async getProposals() {
-        return this.request('/api/proposals');
+        // ⚡ Lista leve: sem fotos em base64; a proposta inteira vem em getProposal(id)
+        return this.request('/api/proposals?lite=1');
+    }
+
+    async getProposal(proposalId) {
+        return this.request(`/api/proposals/${proposalId}`);
     }
 
     async createProposal(proposal) {
@@ -800,7 +838,7 @@ class EventManager {
         // no backend. Sem isso, abrir um evento editado em OUTRO aparelho (ex: iOS → web)
         // devolvia a cópia antiga carregada junto com a lista.
         const cachedEvent = this.events.find(e => e.id === eventId);
-        if (cachedEvent && !forceRefresh) {
+        if (cachedEvent && !forceRefresh && !cachedEvent._lite) {
             return cachedEvent;
         }
 
@@ -818,8 +856,8 @@ class EventManager {
             console.warn('⚠️ Erro ao buscar evento do backend:', error.message);
         }
 
-        // Fallback: se o backend falhou, usar o cache (se houver)
-        return cachedEvent || null;
+        // Fallback: se o backend falhou, usar o cache (se houver; a cópia leve da lista não serve para carregar)
+        return cachedEvent && !cachedEvent._lite ? cachedEvent : null;
     }
 }
 
@@ -1947,7 +1985,9 @@ class ProposalManager {
 
         // Buscar a versão atual no servidor (o cache pode estar velho — editada em outro aparelho)
         await this.loadProposals(true);
-        const original = this.proposals.find(p => p.id === proposalId);
+        let original = this.proposals.find(p => p.id === proposalId);
+        if (original && original._lite) original = await this.getFull(proposalId, original);
+        if (original && original._lite) throw new Error('Não foi possível abrir a proposta completa para duplicar. Confira a internet e tente de novo.');
         if (!original) {
             throw new Error(`Proposta ${proposalId} não encontrada`);
         }
@@ -1995,7 +2035,8 @@ class ProposalManager {
         this.loadedAt = 0;
     }
 
-    /** Busca uma proposta pelo id; se não estiver no cache, recarrega do servidor */
+    /** Busca uma proposta pelo id; se não estiver no cache, recarrega do servidor.
+     *  A lista é leve (sem fotos): aqui sempre volta a proposta completa. */
     async getById(proposalId) {
         await this.loadProposals();
         let p = this.proposals.find(x => x.id === proposalId);
@@ -2003,7 +2044,25 @@ class ProposalManager {
             await this.loadProposals(true);
             p = this.proposals.find(x => x.id === proposalId);
         }
+        if (p && p._lite) p = await this.getFull(proposalId, p);
         return p || null;
+    }
+
+    /** Proposta completa (com fotos) do servidor; guarda no lugar da cópia leve.
+     *  Sem internet devolve a cópia leve (dá para ver; editar/duplicar pedem a completa). */
+    async getFull(proposalId, leve = null) {
+        try {
+            const r = await this.api.getProposal(proposalId);
+            const full = r && (r.data || r.proposal);
+            if (full && full.id) {
+                const i = this.proposals.findIndex(x => x.id === proposalId);
+                if (i !== -1) this.proposals[i] = full;
+                return full;
+            }
+        } catch (e) {
+            console.warn('⚠️ [ProposalManager] Não consegui abrir a proposta completa:', e && e.message);
+        }
+        return leve || null;
     }
 
     async getDetailedStatistics() {
