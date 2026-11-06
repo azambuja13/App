@@ -80,6 +80,49 @@ const PropostaLinks = {
 };
 window.PropostaLinks = PropostaLinks;
 
+// ------------------------------------------------------------ envio direto (WhatsApp da empresa)
+// Com o WhatsApp da empresa configurado (Cloud API), manda sem abrir o app: pelo modelo aprovado
+// na Meta (chega sempre) ou, enquanto ele não é aprovado, como texto (só chega nas 24 h).
+const WA = { pronto: null, p: null };
+function whatsappPronto() {
+  if (WA.pronto !== null) return Promise.resolve(WA.pronto);
+  if (WA.p) return WA.p;
+  const a = api(); if (!a) return Promise.resolve(false);
+  WA.p = a.request('/api/company/whatsapp', { noDedupe: true })
+    .then(r => { const d = (r && r.data) || {}; WA.pronto = !!(d.whatsappEnabled && (d.hasAccessToken || d.whatsappAccessToken) && d.whatsappPhoneNumberId); return WA.pronto; })
+    .catch(() => false).finally(() => { WA.p = null; });
+  return WA.p;
+}
+function EnvioDireto({ proposal, endpoint, hrefApp, onEnviado }) {
+  const [pronto, setPronto] = React.useState(WA.pronto);
+  const [tel, setTel] = React.useState(dadosProp(proposal).clientPhone || '');
+  const [enviando, setEnviando] = React.useState(false);
+  const [res, setRes] = React.useState(null);
+  React.useEffect(() => { whatsappPronto().then(setPronto); }, []);
+  const enviar = async () => {
+    setEnviando(true); setRes(null);
+    try {
+      const r = await api().request(endpoint, { method: 'POST', body: JSON.stringify({ phone: tel }) });
+      setRes({ ok: true, d: r.data }); if (onEnviado) onEnviado(r.data);
+    } catch (e) { setRes({ ok: false, msg: e.message || 'Não foi possível enviar' }); }
+    finally { setEnviando(false); }
+  };
+  const semTel = String(tel).trim() !== '' && String(tel).replace(/\D/g, '').length < 10; // vazio: a API usa o telefone da proposta/cliente
+  if (pronto === null) return h('div', { className: 'muted' }, 'Conferindo o WhatsApp da empresa...');
+  return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+    pronto && h(React.Fragment, null,
+      h('input', { value: tel, onChange: e => setTel(e.target.value), placeholder: 'WhatsApp do cliente com DDD', inputMode: 'tel' }),
+      h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        h('div', { className: 'btn ok', onClick: enviando || semTel ? undefined : enviar, style: { flex: '1 1 220px', opacity: enviando || semTel ? .6 : 1 } }, enviando ? 'Enviando...' : '📤 Enviar pelo WhatsApp'),
+        hrefApp && h('a', { className: 'btn sec', href: hrefApp, target: '_blank', rel: 'noopener' }, '💬 Abrir no app'))),
+    !pronto && hrefApp && h('a', { className: 'btn ok', href: hrefApp, target: '_blank', rel: 'noopener' }, '💬 Enviar no WhatsApp'),
+    !pronto && h('div', { className: 'muted' }, 'Para enviar sem abrir o app, configure o WhatsApp da empresa em Configurações → 📱 WhatsApp.'),
+    res && (res.ok
+      ? h('div', { style: { fontSize: 13, borderRadius: 8, padding: '8px 10px', ...(res.d.via === 'modelo' ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' } : { background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }) } },
+          res.d.via === 'modelo' ? '✅ Enviado pelo WhatsApp da empresa (modelo aprovado: chega mesmo sem conversa aberta).' : '✅ Enviado. ' + (res.d.aviso || ''))
+      : h('div', { style: { fontSize: 13, color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px' } }, '❌ ' + res.msg + (/24 h|131047/.test(res.msg) ? ' Use "Abrir no app".' : ''))));
+}
+
 // ------------------------------------------------------------ link rastreado
 function LinkDialog({ proposal, onClose }) {
   const [link, setLink] = React.useState(null);
@@ -112,8 +155,8 @@ function LinkDialog({ proposal, onClose }) {
       !link ? (!erro && h('div', { className: 'muted', style: { padding: 20, textAlign: 'center' } }, 'Gerando o link...')) :
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
         h('div', { className: 'url' }, link.url),
+        h(EnvioDireto, { proposal, endpoint: '/api/proposals/' + proposal.id + '/link/whatsapp', hrefApp: wa, onEnviado: () => { PropostaLinks.resumo(true); window.dispatchEvent(new CustomEvent('crm-updated')); } }),
         h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-          wa && h('a', { className: 'btn ok', href: wa, target: '_blank', rel: 'noopener', style: { flex: '1 1 200px' } }, '💬 Enviar no WhatsApp'),
           h('div', { className: 'btn sec', onClick: async () => { await copiar(link.url); setCopiado(true); setTimeout(() => setCopiado(false), 1800); } }, copiado ? '✓ Copiado' : 'Copiar link'),
           h('a', { className: 'btn sec', href: link.url + '?v=0', target: '_blank', rel: 'noopener' }, 'Abrir')),
         h('div', { className: 'box' },
@@ -241,8 +284,8 @@ function ContratoDialog({ proposal, onClose }) {
               ? h('div', { className: 'muted', style: { marginTop: 6 } }, `Assinado por ${atual.signerName} em ${fmt(atual.signedAt)}. A proposta foi marcada como aprovada.`)
               : h('div', { className: 'muted', style: { marginTop: 6 } }, atual.views ? `O cliente abriu ${atual.views} ${atual.views === 1 ? 'vez' : 'vezes'} (primeira em ${fmt(atual.viewedAt)}).` : 'O cliente ainda não abriu.')),
           atual.status === 'sent' && h('div', { className: 'url' }, atual.url),
+          atual.status === 'sent' && h(EnvioDireto, { proposal, endpoint: '/api/contracts/' + atual.id + '/whatsapp', hrefApp: wa, onEnviado: () => window.dispatchEvent(new CustomEvent('crm-updated')) }),
           h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-            wa && h('a', { className: 'btn ok', href: wa, target: '_blank', rel: 'noopener', style: { flex: '1 1 200px' } }, '💬 Enviar no WhatsApp'),
             atual.status === 'sent' && h('div', { className: 'btn sec', onClick: async () => { await copiar(atual.url); setCopiado(true); setTimeout(() => setCopiado(false), 1800); } }, copiado ? '✓ Copiado' : 'Copiar link'),
             h('div', { className: 'btn sec', onClick: documento }, atual.status === 'signed' ? '📄 Ver / imprimir assinado' : 'Ver como o cliente'),
             atual.status === 'sent' && h('div', { className: 'btn sec', onClick: editar }, '✏️ Editar texto')),
