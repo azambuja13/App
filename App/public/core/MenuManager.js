@@ -26,11 +26,26 @@ export class MenuManager {
      * Inicializa o storage (IndexedDB ou localStorage)
      */
     async init() {
-        if (window.indexedDBStorage) {
+        this._st();
+    }
+
+    /**
+     * Storage do cardápio em montagem, escolhido na hora de cada leitura/gravação.
+     * Premium/Standard: o IndexedDB fica bloqueado depois do login (o app só usa a nuvem), então o
+     * cardápio vai para o localStorage deste aparelho. Antes ele ia para o IndexedDB aberto antes do
+     * login e sumia ao recarregar a página (nov/2026).
+     */
+    _st() {
+        let plan = 'offline';
+        try { plan = (window.ConfigHelper && window.ConfigHelper.getCurrentPlan && window.ConfigHelper.getCurrentPlan()) || 'offline'; } catch (e) { }
+        const nuvem = plan === 'premium' || plan === 'standard';
+        const tipo = (!nuvem && window.indexedDBStorage) ? 'idb' : 'ls';
+        if (this.storage && this._tipo === tipo) return this.storage;
+        this._tipo = tipo;
+        if (tipo === 'idb') {
             this.storage = window.indexedDBStorage;
             console.log('✅ [MenuManager] Usando IndexedDB');
         } else {
-            // Fallback: criar wrapper para localStorage
             this.storage = {
                 get: (key, defaultValue) => {
                     try {
@@ -52,8 +67,9 @@ export class MenuManager {
                     }
                 }
             };
-            console.warn('⚠️ [MenuManager] IndexedDB não disponível, usando localStorage');
+            console.log('ℹ️ [MenuManager] Cardápio em montagem salvo neste aparelho (localStorage)');
         }
+        return this.storage;
     }
 
     /**
@@ -178,7 +194,7 @@ export class MenuManager {
             }
 
             console.log(`💾 [MenuManager] Salvando cardápio (${menu.length} pratos)...`);
-            await this.storage.set(this.storageKey, menu);
+            await this._st().set(this.storageKey, menu);
             console.log(`✅ [MenuManager] Cardápio salvo com sucesso!`);
 
             // ✅ FIX: Disparar evento para atualizar cálculos
@@ -210,7 +226,7 @@ export class MenuManager {
         try {
             const menu = await this.getMenu();
             const filteredMenu = menu.filter(item => item.id !== menuItemId);
-            await this.storage.set(this.storageKey, filteredMenu);
+            await this._st().set(this.storageKey, filteredMenu);
 
             // ✅ FIX: Disparar evento para atualizar cálculos
             if (typeof window !== 'undefined') {
@@ -298,7 +314,7 @@ export class MenuManager {
             menu[itemIndex].dishPricePerPerson = dishPricePerPerson;
             menu[itemIndex].updatedAt = new Date().toISOString();
 
-            await this.storage.set(this.storageKey, menu);
+            await this._st().set(this.storageKey, menu);
 
             // ✅ FIX: Disparar evento para atualizar cálculos
             if (typeof window !== 'undefined') {
@@ -327,7 +343,7 @@ export class MenuManager {
     async getMenu() {
         try {
             console.log(`📖 [MenuManager] Lendo cardápio de "${this.storageKey}"...`);
-            const data = await this.storage.get(this.storageKey, []);
+            const data = await this._st().get(this.storageKey, []);
             console.log(`📦 [MenuManager] ${data.length} pratos carregados`);
             if (data.length > 0) {
                 console.log(`📋 [MenuManager] Primeiro prato:`, data[0]);
@@ -354,7 +370,7 @@ export class MenuManager {
      */
     async clearMenu() {
         try {
-            await this.storage.set(this.storageKey, []);
+            await this._st().set(this.storageKey, []);
             // ✅ FIX: avisar a UI (resumo de custos escuta 'menu-updated') para zerar os valores do cardápio
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new Event('menu-updated'));
@@ -385,7 +401,7 @@ export class MenuManager {
                 return { success: false, message: 'Dados de cardápio inválidos' };
             }
 
-            await this.storage.set(this.storageKey, dishes);
+            await this._st().set(this.storageKey, dishes);
             console.log(`✅ [MenuManager] Cardápio restaurado com ${dishes.length} pratos`);
 
             // ✅ FIX: avisar a UI (useCalculations escuta 'menu-updated') para recalcular,

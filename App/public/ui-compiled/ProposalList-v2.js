@@ -1,4 +1,5 @@
 (function() {
+const __brlPL = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /**
  * ===================================================================
  * PROPOSAL LIST - Listagem de Propostas
@@ -411,11 +412,11 @@ function ProposalList({
     className: "text-blue-100 text-sm"
   }, "Receita Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold"
-  }, "R$ ", stats.totalRevenue?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, __brlPL(stats.totalRevenue))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     className: "text-blue-100 text-sm"
   }, "Ticket M\xE9dio"), /*#__PURE__*/React.createElement("p", {
     className: "text-3xl font-bold"
-  }, "R$ ", stats.avgTicket?.toFixed(2) || '0.00')))), /*#__PURE__*/React.createElement("div", {
+  }, __brlPL(stats.avgTicket))))), /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-lg shadow p-4 mb-6"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between mb-4 gap-3 proposal-search-toolbar"
@@ -629,7 +630,7 @@ function ProposalCard({
     className: "text-xs text-blue-600 mb-1"
   }, "Custo Total"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-blue-800"
-  }, "R$ ", proposal.totalCost?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", {
+  }, __brlPL(proposal.totalCost))), /*#__PURE__*/React.createElement("div", {
     className: "bg-green-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-green-600 mb-1"
@@ -641,13 +642,13 @@ function ProposalCard({
     className: "text-xs text-purple-600 mb-1"
   }, "Valor Final"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-purple-800"
-  }, "R$ ", proposal.finalTotal?.toFixed(2) || '0.00')), /*#__PURE__*/React.createElement("div", {
+  }, __brlPL(proposal.finalTotal))), /*#__PURE__*/React.createElement("div", {
     className: "bg-orange-50 rounded-lg p-2 flex-1"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-orange-600 mb-1"
   }, "Por Pessoa"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-orange-800"
-  }, "R$ ", (proposal.guests && proposal.guests > 0 ? (proposal.finalTotal / proposal.guests).toFixed(2) : '0.00')))), proposal.dishes && proposal.dishes.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, __brlPL(proposal.guests > 0 ? proposal.finalTotal / proposal.guests : 0)))), proposal.dishes && proposal.dishes.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-4"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-medium text-gray-700 mb-2"

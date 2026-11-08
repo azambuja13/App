@@ -618,7 +618,7 @@ window.resetLocalDataIfAccountChanged = async function (newEmail, newLicenseKey)
             'company_name', 'company_phone', 'company_email', 'company_address', 'company_history',
             'company_logo', 'company_mission', 'company_vision', 'company_values', 'company_motivation',
             'company_photo1', 'company_photo2', 'company_photo3',
-            'saved_events', 'ingredients_database', 'precificacao_pratos', 'precificacao_saved_menus',
+            'saved_events', 'ingredients_database', 'precificacao_pratos', 'precificacao_saved_menus', 'precificacao_menu',
             'precificacao_pricing_settings',
             'precificacao_support_kits', 'precificacao_equipamentos',
             'precificacao_clients', 'precificacao_propostas', 'custom_templates', 'backup_before_migration'

@@ -1,4 +1,5 @@
 (function() {
+const __n2PB = v => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /**
  * ===================================================================
  * PROPOSAL BUILDER SIMPLE - Construtor Simplificado de Propostas
@@ -1051,7 +1052,7 @@ function ProposalBuilderSimple({
   }, "\uD83D\uDCB5 Custo: ", /*#__PURE__*/React.createElement("strong", null, "R$ ", (() => {
     // ✅ Usar menu.stats.totalCost (custo POR PESSOA)
     const costPerPerson = formData.selectedMenuData.stats?.totalCost || 0;
-    return costPerPerson.toFixed(2);
+    return __n2PB(costPerPerson);
   })()), "/pessoa"), (() => {
     // ✅ Mostrar preço com margem se disponível
     const totalPrice = formData.selectedMenuData.stats?.totalPrice || 0;
@@ -1061,7 +1062,7 @@ function ProposalBuilderSimple({
         className: "text-sm"
       }, "\u2728 Com margem: ", /*#__PURE__*/React.createElement("strong", {
         className: "text-green-600"
-      }, "R$ ", totalPrice.toFixed(2), "/pessoa"));
+      }, "R$ ", __n2PB(totalPrice), "/pessoa"));
     }
     return null;
   })()))), /*#__PURE__*/React.createElement("button", {
@@ -1089,7 +1090,7 @@ function ProposalBuilderSimple({
       const r = ipp / totalCost;
       if (r >= 0.6 && r <= 1.6) return null;
       return /*#__PURE__*/React.createElement("div", { 'data-testid': 'aviso-lista-pratos', style: { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '8px 10px', fontSize: 13, marginBottom: 10 } },
-        '⚠️ A lista de compras do evento dá R$ ' + ipp.toFixed(2) + '/pessoa, mas os pratos deste cardápio dão R$ ' + totalCost.toFixed(2) + '/pessoa. ',
+        '⚠️ A lista de compras do evento dá R$ ' + __n2PB(ipp) + '/pessoa, mas os pratos deste cardápio dão R$ ' + __n2PB(totalCost) + '/pessoa. ',
         'A lista provavelmente foi gerada com outros pratos. Gere a lista de compras de novo no evento e use "Puxar dados do evento", ou use o total dos pratos. ',
         /*#__PURE__*/React.createElement("span", { role: 'button', 'data-testid': 'usar-total-pratos', onClick: () => { legacySigRef.current = null; handleChange('totalType', 'menu_cost'); }, style: { textDecoration: 'underline', fontWeight: 700, cursor: 'pointer' } }, 'Usar o total dos pratos'));
     })(),
@@ -1115,7 +1116,7 @@ function ProposalBuilderSimple({
       }, "Total Itens do Evento"),
       /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "Custo da lista de compras do evento (R$ ", ((Number(formData.itemsCostPerPerson) || 0) * gq).toFixed(2), " para ", gq, " convidados)")
+      }, "Custo da lista de compras do evento (R$ ", __n2PB((Number(formData.itemsCostPerPerson) || 0) * gq), " para ", gq, " convidados)")
     )),
     // Opção 2: Total dos Pratos (sem margem)
     /*#__PURE__*/React.createElement("label", {
@@ -1135,7 +1136,7 @@ function ProposalBuilderSimple({
       }, "Total Pratos (sem margem)"),
       /*#__PURE__*/React.createElement("p", {
         className: "text-xs text-gray-500"
-      }, "S\xF3 o custo, sem lucro nos pratos (R$ ", (totalCost * gq).toFixed(2), ")")
+      }, "S\xF3 o custo, sem lucro nos pratos (R$ ", __n2PB(totalCost * gq), ")")
     )),
     // Opção 3: Total dos Pratos (com margem)
     /*#__PURE__*/React.createElement("label", {
@@ -1157,7 +1158,7 @@ function ProposalBuilderSimple({
       hasMargin
         ? /*#__PURE__*/React.createElement("p", {
             className: "text-xs text-green-600"
-          }, "Com o markup de cada prato (R$ ", (totalPrice * gq).toFixed(2), ") \u2014 recomendado")
+          }, "Com o markup de cada prato (R$ ", __n2PB(totalPrice * gq), ") \u2014 recomendado")
         : /*#__PURE__*/React.createElement("p", {
             className: "text-xs text-gray-500"
           }, "\u26A0\uFE0F Configure margem nos pratos para ativar")
@@ -1224,7 +1225,7 @@ function ProposalBuilderSimple({
       className: "text-sm text-gray-600"
     }, getEventTypeLabel(menu.menuData?.eventType || menu.eventType), " \u2022 ", dishes.length, " pratos"), /*#__PURE__*/React.createElement("p", {
       className: "text-sm text-orange-600 font-semibold mt-1"
-    }, "R$ ", costPerPerson.toFixed(2), " por pessoa"));
+    }, "R$ ", __n2PB(costPerPerson), " por pessoa"));
   }))), (shownClient && shownClient.name) && /*#__PURE__*/React.createElement("div", {
     className: "bg-blue-50 rounded-lg p-6 border border-blue-200"
   }, /*#__PURE__*/React.createElement("h3", {

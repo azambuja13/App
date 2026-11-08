@@ -120,7 +120,9 @@ export class CompanyManager {
             console.log('ℹ️ [CompanyManager] Nenhum dado encontrado, usando padrão');
             return this.getDefaultData();
         } catch (error) {
-            console.error('❌ [CompanyManager] Erro ao carregar dados:', error);
+            // Premium/Standard: o IndexedDB fica bloqueado de propósito (os dados vão para a API). Não é erro.
+            if (/IndexedDB desabilitado/.test(String(error && error.message))) console.info('ℹ️ [CompanyManager] cache local desligado neste plano (dados ficam na nuvem)');
+            else console.error('❌ [CompanyManager] Erro ao carregar dados:', error);
             return this.getDefaultData();
         }
     }
@@ -172,7 +174,9 @@ export class CompanyManager {
             console.log('✅ [CompanyManager] Dados salvos com sucesso no IndexedDB e via smartStorage');
             return true;
         } catch (error) {
-            console.error('❌ [CompanyManager] Erro ao salvar dados:', error);
+            // Premium/Standard: o IndexedDB fica bloqueado de propósito (os dados vão para a API). Não é erro.
+            if (/IndexedDB desabilitado/.test(String(error && error.message))) console.info('ℹ️ [CompanyManager] cache local desligado neste plano (dados ficam na nuvem)');
+            else console.error('❌ [CompanyManager] Erro ao salvar dados:', error);
             return false;
         }
     }
