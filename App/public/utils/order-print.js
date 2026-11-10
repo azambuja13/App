@@ -316,7 +316,7 @@ function printHtml(p, opts) {
   // Meia folha: o PDF do iPhone sai em páginas de 210 x 148,5 mm
   const pagina = doc.indexOf('data-pagina="meia"') > 0 ? { w: 210, h: 148.5 } : null;
   if (window.ShareFile && window.ShareFile.printHtml) return window.ShareFile.printHtml(doc, { fileName: nome, pagina });
-  const w = window.open('', '_blank'); if (w) { w.document.write(doc.replace('</body>', '<script>window.onload=function(){window.print()}<\/script></body>')); w.document.close(); }
+  const w = window.open('', '_blank'); if (w) { w.document.write(doc.replace('</body>', '<script>window.onafterprint=function(){setTimeout(function(){window.close()},300)};window.onload=function(){window.print()}<\/script></body>')); w.document.close(); }
   return Promise.resolve();
 }
 

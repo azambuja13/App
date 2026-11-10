@@ -147,7 +147,7 @@ function printHtml(html, opts) {
   if (isNative()) {
     return htmlToPdfFile(html, opts.fileName || 'documento.pdf', opts.pagina ? { pagina: opts.pagina } : undefined).then(shareFile);
   }
-  var comPrint = String(html).replace(/<\/body>/i, '<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body>');
+  var comPrint = String(html).replace(/<\/body>/i, '<script>window.onafterprint=function(){setTimeout(function(){window.close()},300)};window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body>');
   var w = null;
   try { w = window.open('', '_blank'); } catch (e) { w = null; }
   if (w && !w.closed) {
