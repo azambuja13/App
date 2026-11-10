@@ -10,7 +10,8 @@
  * A 1ª vez precisa de um toque em "Conectar impressora" (o navegador pede para escolher o aparelho); depois o navegador
  * lembra a permissão e imprime direto.
  *
- * window.EscPos = { suporte, conectar, conectada, esquecer, imprimir, pedido, teste, CMD, encode }
+ *   - 'rede':   Wi-Fi, só no app do iPhone (2.9+): plugin nativo EscPosPrinter, TCP na porta 9100.
+ * window.EscPos = { suporte, conectar, conectada, esquecer, imprimir, enviarRede, pedido, teste, CMD, encode }
  */
 const ESC = 0x1b, GS = 0x1d, LF = 0x0a;
 const CMD = {
@@ -164,10 +165,33 @@ function pedido(p, o = {}) {
 }
 
 // ---------- Conexão ----------
+// Wi-Fi (rede): só no app do iPhone a partir da 2.9 — plugin nativo EscPosPrinter (TCP na porta 9100)
+function pluginRede() {
+  try {
+    const C = window.Capacitor;
+    if (!C || typeof C.isNativePlatform !== 'function' || !C.isNativePlatform()) return null;
+    if (typeof C.isPluginAvailable === 'function' && !C.isPluginAvailable('EscPosPrinter')) return null;
+    return (C.Plugins && C.Plugins.EscPosPrinter) || null;
+  } catch (e) { return null; }
+}
 function suporte() {
   const serial = typeof navigator !== 'undefined' && !!navigator.serial;
   const usb = typeof navigator !== 'undefined' && !!navigator.usb;
-  return { serial, usb, algum: serial || usb };
+  return { serial, usb, algum: serial || usb, rede: !!pluginRede() };
+}
+function base64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  return btoa(s);
+}
+/** Envia pelo Wi-Fi (app do iPhone). o: { host, porta, timeoutMs } */
+async function enviarRede(bytes, o = {}) {
+  const P = pluginRede();
+  if (!P) { const e = new Error('Impressão pelo Wi-Fi só no app do iPhone (versão 2.9 ou mais nova).'); e.code = 'SEM_SUPORTE'; throw e; }
+  const host = String(o.host || '').trim();
+  if (!host) { const e = new Error('Informe o IP da impressora em Vendas › Impressão.'); e.code = 'SEM_IMPRESSORA'; throw e; }
+  await P.send({ host, port: Number(o.porta) || 9100, data: base64(bytes), timeoutMs: o.timeoutMs || 8000 });
+  return { bytes: bytes.length };
 }
 const nomeUsb = d => [d.manufacturerName, d.productName].filter(Boolean).join(' ') || 'Impressora USB';
 const nomeSerial = pt => { const i = pt.getInfo ? pt.getInfo() : {}; return i.usbVendorId ? `Porta USB ${i.usbVendorId.toString(16).padStart(4, '0')}:${(i.usbProductId || 0).toString(16).padStart(4, '0')}` : 'Porta serial'; };
@@ -236,6 +260,7 @@ async function enviarUsb(dev, bytes) {
  */
 async function imprimir(bytes, o = {}) {
   const tr = o.transporte || 'serial';
+  if (tr === 'rede') return enviarRede(bytes, o);
   const s = suporte();
   if (!(tr === 'usb' ? s.usb : s.serial)) { const e = new Error('Impressão direta só no Chrome ou Edge do computador.'); e.code = 'SEM_SUPORTE'; throw e; }
   let a = await aparelho(tr);
@@ -265,5 +290,5 @@ function teste(o = {}) {
   return new Uint8Array(d.bytes());
 }
 
-window.EscPos = { suporte, conectar, conectada, esquecer, imprimir, pedido, teste, CMD, encode };
+window.EscPos = { suporte, conectar, conectada, esquecer, imprimir, enviarRede, pedido, teste, CMD, encode };
 })();

@@ -305,7 +305,40 @@ async function printEscPos(p, opts) {
     }
   }
 }
+// Térmica Wi-Fi no app do iPhone (2.9+): configuração só deste aparelho (não vai para o servidor).
+const LS_REDE = 'vnd_impressora_rede_v1';
+function redeConfig() {
+  let r = null;
+  try { r = JSON.parse(localStorage.getItem(LS_REDE) || 'null'); } catch (e) {}
+  return { ativo: false, host: '', porta: 9100, ...(r || {}) };
+}
+function saveRede(r) {
+  const novo = { ...redeConfig(), ...(r || {}) };
+  try { localStorage.setItem(LS_REDE, JSON.stringify(novo)); } catch (e) {}
+  return novo;
+}
+function redeAtiva(opts) {
+  const r = (opts && opts.rede) || redeConfig();
+  return r && r.ativo && String(r.host || '').trim() && window.EscPos && window.EscPos.suporte().rede ? r : null;
+}
+async function printRede(p, r, opts) {
+  const c = config();
+  const e = { ...c.escpos, ...((opts && opts.escpos) || {}) };
+  let vias = ((opts && opts.vias) || c.vias || []).slice();
+  if (!vias.length) vias = ['cliente'];
+  try {
+    const bytes = window.EscPos.pedido(p, { colunas: e.colunas, vias, empresa: (opts && opts.empresa) || empresaAtual(), rodape: c.rodape, cortar: e.cortar, codepage: e.codepage });
+    await window.EscPos.enviarRede(bytes, { host: r.host, porta: r.porta });
+  } catch (err) {
+    console.warn('[OrderPrint] impressão Wi-Fi falhou:', err && err.message);
+    if (window.confirm(`Não foi possível imprimir na térmica Wi-Fi.\n\n${err && err.message ? err.message : ''}\n\nGerar o PDF do pedido?`)) {
+      return printHtml(p, { ...(opts || {}), formato: (e.colunas || 48) <= 32 ? '58' : '80', vias });
+    }
+  }
+}
 function print(p, opts) {
+  const r = redeAtiva(opts);
+  if (r) return printRede(p, r, opts);
   const formato = (opts && opts.formato) || config().formato;
   if (formato === 'escpos') return printEscPos(p, opts);
   return printHtml(p, opts);
@@ -320,5 +353,5 @@ function printHtml(p, opts) {
   return Promise.resolve();
 }
 
-window.OrderPrint = { html, print, config, saveConfig, TIPO, PAG };
+window.OrderPrint = { html, print, config, saveConfig, redeConfig, saveRede, TIPO, PAG };
 })();

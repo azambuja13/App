@@ -210,12 +210,22 @@ function ImpressaoDialog({ onClose }) {
   const OP = window.OrderPrint;
   const [c, setC] = useState(OP ? OP.config() : {});
   const [salvando, setSalvando] = useState(false);
+  const nativo = !!(window.ShareFile && window.ShareFile.isNative && window.ShareFile.isNative());
+  const [rede, setRede] = useState(OP && OP.redeConfig ? OP.redeConfig() : { ativo: false, host: '', porta: 9100 });
+  const [testandoRede, setTestandoRede] = useState(false);
   const via = v => (c.vias || []).includes(v);
   const togVia = v => setC(x => ({ ...x, vias: via(v) ? x.vias.filter(y => y !== v) : (x.vias || []).concat([v]) }));
   const teste = () => OP.print({ number: 1, type: 'balcao', createdAt: new Date().toISOString(), customerName: 'Cliente TESTE',
     items: [{ name: 'Marmita de strogonoff', quantity: 2, unitPrice: 25, total: 50, notes: 'sem cebola' }, { name: 'Refrigerante lata', quantity: 1, unitPrice: 6, total: 6 }],
-    subtotal: 56, discount: 0, deliveryFee: 0, total: 56, paymentMethod: 'dinheiro', paid: true, cashReceived: 100 }, { formato: c.formato, vias: c.vias, escpos: c.escpos });
-  const salvar = async () => { if (c.formato !== 'a4dupla' && c.formato !== 'meiadupla' && !(c.vias || []).length) return alert('Escolha ao menos uma via.'); setSalvando(true); await OP.saveConfig(c); setSalvando(false); onClose('Configuração de impressão salva.'); };
+    subtotal: 56, discount: 0, deliveryFee: 0, total: 56, paymentMethod: 'dinheiro', paid: true, cashReceived: 100 }, { formato: c.formato, vias: c.vias, escpos: c.escpos, rede });
+  const salvar = async () => { if (c.formato !== 'a4dupla' && c.formato !== 'meiadupla' && !(c.vias || []).length) return alert('Escolha ao menos uma via.'); if (rede.ativo && !String(rede.host || '').trim()) return alert('Informe o IP da impressora Wi-Fi.'); setSalvando(true); if (OP.saveRede) OP.saveRede(rede); await OP.saveConfig(c); setSalvando(false); onClose('Configuração de impressão salva.'); };
+  const testarRede = async () => {
+    if (!String(rede.host || '').trim()) return alert('Informe o IP da impressora.');
+    setTestandoRede(true);
+    try { await window.EscPos.enviarRede(window.EscPos.teste({ colunas: (c.escpos || {}).colunas || 48, cortar: (c.escpos || {}).cortar !== false, codepage: (c.escpos || {}).codepage }), { host: rede.host, porta: rede.porta }); alert('✅ Enviado para a impressora ' + rede.host + '.'); }
+    catch (err) { alert('❌ ' + ((err && err.message) || 'Não foi possível imprimir.')); }
+    setTestandoRede(false);
+  };
   const FORM = [['a4dupla', 'A4 · 2 vias (cliente + recebimento)'], ['meiadupla', 'Meia A4 · 2 vias lado a lado'], ['80', 'Térmica 80 mm'], ['58', 'Térmica 58 mm'], ['escpos', 'Direto na térmica (USB)'], ['a4', 'Folha A4'], ['a5', 'Folha A5']];
   const dupla = c.formato === 'a4dupla' || c.formato === 'meiadupla';
   const meia = c.formato === 'meiadupla';
@@ -236,6 +246,20 @@ function ImpressaoDialog({ onClose }) {
   return h(Modal, { titulo: '🖨️ Impressão do pedido', sub: 'Funciona com qualquer impressora instalada no aparelho: térmica ou comum. No iPhone, o pedido vira PDF para imprimir ou compartilhar.', onClose: () => onClose() },
     h('label', { className: 'f' }, 'Tamanho do papel'),
     h('div', { className: 'chips' }, FORM.map(([k, t]) => h('button', { key: k, type: 'button', className: 'chip' + (c.formato === k ? ' on' : ''), onClick: () => setC(x => ({ ...x, formato: k })) }, t))),
+    nativo && h('div', { 'data-rede': 1, style: { marginTop: 10, padding: 10, border: '1px solid #e5e7eb', borderRadius: 10 } },
+      h('div', { style: { fontWeight: 700 } }, '📶 Térmica Wi-Fi neste iPhone'),
+      !sup.rede
+        ? h('div', { className: 'aviso a-ama', style: { marginTop: 6 } }, 'Atualize o app para a versão 2.9 ou mais nova para imprimir direto na térmica Wi-Fi. Por enquanto, o pedido sai em PDF.')
+        : h(React.Fragment, null,
+          h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 } }, h('input', { type: 'checkbox', checked: !!rede.ativo, onChange: ev => setRede(x => ({ ...x, ativo: ev.target.checked })), 'data-testid': 'rede-ativo' }), 'Imprimir direto na térmica Wi-Fi (sem PDF)'),
+          h('div', { style: { display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' } },
+            h('input', { value: rede.host || '', onChange: ev => setRede(x => ({ ...x, host: ev.target.value.trim() })), placeholder: 'IP da impressora (ex.: 192.168.100.36)', inputMode: 'decimal', autoCapitalize: 'off', autoCorrect: 'off', style: { flex: 1, minWidth: 180 }, 'aria-label': 'IP da impressora', 'data-testid': 'rede-ip' }),
+            h('input', { value: rede.porta || 9100, onChange: ev => setRede(x => ({ ...x, porta: Number(ev.target.value.replace(/\D/g, '')) || 9100 })), inputMode: 'numeric', style: { width: 80 }, 'aria-label': 'Porta' }),
+            h('button', { type: 'button', className: 'btn b-dk b-sm', onClick: testarRede, disabled: testandoRede, 'data-testid': 'rede-testar' }, testandoRede ? 'Enviando...' : 'Testar')),
+          h('div', { className: 'muted', style: { marginTop: 6 } }, 'O IP sai no autoteste da impressora (aperte FEED 3 vezes): "WIFI IP". A porta quase sempre é 9100. O iPhone precisa estar na mesma rede Wi-Fi da impressora. Na 1ª vez, permita o acesso à "Rede Local".'),
+          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 } }, [[48, '80 mm (48 col.)'], [42, '80 mm (42 col.)'], [32, '58 mm (32 col.)']].map(([n, t]) =>
+            h('button', { key: n, type: 'button', className: 'chip' + (((c.escpos || {}).colunas || 48) === n ? ' on' : ''), onClick: () => setE({ colunas: n }) }, t))),
+          h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 } }, h('input', { type: 'checkbox', checked: (c.escpos || {}).cortar !== false, onChange: ev => setE({ cortar: ev.target.checked }) }), 'Cortar o papel no fim de cada via'))),
     direto && h('div', { 'data-escpos': 1 },
       !sup.algum
         ? h('div', { className: 'aviso a-ama', style: { marginTop: 8 } }, 'Este navegador não imprime direto na USB. Use o Google Chrome ou o Microsoft Edge no computador. Aqui (Safari ou iPhone), o pedido sai pela janela de impressão como térmica ' + ((e.colunas || 48) <= 32 ? '58' : '80') + ' mm.')
