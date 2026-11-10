@@ -121,6 +121,17 @@ const req = (url, opt) => { const a = api(); if (!a) return Promise.reject(Objec
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const n2 = (v, d = 2) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: d });
 const parseNum = v => { const t = String(v == null ? '' : v).trim().replace(/\./g, (m, i, s) => (/,/.test(s) ? '' : m)).replace(',', '.'); const n = parseFloat(t); return isFinite(n) ? n : NaN; };
+// Peso digitado no pedido: "0,350", "1,2", "350g", "350 g", "1kg". Número inteiro >= 100 sem vírgula = gramas ("350" → 0,350 kg).
+const parsePeso = v => {
+  const t = String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, '');
+  if (!t) return NaN;
+  if (/[0-9]g$/.test(t) && !/kg$/.test(t)) { const n = parseNum(t.slice(0, -1)); return n > 0 ? n / 1000 : NaN; }
+  const sem = t.replace(/kg$/, '');
+  const n = parseNum(sem);
+  if (!(n > 0)) return NaN;
+  return (!/[.,]/.test(sem) && n >= 100) ? n / 1000 : n;
+};
+const fmtPeso = kg => kg < 1 ? Math.round(kg * 1000) + ' g' : n2(kg, 3) + ' kg';
 const r2 = v => Math.round(Number(v) * 100) / 100;
 const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -323,7 +334,13 @@ function Carrinho({ pedido, setPedido, finalizar, salvando, compacto }) {
           ? h('input', { autoFocus: true, value: l.notes || '', placeholder: 'Ex.: sem cebola', 'aria-label': 'Observação de ' + l.name, style: { width: '100%', marginTop: 4, padding: '6px 8px', fontSize: 14 }, onChange: e => setLinha(i, { notes: e.target.value }), onBlur: () => setObsAberta(null), onKeyDown: e => { if (e.key === 'Enter') setObsAberta(null); } })
           : h('button', { type: 'button', className: 'muted lnk', style: { background: 'none', border: 0, padding: 0, cursor: 'pointer', color: l.notes ? '#c2410c' : '#6b7280', fontWeight: l.notes ? 700 : 400, textAlign: 'left' }, onClick: () => setObsAberta(i) }, l.notes ? '» ' + l.notes : '+ observação')),
       l.unit === 'kg'
-        ? h('input', { inputMode: 'decimal', value: l.qtdTexto != null ? l.qtdTexto : String(l.quantity).replace('.', ','), 'aria-label': 'Quilos de ' + l.name, style: { width: 70 }, onChange: e => { const v = parseNum(e.target.value); setPedido(p => ({ ...p, itens: p.itens.map((x, j) => j === i ? { ...x, qtdTexto: e.target.value, quantity: v > 0 ? v : x.quantity } : x) })); } })
+        ? h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+              h('input', { inputMode: 'decimal', autoFocus: !!l.novo, value: l.qtdTexto != null ? l.qtdTexto : String(l.quantity).replace('.', ','), placeholder: '0,350', 'aria-label': 'Peso em kg de ' + l.name, 'data-testid': 'peso', style: { width: 84, textAlign: 'right', fontWeight: 700 },
+                onFocus: e => { try { e.target.select(); } catch (x) {} }, onMouseUp: e => e.preventDefault(), onClick: e => { try { e.target.select(); } catch (x) {} },
+                onChange: e => { const v = parsePeso(e.target.value); setPedido(p => ({ ...p, itens: p.itens.map((x, j) => j === i ? { ...x, novo: false, qtdTexto: e.target.value, quantity: v > 0 ? v : x.quantity } : x) })); } }),
+              h('span', { className: 'muted' }, 'kg')),
+            h('span', { className: 'muted', style: { fontSize: 12 } }, '= ' + fmtPeso(l.quantity)))
         : h('div', { className: 'qtd' },
             h('button', { type: 'button', 'aria-label': 'Menos ' + l.name, onClick: () => setLinha(i, { quantity: l.quantity - 1 }) }, '−'),
             h('b', { style: { minWidth: 22, textAlign: 'center' } }, n2(l.quantity, 3)),
@@ -368,7 +385,7 @@ function PDV({ itens, saldos, pedido, setPedido, onFeito, mostrarAviso }) {
   const add = it => setPedido(p => {
     const i = p.itens.findIndex(l => l.saleItemId === it.id && !l.notes);
     if (i >= 0 && it.unit !== 'kg') return { ...p, itens: p.itens.map((l, j) => j === i ? { ...l, quantity: l.quantity + 1 } : l) };
-    return { ...p, itens: p.itens.concat([{ key: Date.now() + Math.random(), saleItemId: it.id, name: it.name, price: it.price, unit: it.unit, quantity: 1, notes: '', unitCost: it.unitCost }]) };
+    return { ...p, itens: p.itens.concat([{ key: Date.now() + Math.random(), saleItemId: it.id, name: it.name, price: it.price, unit: it.unit, quantity: 1, notes: '', unitCost: it.unitCost, novo: it.unit === 'kg' }]) };
   });
   const finalizar = async () => {
     const t = totais(pedido);
