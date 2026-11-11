@@ -56,7 +56,8 @@ function PipelinePage() {
         since: p.stageChangedAt || p.updatedAt || p.createdAt,
         lostReason: p.lostReason, status: p.status,
         source: (clientePorId[p.clientId] && clientePorId[p.clientId].source) || (p.client && p.client.source) || null,
-        tags: (clientePorId[p.clientId] && clientePorId[p.clientId].tags) || (p.client && p.client.tags) || []
+        tags: (clientePorId[p.clientId] && clientePorId[p.clientId].tags) || (p.client && p.client.tags) || [],
+        raw: p
       }));
       const contatos = clientes
         .filter(c => !(Array.isArray(c.proposals) && c.proposals.some(p => p.status !== 'deleted')))
@@ -108,6 +109,8 @@ function PipelinePage() {
         const r = await api.updateProposalStage(item.id, stage, motivo);
         const d = (r && r.data) || {};
         C.patchProposalCache(item.id, { stage, status: d.status || C.STAGE_TO_STATUS[stage], lostReason: stage === 'lost' ? motivo : null });
+        // 📅 Fechou: oferece salvar o evento no Calendário do iPhone ou no Google Agenda
+        if (stage === 'won' && window.Agenda) window.Agenda.aoAprovar({ ...(item.raw || {}), id: item.id, clientName: item.title !== item.subtitle ? item.title : (item.raw && item.raw.clientName) });
       } else {
         await api.updateClientStage(item.id, stage, motivo);
       }

@@ -199,6 +199,7 @@ function ProposalList({
         alert('❌ Erro: Backend não disponível');
         return;
       }
+      const propostaAntes = proposals.find(p => p.id === proposalId) || null;
       const result = await proposalManager.updateStatus(proposalId, newStatus);
       console.log('📦 [ProposalList] Resultado do updateStatus:', result);
       if (result.success) {
@@ -219,8 +220,10 @@ function ProposalList({
           rejected: 'Rejeitada'
         };
 
-        // Mensagem especial para "Enviada"
-        if (newStatus === 'sent') {
+        // 📅 Aprovada: oferece salvar o evento no Calendário do iPhone ou no Google Agenda
+        if (newStatus === 'accepted' && window.Agenda && window.Agenda.aoAprovar(propostaAntes || { id: proposalId })) {
+          // a janela da agenda já avisa que a proposta foi aprovada
+        } else if (newStatus === 'sent') {
           alert(`✅ Proposta marcada como "Enviada"!\n\n📱 Em breve você poderá enviar propostas diretamente pelo WhatsApp.`);
         } else {
           alert(`✅ Proposta marcada como "${statusLabels[newStatus] || newStatus}"!`);
@@ -672,7 +675,13 @@ function ProposalCard({
   }, "\u2705 Aprovar"), /*#__PURE__*/React.createElement("button", {
     onClick: () => onUpdateStatus(proposal.id, 'rejected'),
     className: "px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-  }, "\u274C Rejeitar"))), /*#__PURE__*/React.createElement("div", {
+  }, "\u274C Rejeitar")), proposal.status === 'accepted' && window.Agenda && /*#__PURE__*/React.createElement("button", {
+    // 📅 Salvar o evento fechado no Calendário do iPhone ou no Google Agenda
+    onClick: () => window.Agenda.abrir({ proposal }),
+    title: "Salvar na agenda (Calendário do iPhone ou Google Agenda)",
+    "data-testid": "agenda-proposta",
+    className: "px-3 py-1 bg-white text-green-700 border border-green-300 rounded-lg hover:bg-green-50 text-sm font-medium"
+  }, "\uD83D\uDCC5 Agenda")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onPreview,

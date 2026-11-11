@@ -193,10 +193,17 @@ function CalendarPage() {
       h('div', { className: 'text-xs text-gray-600 mt-0.5 break-words' },
         [p.clientName && '👤 ' + p.clientName, p.guests ? '👥 ' + p.guests + ' convidados' : null, p.eventLocation && '📍 ' + p.eventLocation].filter(Boolean).join('  ·  ')),
       p.finalTotal ? h('div', { className: 'text-sm font-bold text-green-700 mt-1' }, brl(p.finalTotal)) : null),
+    h('div', { className: 'shrink-0 flex flex-col gap-1.5' },
+    p._tipo === 'fechada' && window.Agenda && h('button', {
+      // 📅 Salvar no Calendário do iPhone ou no Google Agenda
+      onClick: () => window.Agenda.abrir({ proposal: p }),
+      title: 'Salvar na agenda do celular ou no Google Agenda',
+      className: 'shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+    }, '📅 Agenda'),
     window.ProposalPreview && h('button', {
       onClick: () => setPreviewId(p.id),
       className: 'shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100'
-    }, 'Ver'));
+    }, 'Ver')));
 
   const listaDia = porDia[diaSel] || [];
   const fechadasDia = listaDia.filter(p => p._tipo === 'fechada').length;

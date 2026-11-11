@@ -24,6 +24,36 @@ if (window.PasswordManager) {
  * Botão da aba Propostas com controle de acesso
  * Exibe badge "STANDARD+" se usuário estiver em OFFLINE
  */
+// Aviso pequeno do salvamento automático do evento (canto da tela)
+function AvisoSalvamento({ st, temEvento, novoComDados, aba, onSalvar }) {
+  const [visivel, setVisivel] = React.useState(false);
+  const status = st && st.status;
+  React.useEffect(() => {
+    if (status === 'salvo') { setVisivel(true); const t = setTimeout(() => setVisivel(false), 3500); return () => clearTimeout(t); }
+    setVisivel(status === 'salvando' || status === 'pendente' || status === 'erro');
+  }, [status, st && st.em]);
+  const abasEvento = ['events', 'ingredients', 'menu', 'items', 'support', 'dishes'];
+  const mostrarNovo = novoComDados && abasEvento.includes(aba);
+  if (!(temEvento && visivel) && !mostrarNovo) return null;
+  const hora = st && st.em ? new Date(st.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  let txt, cor = '#374151', fundo = '#fff', borda = '#e5e7eb', botao = null;
+  if (!temEvento) { txt = '⚠️ Evento novo ainda não salvo. Salve uma vez para ativar o salvamento automático.'; cor = '#9a3412'; fundo = '#fff7ed'; borda = '#fed7aa'; botao = 'Salvar'; }
+  else if (status === 'salvando') txt = '⏳ Salvando...';
+  else if (status === 'pendente') txt = '✏️ Alterações não salvas · salvando em instantes';
+  else if (status === 'erro') { txt = '⚠️ Não foi possível salvar automaticamente' + (st.msg ? ': ' + st.msg : '') + '.'; cor = '#b91c1c'; fundo = '#fef2f2'; borda = '#fecaca'; botao = 'Tentar de novo'; }
+  else txt = '✓ ' + (st && st.auto ? 'Salvo automaticamente' : 'Evento salvo') + (hora ? ' às ' + hora : '');
+  return /*#__PURE__*/React.createElement("div", {
+    role: "status",
+    "data-testid": "aviso-salvamento",
+    className: "aviso-salvamento",
+    style: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: (typeof window !== 'undefined' && window.innerWidth < 1024) ? 'calc(118px + env(safe-area-inset-bottom))' : 20, zIndex: 45, maxWidth: 'calc(100vw - 24px)', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 999, background: fundo, color: cor, border: '1px solid ' + borda, boxShadow: '0 6px 20px rgba(0,0,0,.12)', fontSize: 13, fontWeight: 600 }
+  }, /*#__PURE__*/React.createElement("span", null, txt), botao && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onSalvar,
+    style: { border: 0, borderRadius: 999, padding: '5px 12px', background: '#ea580c', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }
+  }, botao));
+}
+
 function ProposalTabButton({
   isActive,
   onClick
@@ -1372,6 +1402,7 @@ window.AppFull = function AppFull() {
   };
   const handleLoadEvent = async eventId => {
     console.log('🔄 [handleLoadEvent] Carregando evento:', eventId);
+    if (eventId !== state.currentEventId) await salvarPendenteAgora();
 
     // Usar ManagerHelper para pegar o manager correto (backend > local)
     const eventManager = window.ManagerHelper?.getSavedEventsManager() || window.PrecificacaoAPI?.eventManager || window.savedEventsManager;
@@ -1570,6 +1601,7 @@ window.AppFull = function AppFull() {
     }
   };
   const handleClearEvent = async () => {
+    await salvarPendenteAgora();
     if (confirm('Deseja limpar o evento atual e criar um novo?')) {
       // Limpar apenas dados específicos do evento
       state.setItems([]);
@@ -1671,16 +1703,21 @@ window.AppFull = function AppFull() {
       console.log('✅ Logo removida');
     }
   };
-  const handleSaveEvent = async eventNameParam => {
+  const handleSaveEvent = async (eventNameParam, opts) => {
+    // opts.auto = salvamento automático: sem alertas; o resultado aparece no aviso "Salvo automaticamente"
+    const auto = !!(opts && opts.auto);
     // Prevenir cliques duplos
-    if (isSavingEvent) {
+    if (isSavingEvent || salvandoAutoRef.current) {
       console.log('⏸️ [handleSaveEvent] Já está salvando, ignorando clique duplicado');
       return;
     }
+    const chaveNoInicio = chaveEventoRef.current;
+    if (auto) { salvandoAutoRef.current = true; setAutoSalvar(x => ({ ...x, status: 'salvando' })); }
     setIsSavingEvent(true);
     try {
       // VALIDAÇÃO #1: Cliente é obrigatório
       if (!state.clientData || !state.clientData.id) {
+        if (auto) { setAutoSalvar(x => ({ ...x, status: 'pendente' })); setIsSavingEvent(false); return; }
         alert('❌ ERRO: É obrigatório selecionar um cliente antes de salvar o evento!\n\nPor favor:\n1. Vá na aba "Clientes"\n2. Cadastre um cliente\n3. Volte na aba "Eventos"\n4. Selecione o cliente no campo "Cliente"');
         setIsSavingEvent(false);
         return;
@@ -1689,6 +1726,7 @@ window.AppFull = function AppFull() {
       // VALIDAÇÃO #2: Nome do evento é obrigatório
       const eventName = eventNameParam || state.eventName || '';
       if (!eventName.trim()) {
+        if (auto) { setAutoSalvar(x => ({ ...x, status: 'pendente' })); setIsSavingEvent(false); return; }
         alert('❌ ERRO: Nome do evento é obrigatório!');
         setIsSavingEvent(false);
         return;
@@ -1825,7 +1863,9 @@ window.AppFull = function AppFull() {
       }
       const result = await manager.saveEvent(eventData);
       if (result.success) {
-        alert(result.message);
+        if (!auto) alert(result.message);
+        baseEventoRef.current = chaveNoInicio;
+        setAutoSalvar({ status: 'salvo', em: new Date(), auto });
         // IMPORTANTE: Setar currentEventId para que próximos saves ATUALIZEM ao invés de criar duplicados.
         // O gerenciador da nuvem devolve { data: evento } (sem eventId); o local devolve eventId.
         const novoId = result.eventId || (result.data && result.data.id) || result.id;
@@ -1833,6 +1873,8 @@ window.AppFull = function AppFull() {
           state.setCurrentEventId(novoId);
           console.log('✅ currentEventId atualizado para:', novoId);
         }
+      } else if (auto) {
+        setAutoSalvar(x => ({ ...x, status: 'erro', msg: result.message || '' }));
       } else {
         if (result.isQuotaError) {
           alert('❌ Espaço insuficiente!\n\nPor favor, abra migrate-to-indexeddb.html para migrar seus dados para IndexedDB.');
@@ -1842,12 +1884,73 @@ window.AppFull = function AppFull() {
       }
     } catch (error) {
       console.error('❌ Erro ao salvar evento:', error);
-      alert('Erro ao salvar evento: ' + error.message);
+      if (auto) setAutoSalvar(x => ({ ...x, status: 'erro', msg: error.message || '' }));
+      else alert('Erro ao salvar evento: ' + error.message);
     } finally {
       // Sempre liberar o botão de save, mesmo em caso de erro
       setIsSavingEvent(false);
+      if (auto) salvandoAutoRef.current = false;
     }
   };
+
+  // ====================================
+  // Salvamento automático do evento (11/11/2026)
+  // Evento já salvo (tem id): 3 s depois da última alteração, salva sozinho, sem alerta.
+  // Evento novo: precisa do 1º "Salvar" (nome e cliente); até lá, avisa ao sair da página.
+  // ====================================
+  const [autoSalvar, setAutoSalvar] = React.useState({ status: 'ocioso' });
+  const [menuVersao, setMenuVersao] = React.useState(0);
+  const chaveEventoRef = React.useRef('');
+  const baseEventoRef = React.useRef(null);
+  const salvandoAutoRef = React.useRef(false);
+  const salvarEventoRef = React.useRef(null);
+  salvarEventoRef.current = handleSaveEvent;
+  React.useEffect(() => {
+    const f = () => setMenuVersao(v => v + 1);
+    window.addEventListener('menu-updated', f);
+    return () => window.removeEventListener('menu-updated', f);
+  }, []);
+  const chaveEvento = React.useMemo(() => {
+    try {
+      return JSON.stringify([state.eventName, state.eventDate, state.eventLocation, state.guests, state.monthsUntilEvent, state.proteinSafetyPct,
+        state.clientSupply, state.items, state.support, state.labor, state.transport, state.clientData && state.clientData.id,
+        state.linkedMenuId, state.linkedMenuName, menuVersao]);
+    } catch (e) { return String(Date.now()); }
+  }, [state.eventName, state.eventDate, state.eventLocation, state.guests, state.monthsUntilEvent, state.proteinSafetyPct,
+    state.clientSupply, state.items, state.support, state.labor, state.transport, state.clientData, state.linkedMenuId, state.linkedMenuName, menuVersao]);
+  chaveEventoRef.current = chaveEvento;
+  // Ao abrir/trocar de evento: espera os dados carregarem e marca como "já salvo"
+  React.useEffect(() => {
+    baseEventoRef.current = null;
+    setAutoSalvar({ status: 'ocioso' });
+    if (!state.currentEventId) return;
+    const t = setTimeout(() => { if (baseEventoRef.current == null) baseEventoRef.current = chaveEventoRef.current; }, 2500);
+    return () => clearTimeout(t);
+  }, [state.currentEventId]);
+  // Alterou algo num evento já salvo → salva sozinho 3 s depois
+  React.useEffect(() => {
+    if (!state.currentEventId || baseEventoRef.current == null || chaveEvento === baseEventoRef.current) return;
+    setAutoSalvar(x => (x.status === 'salvando' ? x : { ...x, status: 'pendente' }));
+    const t = setTimeout(() => { if (salvarEventoRef.current) salvarEventoRef.current(undefined, { auto: true }); }, 3000);
+    return () => clearTimeout(t);
+  }, [chaveEvento, state.currentEventId]);
+  // Antes de trocar de evento ou limpar: salva o que estiver pendente
+  const salvarPendenteAgora = async () => {
+    if (state.currentEventId && baseEventoRef.current != null && chaveEventoRef.current !== baseEventoRef.current && salvarEventoRef.current) {
+      try { await salvarEventoRef.current(undefined, { auto: true }); } catch (e) {}
+    }
+  };
+  // Fechar/recarregar a página com alteração não salva: o navegador pergunta
+  React.useEffect(() => {
+    const f = e => {
+      const pendente = state.currentEventId
+        ? (baseEventoRef.current != null && chaveEventoRef.current !== baseEventoRef.current)
+        : ((state.items && state.items.length > 0) && !!(state.eventName || (state.clientData && state.clientData.id)));
+      if (pendente) { e.preventDefault(); e.returnValue = ''; return ''; }
+    };
+    window.addEventListener('beforeunload', f);
+    return () => window.removeEventListener('beforeunload', f);
+  }, [state.currentEventId, state.items, state.eventName, state.clientData]);
 
   // ====================================
   // Handlers: Propostas
@@ -3512,7 +3615,13 @@ window.AppFull = function AppFull() {
     onDeleteEvent: handleDeleteEvent,
     onExportEvents: handleExportEvents,
     onClose: () => state.setShowEventsList(false)
-  }), window.ClientDetailHost && /*#__PURE__*/React.createElement(window.ClientDetailHost, null), /*#__PURE__*/React.createElement("div", {
+  }), window.ClientDetailHost && /*#__PURE__*/React.createElement(window.ClientDetailHost, null), /*#__PURE__*/React.createElement(AvisoSalvamento, {
+    st: autoSalvar,
+    temEvento: !!state.currentEventId,
+    novoComDados: !state.currentEventId && (state.items || []).length > 0,
+    aba: state.activeTab,
+    onSalvar: () => handleSaveEvent()
+  }), /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 pb-[env(safe-area-inset-bottom)] mobile-bottom-nav"
   }, /*#__PURE__*/React.createElement("div", {
     className: "safe-bottom abas-mobile"
