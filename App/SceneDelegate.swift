@@ -1,6 +1,8 @@
 import UIKit
 import Capacitor
 import Network
+import EventKit
+import EventKitUI
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -19,6 +21,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class AppViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(EscPosPrinterPlugin())
+        bridge?.registerPluginInstance(AgendaPlugin())
     }
 }
 
@@ -83,5 +86,67 @@ public class EscPosPrinterPlugin: CAPPlugin, CAPBridgedPlugin {
             if !ultimoAviso.isEmpty { msg += " (\(ultimoAviso))" }
             fim(msg)
         }
+    }
+}
+
+/// Salvar evento no Calendário do iPhone: abre a tela nativa "Novo evento" já preenchida.
+/// O usuário confere e toca em "Adicionar". No iOS 17+ essa tela não pede permissão de acesso ao Calendário.
+/// JS: Capacitor.Plugins.Agenda.adicionar({ titulo, data: '2026-12-10', inicio: '19:00' ou '' (dia inteiro),
+///     duracaoMin: 300, local, notas, alertaMin: 1440 }) → { salvo: true/false }
+@objc(AgendaPlugin)
+public class AgendaPlugin: CAPPlugin, CAPBridgedPlugin, EKEventEditViewDelegate {
+    public let identifier = "AgendaPlugin"
+    public let jsName = "Agenda"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "adicionar", returnType: CAPPluginReturnPromise)
+    ]
+    private let loja = EKEventStore()
+    private var chamada: CAPPluginCall?
+
+    @objc func adicionar(_ call: CAPPluginCall) {
+        let partes = (call.getString("data") ?? "").split(separator: "-").compactMap { Int($0) }
+        var dc = DateComponents()
+        if partes.count == 3 { dc.year = partes[0]; dc.month = partes[1]; dc.day = partes[2] }
+        guard partes.count == 3, let dia = Calendar.current.date(from: dc) else {
+            call.reject("Informe a data do evento."); return
+        }
+        let hm = (call.getString("inicio") ?? "").split(separator: ":").compactMap { Int($0) }
+        let duracaoMin = max(call.getInt("duracaoMin") ?? 300, 15)
+        let alertaMin = call.getInt("alertaMin") ?? 0
+
+        DispatchQueue.main.async {
+            guard let tela = self.bridge?.viewController else { call.reject("Tela do app indisponível."); return }
+            let ev = EKEvent(eventStore: self.loja)
+            ev.title = call.getString("titulo") ?? "Evento"
+            if let local = call.getString("local"), !local.isEmpty { ev.location = local }
+            if let notas = call.getString("notas"), !notas.isEmpty { ev.notes = notas }
+            if hm.count >= 1, hm[0] >= 0, hm[0] < 24 {
+                let inicio = Calendar.current.date(bySettingHour: hm[0], minute: hm.count > 1 ? hm[1] : 0, second: 0, of: dia) ?? dia
+                ev.isAllDay = false
+                ev.startDate = inicio
+                ev.endDate = inicio.addingTimeInterval(TimeInterval(duracaoMin * 60))
+            } else {
+                ev.isAllDay = true
+                ev.startDate = dia
+                ev.endDate = dia
+            }
+            if alertaMin > 0 { ev.addAlarm(EKAlarm(relativeOffset: -TimeInterval(alertaMin * 60))) }
+
+            let editor = EKEventEditViewController()
+            editor.eventStore = self.loja
+            editor.event = ev
+            editor.editViewDelegate = self
+            self.chamada?.resolve(["salvo": false]) // uma tela por vez
+            self.chamada = call
+            var topo = tela
+            while let p = topo.presentedViewController { topo = p }
+            topo.present(editor, animated: true)
+        }
+    }
+
+    public func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
+        controller.dismiss(animated: true)
+        chamada?.resolve(["salvo": action == .saved])
+        chamada = nil
     }
 }
