@@ -2357,7 +2357,12 @@ window.AppFull = function AppFull() {
   }, naVenda ? "Painel" : "Resumo e empresa")), /*#__PURE__*/React.createElement("div", {
     className: `lg:w-96 bg-white shadow-2xl overflow-y-auto ${state.activeTab === 'config' ? 'block' : 'hidden'} ${encolhido ? 'lg:hidden' : 'lg:block'} pb-20 lg:pb-0 mobile-nav-spacer`,
     "data-painel": encolhido ? 'encolhido' : 'aberto'
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "lg:hidden w-full text-left px-4 py-3 bg-orange-50 text-orange-700 font-semibold text-sm border-b border-orange-100",
+    onClick: () => window.TabOrder && window.TabOrder.abrir(),
+    "data-testid": "abrir-reordenar"
+  }, "\u21C5 Reordenar o menu de baixo"), /*#__PURE__*/React.createElement("div", {
     className: "p-6 bg-gradient-to-br from-orange-600 to-red-600 text-white relative"
   }, /*#__PURE__*/React.createElement("button", {
     type: "button",
@@ -3129,7 +3134,7 @@ window.AppFull = function AppFull() {
   }, "\u2728 Vantagens:"), /*#__PURE__*/React.createElement("ul", {
     className: "text-green-800 text-xs space-y-0.5"
   }, /*#__PURE__*/React.createElement("li", null, "\u2022 Abre em tela cheia"), /*#__PURE__*/React.createElement("li", null, "\u2022 Mais r\xE1pido de acessar"), /*#__PURE__*/React.createElement("li", null, "\u2022 Funciona offline"), /*#__PURE__*/React.createElement("li", null, "\u2022 Parece app nativo")))))))), /*#__PURE__*/React.createElement("div", {
-    className: "hidden lg:flex flex-wrap gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg"
+    className: "hidden lg:flex flex-wrap gap-2 mb-6 bg-white rounded-xl p-2 shadow-lg abas-desktop"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => state.setActiveTab('calendar'),
     "data-tab": "calendar",
@@ -3210,7 +3215,13 @@ window.AppFull = function AppFull() {
     isActive: state.activeTab === 'proposals',
     onClick: () => state.setActiveTab('proposals'),
     "data-tab": "proposals"
-  })), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "abas-reordenar flex items-center px-2 py-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 text-sm",
+    title: "Reordenar o menu",
+    "aria-label": "Reordenar o menu",
+    onClick: () => window.TabOrder && window.TabOrder.abrir()
+  }, "\u21C5")), state.activeTab === 'ingredients' && /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement(IngredientsDatabase, {
     groupedIngredients: groupedIngredients,
@@ -3504,7 +3515,7 @@ window.AppFull = function AppFull() {
   }), window.ClientDetailHost && /*#__PURE__*/React.createElement(window.ClientDetailHost, null), /*#__PURE__*/React.createElement("div", {
     className: "lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 pb-[env(safe-area-inset-bottom)] mobile-bottom-nav"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "safe-bottom"
+    className: "safe-bottom abas-mobile"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex justify-around items-center py-1.5 px-1 border-b border-gray-100"
   }, /*#__PURE__*/React.createElement("button", {
@@ -3688,6 +3699,7 @@ window.AppFull = function AppFull() {
   }, "Propostas")), /*#__PURE__*/React.createElement("button", {
     // Empresa: no celular o painel lateral (dados da empresa, suporte, manual) não aparecia
     onClick: () => { state.setActiveTab('config'); try { window.scrollTo(0, 0); } catch (e) {} },
+    "data-tab": "config",
     className: `flex flex-col items-center justify-center px-1.5 py-1.5 rounded-lg transition-all flex-1 min-h-[44px] ${state.activeTab === 'config' ? 'text-orange-600 bg-orange-50' : 'text-gray-600'}`
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm"
