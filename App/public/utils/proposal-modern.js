@@ -199,7 +199,7 @@ function pmRender(p, opts) {
   // 2. Resumo
   var primeiro = String(cliente).split(' ')[0];
   html += '<div class="pm-pg"><div class="pm-main"><div class="pm-kicker">Seu evento em resumo</div><h2>Olá, ' + esc(primeiro) + '!</h2>' +
-    '<p class="pm-lead">Preparei esta proposta especialmente para você. Aqui estão o cardápio, o que está incluso, o investimento e as formas de pagamento. Qualquer dúvida, estou à disposição.</p>' +
+    '<p class="pm-lead">Preparei esta proposta especialmente para você. Aqui estão ' + (dishes.length ? 'o cardápio, o que está incluso' : (p.serviceOnly ? 'os serviços' : 'o que está incluso')) + ', o investimento e as formas de pagamento. Qualquer dúvida, estou à disposição.</p>' +
     '<div class="pm-stats">' +
     '<div class="pm-stat"><small>Data</small><b>' + (pmDate(p.eventDate) || 'A definir') + '</b></div>' +
     '<div class="pm-stat"><small>Local</small><b>' + (esc(p.eventLocation) || 'A definir') + '</b></div>' +
@@ -207,7 +207,7 @@ function pmRender(p, opts) {
     (p.eventDuration || p.serviceStartTime ? '<div class="pm-stats">' + (p.serviceStartTime ? '<div class="pm-stat"><small>Início</small><b>' + esc(p.serviceStartTime) + '</b></div>' : '') + (p.eventDuration ? '<div class="pm-stat"><small>Duração</small><b>' + esc(p.eventDuration) + ' horas</b></div>' : '') + '</div>' : '') +
     (total > 0 ? '<div class="pm-price"><div><small>Investimento total</small><div class="pm-v">' + pmBrl(total) + '</div></div>' + (guests ? '<div class="pm-pp">por pessoa<b>' + pmBrl(pp) + '</b></div>' : '') + '</div>' : '') +
     '<div class="pm-two">' +
-    (inc.itens.length ? '<div class="pm-box"><h4>O que está incluso</h4><ul>' + inc.itens.map(function (i) { return '<li><span class="pm-ck">✓</span>' + esc(i) + '</li>'; }).join('') + '</ul></div>' : '') +
+    (inc.itens.length ? '<div class="pm-box"><h4>' + (p.serviceOnly ? 'Serviços' : 'O que está incluso') + '</h4><ul>' + inc.itens.map(function (i) { return '<li><span class="pm-ck">✓</span>' + esc(i) + '</li>'; }).join('') + '</ul></div>' : '') +
     (cats.length ? '<div class="pm-box"><h4>Cardápio</h4><ul>' + resumoMenu + '</ul></div>' : '') +
     '</div></div>' + rodape() + '</div>';
 

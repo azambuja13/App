@@ -37,6 +37,11 @@ function ProposalBuilderSimple({
     laborCost: 0,
     transportCost: 0,
     itemsCostPerPerson: 0,
+    // Proposta só de serviço (nov/2026): sem cardápio; o valor é a soma dos serviços
+    serviceOnly: false,
+    services: [{ desc: '', valor: '' }],
+    serviceCost: '',
+    showServicePrices: false,
     inflationMonths: null, // null = automático pela data do evento
     proteinSafetyPct: null, // margem de segurança das proteínas (%); null = a das regras (Custos da empresa)
     clientName: '',
@@ -282,6 +287,10 @@ function ProposalBuilderSimple({
         eventLocation: proposal.eventLocation || '',
         guests: proposal.guests || 0,
         observations: proposal.observations || '',
+        serviceOnly: !!proposal.serviceOnly,
+        services: Array.isArray(proposal.services) && proposal.services.length ? proposal.services.map(sv => ({ desc: sv.desc || '', valor: Number(sv.valor) > 0 ? __n2PB(sv.valor) : '' })) : [{ desc: '', valor: '' }],
+        serviceCost: Number(proposal.serviceCost) > 0 ? __n2PB(proposal.serviceCost) : '',
+        showServicePrices: !!proposal.showServicePrices,
         markupPercent: proposal.markupPercent || 0,
         targetTotal: Number(proposal.targetTotal) > 0 ? Number(proposal.targetTotal) : null,
         companyName: proposal.companyName || '',
@@ -502,7 +511,35 @@ function ProposalBuilderSimple({
       return { menu: PR.menuShareBase(dishes, db, pred), protein: PR.menuShareBase(dishes, db, (ing, cat) => PR.isProteinCategory(cat) && pred(ing, cat)) };
     } catch (e) { return zero; }
   };
+  // ---------- Proposta só de serviço (nov/2026) ----------
+  const valorBR = v => {
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    const t = String(v || '').replace(/[^\d,.]/g, '');
+    if (!t) return 0;
+    const n = t.includes(',') ? parseFloat(t.replace(/\./g, '').replace(',', '.')) : parseFloat(t.replace(/\.(?=\d{3}(\D|$))/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
+  const servicosDe = fd => (Array.isArray(fd.services) ? fd.services : [])
+    .map(sv => ({ desc: String((sv && sv.desc) || '').trim(), valor: Math.max(0, valorBR(sv && sv.valor)) }))
+    .filter(sv => sv.desc || sv.valor > 0);
+  const calcServico = fd => {
+    const st = pricingSettings || {};
+    const r2 = v => Math.round(v * 100) / 100;
+    const fin = r2(servicosDe(fd).reduce((t, sv) => t + sv.valor, 0));
+    const custo = r2(Math.max(0, valorBR(fd.serviceCost)));
+    const g = parseInt(fd.guests) || 0;
+    const pctSum = (Number(st.taxesPct) || 0) + (Number(st.cardFeesPct) || 0) + (Number(st.fixedCostsPct) || 0);
+    const ded = r2(fin * pctSum / 100);
+    const profit = r2(fin - custo - ded);
+    return { serviceOnly: true, mode: 'servico', type: 'servico', guests: g, months: 0, inflationFactor: 1,
+      foodCost: 0, foodPrice: 0, support: 0, labor: custo, transport: 0, servicesPrice: fin, inflationAmount: 0, prepFee: 0,
+      directCost: custo, subtotal: fin, extraPct: 0, finalTotal: fin, finalTotalRounded: Math.ceil(fin - 1e-9),
+      salesDeductions: ded, profit, profitPct: fin > 0 ? r2(profit / fin * 100) : 0,
+      markupOnCostPct: custo > 0 ? r2((fin / custo - 1) * 100) : 0, cmvPct: 0,
+      pricePerPerson: g > 0 ? r2(fin / g) : 0, divisorInvalid: false, doubleMargin: false, noProfit: fin > 0 && profit <= 0.009 };
+  };
   const computeProposal = (fd = formData, rulesOverride = null) => {
+    if (fd.serviceOnly) return calcServico(fd);
     const stats = fd.selectedMenuData?.stats || {};
     // Proposta antiga sem os números do cardápio salvos: mantém o valor gravado (não recalcula às cegas)
     if (proposal && (!(Number(stats.totalCost) > 0) || (legacySigRef.current && pricingSig(fd) === legacySigRef.current))) {
@@ -799,11 +836,21 @@ function ProposalBuilderSimple({
       alert('❌ Por favor, digite um nome para a proposta');
       return;
     }
-    if (!formData.selectedMenuId) {
-      alert('❌ Por favor, selecione um cardápio');
+    if (formData.serviceOnly) {
+      const svs = servicosDe(formData);
+      if (!svs.some(sv => sv.desc)) {
+        alert('❌ Descreva pelo menos um serviço');
+        return;
+      }
+      if (!svs.some(sv => sv.valor > 0)) {
+        alert('❌ Informe o valor dos serviços');
+        return;
+      }
+    } else if (!formData.selectedMenuId) {
+      alert('❌ Por favor, selecione um cardápio (ou escolha "Só serviço")');
       return;
     }
-    if (!formData.guests || formData.guests <= 0) {
+    if (!formData.serviceOnly && (!formData.guests || formData.guests <= 0)) {
       alert('❌ Por favor, informe o número de convidados');
       return;
     }
@@ -947,6 +994,28 @@ function ProposalBuilderSimple({
         finalTotal: roundedFinalTotal
         // dishes já foi definido na linha 384 - não duplicar aqui!
       };
+      if (formData.serviceOnly) {
+        // Só serviço: sem cardápio; os serviços aparecem na proposta em "O que está incluso"
+        const svs = servicosDe(formData).filter(sv => sv.desc);
+        Object.assign(proposalData, {
+          serviceOnly: true,
+          services: svs,
+          serviceCost: calcSaved.directCost,
+          showServicePrices: !!formData.showServicePrices,
+          includedItems: svs.map(sv => formData.showServicePrices && sv.valor > 0 ? sv.desc + ' — R$ ' + __n2PB(sv.valor) : sv.desc),
+          selectedMenuId: null,
+          selectedMenuData: null,
+          dishes: [],
+          totalType: 'servico',
+          guests: parseInt(formData.guests) || 0,
+          laborCost: calcSaved.directCost, supportCost: 0, transportCost: 0, itemsCostPerPerson: 0, ingredientsCost: 0,
+          clientSupply: null, clientSupplyList: null, prepFee: 0,
+          markup: 0, markupPercent: 0, targetTotal: null
+        });
+      } else if (proposal && proposal.serviceOnly) {
+        // voltou a ter cardápio: some a lista de serviços
+        Object.assign(proposalData, { serviceOnly: false, services: [], includedItems: [] });
+      }
       console.log('📝 Objeto proposalData antes de salvar:', proposalData);
       console.log('🆔 proposalData.id:', proposalData.id, '(null = criar novo, UUID = atualizar existente)');
       console.log('📊 proposalData.status:', proposalData.status, '(sempre "draft" ao salvar/editar)');
@@ -1001,6 +1070,74 @@ function ProposalBuilderSimple({
     };
     return `${icons[type] || '🍽️'} ${type}`;
   };
+  // ---------- Proposta só de serviço: botões, lista de serviços e resumo do preço ----------
+  const brlS = v => 'R$ ' + __n2PB(v);
+  const modoToggle = () => {
+    const h = React.createElement;
+    const btn = (on, label, val, tid) => h('button', {
+      type: 'button', 'data-testid': tid, 'aria-pressed': on,
+      onClick: () => { legacySigRef.current = null; setFormData(prev => ({ ...prev, serviceOnly: val, services: Array.isArray(prev.services) && prev.services.length ? prev.services : [{ desc: '', valor: '' }] })); },
+      className: 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-colors ' + (on ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50')
+    }, label);
+    return h('div', { className: 'flex gap-2 mb-3' },
+      btn(!formData.serviceOnly, '\uD83C\uDF7D\uFE0F Com card\xE1pio', false, 'modo-cardapio'),
+      btn(!!formData.serviceOnly, '\uD83E\uDDD1\u200D\uD83C\uDF73 S\xF3 servi\xE7o', true, 'modo-servico'));
+  };
+  const servicosEditor = () => {
+    const h = React.createElement;
+    const vazio = { desc: '', valor: '' };
+    const lista = Array.isArray(formData.services) && formData.services.length ? formData.services : [vazio];
+    const muda = (i, campo, v) => setFormData(prev => {
+      const l = [...(Array.isArray(prev.services) && prev.services.length ? prev.services : [vazio])];
+      l[i] = { ...l[i], [campo]: v };
+      return { ...prev, services: l };
+    });
+    const soma = servicosDe(formData).reduce((t, sv) => t + sv.valor, 0);
+    return h('div', { className: 'bg-orange-50 rounded-lg p-4 border-2 border-orange-200', 'data-testid': 'servicos' },
+      h('p', { className: 'text-xs text-gray-600 mb-3' }, 'Proposta sem card\xE1pio: liste o que voc\xEA vai fazer e quanto cobra por cada item. O valor da proposta \xE9 a soma.'),
+      lista.map((sv, i) => h('div', { key: i, className: 'flex gap-2 mb-2 items-center' },
+        h('input', { type: 'text', value: sv.desc || '', onChange: e => muda(i, 'desc', e.target.value), 'aria-label': 'Servi\xE7o ' + (i + 1), 'data-testid': 'servico-desc',
+          placeholder: i === 0 ? 'Ex.: Churrasqueiro e equipe (6 horas)' : 'Servi\xE7o',
+          className: 'flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500' }),
+        h('input', { type: 'text', inputMode: 'decimal', value: sv.valor == null ? '' : String(sv.valor), onChange: e => muda(i, 'valor', e.target.value),
+          'aria-label': 'Valor do servi\xE7o ' + (i + 1), 'data-testid': 'servico-valor', placeholder: 'R$ 0,00',
+          className: 'w-28 shrink-0 px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-orange-500' }),
+        h('button', { type: 'button', title: 'Remover', 'aria-label': 'Remover servi\xE7o ' + (i + 1),
+          onClick: () => setFormData(prev => { const l = (prev.services || []).filter((_, k) => k !== i); return { ...prev, services: l.length ? l : [vazio] }; }),
+          className: 'shrink-0 px-2 py-2 text-gray-400 hover:text-red-600' }, '\u2715'))),
+      h('button', { type: 'button', 'data-testid': 'add-servico', onClick: () => setFormData(prev => ({ ...prev, services: [...(Array.isArray(prev.services) && prev.services.length ? prev.services : [vazio]), vazio] })),
+        className: 'text-sm font-semibold text-orange-700 hover:underline' }, '+ Adicionar servi\xE7o'),
+      h('div', { className: 'flex justify-between mt-3 pt-3 border-t border-orange-200 font-bold text-gray-800' },
+        h('span', null, 'Total dos servi\xE7os'), h('span', { 'data-testid': 'total-servicos' }, brlS(soma))));
+  };
+  const servicosResumo = () => {
+    const h = React.createElement;
+    const R = computeProposal();
+    const st = pricingSettings || {};
+    const pct = v => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+    const sumPct = (Number(st.taxesPct) || 0) + (Number(st.cardFeesPct) || 0) + (Number(st.fixedCostsPct) || 0);
+    const line = (label, value, opts = {}) => h('div', { className: 'flex justify-between gap-3' + (opts.muted ? ' text-gray-500' : ''), key: label },
+      h('span', null, label), h('span', { className: opts.bold ? 'font-bold' : 'font-semibold' }, value));
+    return h('div', { className: 'bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 border-2 border-orange-300', 'data-testid': 'resumo-servico' },
+      h('h3', { className: 'text-lg font-bold text-gray-800 mb-3' }, '\uD83D\uDCB0 Pre\xE7o da proposta'),
+      h('div', { className: 'space-y-2 text-sm' },
+        h('label', { className: 'text-xs text-gray-600 block' }, 'Seu custo para fazer o servi\xE7o (equipe, transporte, material) \u2014 opcional, para ver o lucro',
+          h('input', { type: 'text', inputMode: 'decimal', 'data-testid': 'custo-servico', value: formData.serviceCost == null ? '' : String(formData.serviceCost),
+            onChange: e => handleChange('serviceCost', e.target.value), placeholder: 'R$ 0,00',
+            className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
+        h('label', { className: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer pt-1' },
+          h('input', { type: 'checkbox', checked: !!formData.showServicePrices, onChange: e => handleChange('showServicePrices', e.target.checked), className: 'w-5 h-5 text-orange-600 border-gray-300 rounded' }),
+          'Mostrar o valor de cada servi\xE7o na proposta'),
+        h('div', { className: 'mt-4 pt-4 border-t-2 border-green-400 flex justify-between bg-green-50 rounded-lg p-3' },
+          h('span', { className: 'text-lg font-bold text-green-800' }, 'VALOR FINAL'),
+          h('span', { className: 'text-2xl font-bold text-green-600' }, 'R$ ', (R.finalTotalRounded || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }))),
+        R.guests > 0 ? line('Por pessoa', brlS(R.pricePerPerson), { muted: true }) : null,
+        h('div', { className: 'mt-3 p-3 rounded-lg ' + (R.noProfit ? 'bg-red-50 border border-red-300' : 'bg-white border border-gray-200') },
+          R.directCost > 0 ? line('Seu custo', '\u2212 ' + brlS(R.directCost), { muted: true }) : null,
+          sumPct > 0 ? line('Impostos, taxas e custos fixos (' + pct(sumPct) + ' do pre\xE7o)', '\u2212 ' + brlS(R.salesDeductions), { muted: true }) : null,
+          line('Lucro estimado', brlS(R.profit) + ' (' + pct(R.profitPct) + ')', { bold: true }),
+          R.noProfit ? h('p', { className: 'text-red-700 text-xs font-semibold mt-1' }, '\u26A0\uFE0F Proposta SEM LUCRO: o valor dos servi\xE7os n\xE3o cobre o custo.') : null)));
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: "proposal-builder-simple"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1009,7 +1146,7 @@ function ProposalBuilderSimple({
     className: "text-2xl font-bold text-gray-800 mb-2"
   }, proposal ? '✏️ Editar Proposta' : '➕ Nova Proposta'), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600"
-  }, "Selecione um card\xE1pio salvo e configure os dados do cliente")), /*#__PURE__*/React.createElement("div", {
+  }, "Selecione um card\xE1pio salvo (ou fa\xE7a uma proposta s\xF3 de servi\xE7o) e configure os dados do cliente")), /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-gray-700 mb-2"
@@ -1021,7 +1158,7 @@ function ProposalBuilderSimple({
     className: "w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-gray-700 mb-2"
-  }, "\uD83D\uDCDA Card\xE1pio *"), formData.selectedMenuData ? /*#__PURE__*/React.createElement("div", {
+  }, formData.serviceOnly ? "\uD83E\uDDD1\u200D\uD83C\uDF73 Servi\xE7os *" : "\uD83D\uDCDA Card\xE1pio *"), modoToggle(), formData.serviceOnly ? servicosEditor() : formData.selectedMenuData ? /*#__PURE__*/React.createElement("div", {
     className: "bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border-2 border-purple-300"
   }, (() => {
     console.log('🟣 [Render Card] formData.selectedMenuData:', formData.selectedMenuData);
@@ -1166,7 +1303,7 @@ function ProposalBuilderSimple({
   })()) : /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenuSelector(!showMenuSelector),
     className: "w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors"
-  }, "\u2795 Selecionar Card\xE1pio Salvo"), showMenuSelector && !formData.selectedMenuData && /*#__PURE__*/React.createElement("div", {
+  }, "\u2795 Selecionar Card\xE1pio Salvo"), !formData.serviceOnly && showMenuSelector && !formData.selectedMenuData && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 max-h-96 overflow-y-auto space-y-2"
   }, savedMenus.length === 0 ? /*#__PURE__*/React.createElement("p", {
     className: "text-center text-gray-500 py-4"
@@ -1257,7 +1394,7 @@ function ProposalBuilderSimple({
     className: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-1"
-  }, "Convidados *"), /*#__PURE__*/React.createElement("input", {
+  }, formData.serviceOnly ? "Convidados" : "Convidados *"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: formData.guests,
     onChange: e => handleChange('guests', e.target.value),
@@ -1459,7 +1596,7 @@ function ProposalBuilderSimple({
     className: "w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
   }), /*#__PURE__*/React.createElement("span", {
     className: "text-sm text-gray-700"
-  }, "Foto Produtos/Servi\xE7os")))), formData.selectedMenuData && formData.guests > 0 && (() => {
+  }, "Foto Produtos/Servi\xE7os")))), formData.serviceOnly ? servicosResumo() : formData.selectedMenuData && formData.guests > 0 && (() => {
     // ✅ Resumo de preço da proposta (out/2026): custo real, preço, lucro, CMV e avisos
     const h = React.createElement;
     const R = computeProposal();
