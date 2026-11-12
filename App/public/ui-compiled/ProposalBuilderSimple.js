@@ -42,6 +42,7 @@ function ProposalBuilderSimple({
     services: [{ desc: '', valor: '' }],
     serviceCost: '',
     showServicePrices: false,
+    serviceIncludeSupport: true, // soma o que está na aba Apoio (apoio e logística, mão de obra, transporte)
     inflationMonths: null, // null = automático pela data do evento
     proteinSafetyPct: null, // margem de segurança das proteínas (%); null = a das regras (Custos da empresa)
     clientName: '',
@@ -291,6 +292,7 @@ function ProposalBuilderSimple({
         services: Array.isArray(proposal.services) && proposal.services.length ? proposal.services.map(sv => ({ desc: sv.desc || '', valor: Number(sv.valor) > 0 ? __n2PB(sv.valor) : '' })) : [{ desc: '', valor: '' }],
         serviceCost: Number(proposal.serviceCost) > 0 ? __n2PB(proposal.serviceCost) : '',
         showServicePrices: !!proposal.showServicePrices,
+        serviceIncludeSupport: proposal.serviceIncludeSupport !== false,
         markupPercent: proposal.markupPercent || 0,
         targetTotal: Number(proposal.targetTotal) > 0 ? Number(proposal.targetTotal) : null,
         companyName: proposal.companyName || '',
@@ -522,21 +524,46 @@ function ProposalBuilderSimple({
   const servicosDe = fd => (Array.isArray(fd.services) ? fd.services : [])
     .map(sv => ({ desc: String((sv && sv.desc) || '').trim(), valor: Math.max(0, valorBR(sv && sv.valor)) }))
     .filter(sv => sv.desc || sv.valor > 0);
+  // Apoio do evento (aba Apoio: apoio e logística, mão de obra, transporte) com as mesmas regras de preço
+  // da proposta com cardápio: markup de serviços (modo Markup) ou divisor (modo Custos da empresa)
+  const apoioServico = fd => {
+    const sup = Number(fd.supportCost) || 0, lab = Number(fd.laborCost) || 0, tra = Number(fd.transportCost) || 0;
+    const zero = { directCost: 0, finalTotal: 0, support: 0, labor: 0, transport: 0, inflationAmount: 0, months: 0, divisorInvalid: false };
+    if (fd.serviceIncludeSupport === false || !(sup + lab + tra > 0)) return { ...zero, disponivel: sup + lab + tra };
+    const r = window.PricingRules ? window.PricingRules.calcProposal({ perPersonCost: 0, perPersonPrice: 0, itemsCostPerPerson: 0, prepFee: 0,
+      guests: parseInt(fd.guests) || 0, totalType: 'menu_cost', supportCost: sup, laborCost: lab, transportCost: tra,
+      months: monthsFor(fd), pricingMode: fd.pricingMode, extraPct: 0, settings: pricingSettings || {} })
+      : { ...zero, directCost: sup + lab + tra, finalTotal: sup + lab + tra, support: sup, labor: lab, transport: tra };
+    return { ...r, disponivel: sup + lab + tra };
+  };
   const calcServico = fd => {
     const st = pricingSettings || {};
     const r2 = v => Math.round(v * 100) / 100;
-    const fin = r2(servicosDe(fd).reduce((t, sv) => t + sv.valor, 0));
-    const custo = r2(Math.max(0, valorBR(fd.serviceCost)));
+    const manual = r2(servicosDe(fd).reduce((t, sv) => t + sv.valor, 0));
+    const extraCost = r2(Math.max(0, valorBR(fd.serviceCost)));
+    const ap = apoioServico(fd);
+    const apoioPreco = r2(Number(ap.finalTotal) || 0), apoioCusto = r2(Number(ap.directCost) || 0);
+    const fin = r2(manual + apoioPreco);
+    const custo = r2(extraCost + apoioCusto);
     const g = parseInt(fd.guests) || 0;
     const pctSum = (Number(st.taxesPct) || 0) + (Number(st.cardFeesPct) || 0) + (Number(st.fixedCostsPct) || 0);
     const ded = r2(fin * pctSum / 100);
     const profit = r2(fin - custo - ded);
-    return { serviceOnly: true, mode: 'servico', type: 'servico', guests: g, months: 0, inflationFactor: 1,
-      foodCost: 0, foodPrice: 0, support: 0, labor: custo, transport: 0, servicesPrice: fin, inflationAmount: 0, prepFee: 0,
+    return { serviceOnly: true, mode: fd.pricingMode === 'divisor' ? 'divisor' : 'markup', type: 'servico', guests: g, months: ap.months || 0, inflationFactor: 1,
+      foodCost: 0, foodPrice: 0, support: r2(ap.support || 0), labor: r2(ap.labor || 0), transport: r2(ap.transport || 0),
+      servicesPrice: fin, inflationAmount: r2(ap.inflationAmount || 0), prepFee: 0,
+      manual, extraCost, apoioCusto, apoioPreco, apoioDisponivel: r2(ap.disponivel || 0),
       directCost: custo, subtotal: fin, extraPct: 0, finalTotal: fin, finalTotalRounded: Math.ceil(fin - 1e-9),
       salesDeductions: ded, profit, profitPct: fin > 0 ? r2(profit / fin * 100) : 0,
       markupOnCostPct: custo > 0 ? r2((fin / custo - 1) * 100) : 0, cmvPct: 0,
-      pricePerPerson: g > 0 ? r2(fin / g) : 0, divisorInvalid: false, doubleMargin: false, noProfit: fin > 0 && profit <= 0.009 };
+      pricePerPerson: g > 0 ? r2(fin / g) : 0, divisorInvalid: !!ap.divisorInvalid, doubleMargin: false, noProfit: fin > 0 && profit <= 0.009 };
+  };
+  // Linhas do "O que está incluso" vindas do Apoio (com o valor cobrado, se a pessoa quiser mostrar)
+  const linhasApoio = (fd, R) => {
+    if (!(R.apoioPreco > 0)) return [];
+    const partes = [['Equipe / m\xE3o de obra', R.labor], ['Apoio e log\xEDstica', R.support], ['Transporte', R.transport]].filter(x => x[1] > 0);
+    const custoTot = partes.reduce((t, x) => t + x[1], 0) || 1;
+    return partes.map(([nome, c]) => fd.showServicePrices ? nome + ' \u2014 R$ ' + __n2PB(R.apoioPreco * c / custoTot) : nome);
   };
   const computeProposal = (fd = formData, rulesOverride = null) => {
     if (fd.serviceOnly) return calcServico(fd);
@@ -838,12 +865,12 @@ function ProposalBuilderSimple({
     }
     if (formData.serviceOnly) {
       const svs = servicosDe(formData);
-      if (!svs.some(sv => sv.desc)) {
-        alert('❌ Descreva pelo menos um serviço');
+      if (svs.some(sv => sv.valor > 0 && !sv.desc)) {
+        alert('❌ Descreva todos os serviços que têm valor');
         return;
       }
-      if (!svs.some(sv => sv.valor > 0)) {
-        alert('❌ Informe o valor dos serviços');
+      if (!(calcServico(formData).finalTotal > 0)) {
+        alert('❌ Informe o valor dos serviços (ou monte o Apoio do evento na aba Apoio)');
         return;
       }
     } else if (!formData.selectedMenuId) {
@@ -1000,15 +1027,19 @@ function ProposalBuilderSimple({
         Object.assign(proposalData, {
           serviceOnly: true,
           services: svs,
-          serviceCost: calcSaved.directCost,
+          serviceCost: calcSaved.extraCost,
           showServicePrices: !!formData.showServicePrices,
-          includedItems: svs.map(sv => formData.showServicePrices && sv.valor > 0 ? sv.desc + ' — R$ ' + __n2PB(sv.valor) : sv.desc),
+          serviceIncludeSupport: formData.serviceIncludeSupport !== false,
+          supportPrice: calcSaved.apoioPreco,
+          includedItems: svs.map(sv => formData.showServicePrices && sv.valor > 0 ? sv.desc + ' — R$ ' + __n2PB(sv.valor) : sv.desc).concat(linhasApoio(formData, calcSaved)),
           selectedMenuId: null,
           selectedMenuData: null,
           dishes: [],
           totalType: 'servico',
           guests: parseInt(formData.guests) || 0,
-          laborCost: calcSaved.directCost, supportCost: 0, transportCost: 0, itemsCostPerPerson: 0, ingredientsCost: 0,
+          // custos do Apoio guardados na proposta (editar depois não depende do evento aberto)
+          laborCost: Number(formData.laborCost) || 0, supportCost: Number(formData.supportCost) || 0, transportCost: Number(formData.transportCost) || 0,
+          itemsCostPerPerson: 0, ingredientsCost: 0,
           clientSupply: null, clientSupplyList: null, prepFee: 0,
           markup: 0, markupPercent: 0, targetTotal: null
         });
@@ -1094,7 +1125,7 @@ function ProposalBuilderSimple({
     });
     const soma = servicosDe(formData).reduce((t, sv) => t + sv.valor, 0);
     return h('div', { className: 'bg-orange-50 rounded-lg p-4 border-2 border-orange-200', 'data-testid': 'servicos' },
-      h('p', { className: 'text-xs text-gray-600 mb-3' }, 'Proposta sem card\xE1pio: liste o que voc\xEA vai fazer e quanto cobra por cada item. O valor da proposta \xE9 a soma.'),
+      h('p', { className: 'text-xs text-gray-600 mb-3' }, 'Proposta sem card\xE1pio: liste o que voc\xEA vai fazer e quanto cobra por cada item. O que est\xE1 na aba Apoio (apoio e log\xEDstica, m\xE3o de obra, transporte) entra no pre\xE7o abaixo.'),
       lista.map((sv, i) => h('div', { key: i, className: 'flex gap-2 mb-2 items-center' },
         h('input', { type: 'text', value: sv.desc || '', onChange: e => muda(i, 'desc', e.target.value), 'aria-label': 'Servi\xE7o ' + (i + 1), 'data-testid': 'servico-desc',
           placeholder: i === 0 ? 'Ex.: Churrasqueiro e equipe (6 horas)' : 'Servi\xE7o',
@@ -1108,7 +1139,7 @@ function ProposalBuilderSimple({
       h('button', { type: 'button', 'data-testid': 'add-servico', onClick: () => setFormData(prev => ({ ...prev, services: [...(Array.isArray(prev.services) && prev.services.length ? prev.services : [vazio]), vazio] })),
         className: 'text-sm font-semibold text-orange-700 hover:underline' }, '+ Adicionar servi\xE7o'),
       h('div', { className: 'flex justify-between mt-3 pt-3 border-t border-orange-200 font-bold text-gray-800' },
-        h('span', null, 'Total dos servi\xE7os'), h('span', { 'data-testid': 'total-servicos' }, brlS(soma))));
+        h('span', null, 'Servi\xE7os digitados'), h('span', { 'data-testid': 'total-servicos' }, brlS(soma))));
   };
   const servicosResumo = () => {
     const h = React.createElement;
@@ -1118,10 +1149,31 @@ function ProposalBuilderSimple({
     const sumPct = (Number(st.taxesPct) || 0) + (Number(st.cardFeesPct) || 0) + (Number(st.fixedCostsPct) || 0);
     const line = (label, value, opts = {}) => h('div', { className: 'flex justify-between gap-3' + (opts.muted ? ' text-gray-500' : ''), key: label },
       h('span', null, label), h('span', { className: opts.bold ? 'font-bold' : 'font-semibold' }, value));
+    const modeBtn = (id, label) => h('div', { role: 'button', key: id, onClick: () => handleChange('pricingMode', id),
+      style: { flex: '1 1 150px', cursor: 'pointer', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 700, textAlign: 'center', border: '2px solid ' + (formData.pricingMode === id ? '#ea580c' : '#e5e7eb'), background: formData.pricingMode === id ? '#fff7ed' : '#fff', color: '#111827' } },
+      (formData.pricingMode === id ? '\u25CF ' : '\u25CB ') + label);
+    const incluiApoio = formData.serviceIncludeSupport !== false;
     return h('div', { className: 'bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-6 border-2 border-orange-300', 'data-testid': 'resumo-servico' },
       h('h3', { className: 'text-lg font-bold text-gray-800 mb-3' }, '\uD83D\uDCB0 Pre\xE7o da proposta'),
       h('div', { className: 'space-y-2 text-sm' },
-        h('label', { className: 'text-xs text-gray-600 block' }, 'Seu custo para fazer o servi\xE7o (equipe, transporte, material) \u2014 opcional, para ver o lucro',
+        line('Servi\xE7os digitados', brlS(R.manual)),
+        h('div', { className: 'rounded-lg border border-teal-200 bg-white p-3 space-y-1', 'data-testid': 'apoio-servico' },
+          h('label', { className: 'flex items-center gap-2 font-semibold text-gray-800 cursor-pointer' },
+            h('input', { type: 'checkbox', 'data-testid': 'incluir-apoio', checked: incluiApoio, onChange: e => handleChange('serviceIncludeSupport', e.target.checked), className: 'w-5 h-5 text-teal-600 border-gray-300 rounded' }),
+            'Incluir o que est\xE1 em Apoio'),
+          !incluiApoio ? h('p', { className: 'text-xs text-gray-500' }, 'Apoio do evento n\xE3o entra nesta proposta' + (R.apoioDisponivel > 0 ? ' (custo de ' + brlS(R.apoioDisponivel) + ').' : '.'))
+          : R.apoioDisponivel > 0 ? h(React.Fragment, null,
+              R.support > 0 ? line('Apoio e log\xEDstica \u2014 custo', brlS(R.support), { muted: true }) : null,
+              R.labor > 0 ? line('M\xE3o de obra \u2014 custo', brlS(R.labor), { muted: true }) : null,
+              R.transport > 0 ? line('Transporte \u2014 custo', brlS(R.transport), { muted: true }) : null,
+              h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' } },
+                modeBtn('markup', 'Markup de servi\xE7os' + ((Number(st.serviceMarkupPct) || 0) > 0 ? ' (' + pct(st.serviceMarkupPct) + ')' : '')),
+                modeBtn('divisor', 'Custos da empresa')),
+              R.inflationAmount > 0 ? line('Corre\xE7\xE3o at\xE9 o evento \u2014 j\xE1 inclu\xEDda', brlS(R.inflationAmount), { muted: true }) : null,
+              line('Apoio cobrado', brlS(R.apoioPreco), { bold: true }),
+              R.divisorInvalid ? h('p', { className: 'text-red-700 text-xs' }, '\u26A0\uFE0F A soma de impostos, taxas, custos fixos e lucro passou de 95%. Revise os custos da empresa.') : null)
+          : h('p', { className: 'text-xs text-gray-500' }, 'O evento aberto n\xE3o tem nada em Apoio. Monte apoio, m\xE3o de obra e transporte na aba Apoio' + (proposal ? ' e use "Puxar dados do evento".' : '.'))),
+        h('label', { className: 'text-xs text-gray-600 block' }, 'Outros custos seus fora do Apoio \u2014 opcional, para ver o lucro',
           h('input', { type: 'text', inputMode: 'decimal', 'data-testid': 'custo-servico', value: formData.serviceCost == null ? '' : String(formData.serviceCost),
             onChange: e => handleChange('serviceCost', e.target.value), placeholder: 'R$ 0,00',
             className: 'w-full px-3 py-2 border border-orange-300 rounded-lg mt-1' })),
@@ -1133,7 +1185,8 @@ function ProposalBuilderSimple({
           h('span', { className: 'text-2xl font-bold text-green-600' }, 'R$ ', (R.finalTotalRounded || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }))),
         R.guests > 0 ? line('Por pessoa', brlS(R.pricePerPerson), { muted: true }) : null,
         h('div', { className: 'mt-3 p-3 rounded-lg ' + (R.noProfit ? 'bg-red-50 border border-red-300' : 'bg-white border border-gray-200') },
-          R.directCost > 0 ? line('Seu custo', '\u2212 ' + brlS(R.directCost), { muted: true }) : null,
+          R.apoioCusto > 0 ? line('Custo do Apoio', '\u2212 ' + brlS(R.apoioCusto), { muted: true }) : null,
+          R.extraCost > 0 ? line('Seu custo', '\u2212 ' + brlS(R.extraCost), { muted: true }) : null,
           sumPct > 0 ? line('Impostos, taxas e custos fixos (' + pct(sumPct) + ' do pre\xE7o)', '\u2212 ' + brlS(R.salesDeductions), { muted: true }) : null,
           line('Lucro estimado', brlS(R.profit) + ' (' + pct(R.profitPct) + ')', { bold: true }),
           R.noProfit ? h('p', { className: 'text-red-700 text-xs font-semibold mt-1' }, '\u26A0\uFE0F Proposta SEM LUCRO: o valor dos servi\xE7os n\xE3o cobre o custo.') : null)));
