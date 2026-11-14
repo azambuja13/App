@@ -779,6 +779,16 @@ window.AppFull = function AppFull() {
   // ====================================
   const [editingProposal, setEditingProposal] = React.useState(null);
   const [showProposalBuilder, setShowProposalBuilder] = React.useState(false);
+  // Agente de orçamento: plano que abre o construtor de propostas já preenchido
+  const [agentPrefill, setAgentPrefill] = React.useState(null);
+  React.useEffect(() => {
+    // O plano chega pela janela do agente; quem aplica é a função da renderização atual (agenteAplicarRef)
+    const abrir = e => { if (e && e.detail && agenteAplicarRef.current) agenteAplicarRef.current(e.detail); };
+    window.addEventListener('agent-proposal', abrir);
+    return () => window.removeEventListener('agent-proposal', abrir);
+  }, []);
+  const agenteAplicarRef = React.useRef(null);
+  const [agenteFase, setAgenteFase] = React.useState(null); // { passo: 'salvar' | 'id', d }
 
   // ====================================
   // Estado de Salvamento
@@ -1935,6 +1945,70 @@ window.AppFull = function AppFull() {
     return () => clearTimeout(t);
   }, [chaveEvento, state.currentEventId]);
   // Antes de trocar de evento ou limpar: salva o que estiver pendente
+  // ====================================
+  // Agente de orçamento: cria o EVENTO (cliente, dados, cardápio e lista de compras), salva e abre a proposta
+  // ====================================
+  const agenteFalhou = msg => {
+    setAgenteFase(null);
+    window.dispatchEvent(new CustomEvent('agent-proposal-result', { detail: { ok: false, message: msg } }));
+  };
+  agenteAplicarRef.current = async d => {
+    try {
+      await salvarPendenteAgora(); // o evento que estava aberto não perde alterações
+      // Evento novo (o mesmo que "Novo Evento", sem perguntar). Apoio, transporte e mão de obra ficam como estão.
+      state.setItems([]);
+      state.setCurrentEventId(null);
+      state.setMonthsUntilEvent(0);
+      if (state.setProteinSafetyPct) state.setProteinSafetyPct(null);
+      if (state.setClientSupply) state.setClientSupply(null);
+      state.setLinkedMenuId(null);
+      state.setLinkedMenuName('');
+      state.setClientData(d.client);
+      state.setEventName(d.eventName);
+      state.setEventDate(d.eventDate || '');
+      state.setEventLocation(d.eventLocation || '');
+      state.setGuests(d.guests);
+      // Cardápio do evento e lista de compras (o mesmo caminho do botão "Gerar Lista de Compras")
+      await restaurarCardapioDoEvento(d.menuItems || []);
+      if (!window.ingredientsManager) window.ingredientsManager = {};
+      window.ingredientsManager.ingredients = state.ingredientsDatabase || [];
+      const lista = await window.menuManager.generateIngredientsList(d.guests);
+      state.setItems(window.ShoppingListGenerator.processIngredientsToItems(lista, d.guests, state.ingredientsDatabase || []));
+      setAgenteFase({ passo: 'salvar', d });
+    } catch (e) {
+      console.error('❌ [Agente] erro ao montar o evento:', e);
+      agenteFalhou('Não foi possível montar o evento: ' + ((e && e.message) || 'erro'));
+    }
+  };
+  React.useEffect(() => {
+    if (!agenteFase) return;
+    const d = agenteFase.d;
+    if (agenteFase.passo === 'salvar') {
+      // espera a tela ter os dados novos (e o apoio automático recalcular) antes de salvar
+      const pronto = !state.currentEventId && state.eventName === d.eventName && state.clientData && String(state.clientData.id) === String(d.client.id) && Number(state.guests) === Number(d.guests);
+      if (!pronto) return;
+      const t = setTimeout(async () => {
+        try { if (salvarEventoRef.current) await salvarEventoRef.current(d.eventName, { auto: true }); } catch (e) {}
+        setAgenteFase({ passo: 'id', d, desde: Date.now() });
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+    if (agenteFase.passo === 'id') {
+      if (state.currentEventId) {
+        // Evento salvo: abre a proposta nova a partir dele (fluxo normal), que é salva como rascunho
+        setAgenteFase(null);
+        setEditingProposal(null);
+        setAgentPrefill({ fromAgent: true, autoSave: true, useEvent: true, proposalName: d.proposalName, observations: d.observations || '', serviceStartTime: d.serviceStartTime || '', eventDuration: d.eventDuration || '' });
+        setShowProposalBuilder(true);
+        state.setActiveTab('proposals');
+        window.dispatchEvent(new CustomEvent('agent-proposal-result', { detail: { ok: true, eventId: state.currentEventId } }));
+        return;
+      }
+      const t = setTimeout(() => agenteFalhou('O evento foi montado, mas não consegui salvar sozinho. Confira a aba Eventos, salve o evento e crie a proposta por lá.'), 12000);
+      return () => clearTimeout(t);
+    }
+  }, [agenteFase, state.currentEventId, state.eventName, state.guests, state.clientData && state.clientData.id]);
+
   const salvarPendenteAgora = async () => {
     if (state.currentEventId && baseEventoRef.current != null && chaveEventoRef.current !== baseEventoRef.current && salvarEventoRef.current) {
       try { await salvarEventoRef.current(undefined, { auto: true }); } catch (e) {}
@@ -1975,6 +2049,7 @@ window.AppFull = function AppFull() {
     // Fechar modal
     setShowProposalBuilder(false);
     setEditingProposal(null);
+    setAgentPrefill(null);
 
     // Disparar evento para recarregar lista de propostas
     window.dispatchEvent(new CustomEvent('proposalSaved'));
@@ -1982,6 +2057,7 @@ window.AppFull = function AppFull() {
   const handleCancelProposal = () => {
     setShowProposalBuilder(false);
     setEditingProposal(null);
+    setAgentPrefill(null);
   };
 
   // ====================================
@@ -2802,7 +2878,7 @@ window.AppFull = function AppFull() {
     className: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500",
     placeholder: "Endere\xE7o da empresa",
     rows: "2"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  })), window.MarketingAgent && window.MarketingAgent.Painel ? /*#__PURE__*/React.createElement(window.MarketingAgent.Painel, null) : null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-1"
   }, "\uD83D\uDCD6 Hist\xF3ria da Empresa"), /*#__PURE__*/React.createElement("textarea", {
     value: state.proposalData.companyHistory || '',
@@ -3032,6 +3108,13 @@ window.AppFull = function AppFull() {
         try {
           console.log('💾 [Botão Salvar] Salvando dados:', state.proposalData);
           await companyManager.saveCompanyData(state.proposalData);
+          // Divulgação (Instagram, WhatsApp, página de orçamento): salva junto, se o chef mexeu nela
+          try {
+            if (window.MarketingAgent && window.MarketingAgent.salvarPainel) await window.MarketingAgent.salvarPainel();
+          } catch (eDiv) {
+            alert('⚠️ Dados da empresa salvos, mas a divulgação não: ' + ((eDiv && eDiv.message) || 'tente de novo') + '.');
+            return;
+          }
           alert('✅ Dados da empresa salvos com sucesso!');
         } catch (error) {
           console.error('❌ [Botão Salvar] Erro ao salvar:', error);
@@ -3527,6 +3610,8 @@ window.AppFull = function AppFull() {
     className: "bg-white rounded-lg shadow p-6"
   }, window.ProposalBuilderSimple ? /*#__PURE__*/React.createElement(window.ProposalBuilderSimple, {
     proposal: editingProposal,
+    prefill: editingProposal ? null : agentPrefill,
+    key: agentPrefill ? 'agente' : 'normal',
     onSave: handleSaveProposal,
     onCancel: handleCancelProposal,
     eventData: {

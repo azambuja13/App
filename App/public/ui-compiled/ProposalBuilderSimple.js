@@ -7,11 +7,24 @@ const __n2PB = v => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigi
  * Versão simplificada: adiciona cardápio salvo + dados do evento atual
  */
 
+// Agente de orçamento (nov/2026): campos que o plano do agente pode preencher numa proposta nova
+function camposDoAgente(prefill) {
+  if (!prefill || typeof prefill !== 'object') return {};
+  const out = {};
+  // useEvent: o agente criou o EVENTO; cliente, convidados, cardápio e custos vêm dele (fluxo normal)
+  (prefill.useEvent ? ['proposalName', 'observations'] : ['proposalName', 'guests', 'eventDate', 'eventLocation', 'clientName', 'clientPhone', 'observations',
+    'selectedMenuId', 'selectedMenuData', 'laborCost', 'supportCost', 'transportCost']).forEach(k => {
+    if (prefill[k] !== undefined && prefill[k] !== null) out[k] = prefill[k];
+  });
+  return out;
+}
+
 function ProposalBuilderSimple({
   proposal = null,
   onSave,
   onCancel,
-  eventData
+  eventData,
+  prefill = null // plano do agente de orçamento (só em proposta nova)
 }) {
   const {
     useState,
@@ -92,7 +105,8 @@ function ProposalBuilderSimple({
     acceptCard: true,
     acceptPix: true,
     // Opções de exibição
-    includeDishPhotos: true // Incluir fotos dos pratos por padrão
+    includeDishPhotos: true, // Incluir fotos dos pratos por padrão
+    ...(proposal ? {} : camposDoAgente(prefill))
   });
   const [savedMenus, setSavedMenus] = useState([]);
   const [showMenuSelector, setShowMenuSelector] = useState(false);
@@ -388,7 +402,9 @@ function ProposalBuilderSimple({
       // ao editar, a proposta mantém os próprios convidados, cliente e custos)
       if (eventData && !proposal) {
         // Dados do evento entram uma vez só (depois o usuário pode mudar convidados etc. na proposta)
-        const firstLoad = !eventFieldsLoadedRef.current;
+        // Proposta montada pelo agente: os dados do evento aberto NÃO entram (só os dados da empresa)
+        const semEvento = !!(prefill && !prefill.useEvent);
+        const firstLoad = !semEvento && !eventFieldsLoadedRef.current;
         eventFieldsLoadedRef.current = true;
         setFormData(prev => {
           // Gerar nome da proposta automaticamente se estiver vazio e não for edição
@@ -426,7 +442,7 @@ function ProposalBuilderSimple({
         });
 
         // Puxar custos já calculados se disponíveis no eventData
-        if (eventData.costs) {
+        if (eventData.costs && !(prefill && !prefill.useEvent)) {
           setCosts(eventData.costs);
           const c = eventData.costs;
           const eg = Number(eventData.guests) || 0;
@@ -1047,6 +1063,11 @@ function ProposalBuilderSimple({
         // voltou a ter cardápio: some a lista de serviços
         Object.assign(proposalData, { serviceOnly: false, services: [], includedItems: [] });
       }
+      if (prefill && prefill.fromAgent && !proposal) {
+        proposalData.createdByAgent = true;
+        if (prefill.serviceStartTime) proposalData.serviceStartTime = prefill.serviceStartTime;
+        if (prefill.eventDuration) proposalData.eventDuration = prefill.eventDuration;
+      }
       console.log('📝 Objeto proposalData antes de salvar:', proposalData);
       console.log('🆔 proposalData.id:', proposalData.id, '(null = criar novo, UUID = atualizar existente)');
       console.log('📊 proposalData.status:', proposalData.status, '(sempre "draft" ao salvar/editar)');
@@ -1055,7 +1076,7 @@ function ProposalBuilderSimple({
       const result = await proposalManager.saveProposal(proposalData);
       console.log('📦 Resultado do saveProposal:', result);
       if (result.success) {
-        alert('✅ Proposta salva com sucesso!');
+        alert(prefill && prefill.fromAgent && !formData.id ? '✅ Proposta criada como rascunho.\n\nConfira o valor na lista e ajuste ou envie quando quiser.' : '✅ Proposta salva com sucesso!');
         // ✅ FIX: Usar result.data (resposta do backend) que contém o ID correto
         onSave(result.data || result.proposal);
       } else {
@@ -1101,6 +1122,18 @@ function ProposalBuilderSimple({
     };
     return `${icons[type] || '🍽️'} ${type}`;
   };
+  // Agente de orçamento: a proposta montada é salva sozinha como rascunho (uma vez)
+  const salvarRef = useRef(null);
+  salvarRef.current = handleSave;
+  const autoSalvoRef = useRef(false);
+  useEffect(() => {
+    // espera o cardápio (do evento ou do plano) e os convidados chegarem ao formulário
+    const pronto = backendReady && !!formData.selectedMenuData && Number(formData.guests) > 0;
+    if (!prefill || !prefill.autoSave || proposal || autoSalvoRef.current || !pronto) return;
+    const t = setTimeout(() => { if (autoSalvoRef.current) return; autoSalvoRef.current = true; if (salvarRef.current) salvarRef.current(); }, 1200);
+    return () => clearTimeout(t);
+  }, [backendReady, !!formData.selectedMenuData, formData.guests]);
+
   // ---------- Proposta só de serviço: botões, lista de serviços e resumo do preço ----------
   const brlS = v => 'R$ ' + __n2PB(v);
   const modoToggle = () => {
@@ -1197,7 +1230,10 @@ function ProposalBuilderSimple({
     className: "mb-6"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-2xl font-bold text-gray-800 mb-2"
-  }, proposal ? '✏️ Editar Proposta' : '➕ Nova Proposta'), /*#__PURE__*/React.createElement("p", {
+  }, proposal ? '✏️ Editar Proposta' : '➕ Nova Proposta'), prefill && prefill.fromAgent && !proposal && /*#__PURE__*/React.createElement("div", {
+    "data-testid": "aviso-agente",
+    style: { background: '#fff7ed', border: '1px solid #fed7aa', color: '#7c2d12', borderRadius: 10, padding: '8px 12px', fontSize: 14, marginBottom: 8 }
+  }, "\uD83E\uDD16 Montada pelo agente de or\xE7amento a partir do evento que ele criou. Ela \xE9 salva como rascunho; confira o valor antes de enviar."), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-600"
   }, "Selecione um card\xE1pio salvo (ou fa\xE7a uma proposta s\xF3 de servi\xE7o) e configure os dados do cliente")), /*#__PURE__*/React.createElement("div", {
     className: "space-y-6"

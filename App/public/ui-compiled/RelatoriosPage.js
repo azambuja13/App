@@ -54,6 +54,35 @@ const CSS = `
 .rel .barra{height:12px;border-radius:4px;display:inline-block;vertical-align:middle}
 .rel .eq{background:#f9fafb;border:1px dashed #d1d5db;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6}
 .fin .rel .card{box-shadow:none;padding:6px 0;margin-top:14px;border-radius:0}
+.rel .pv-linha{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid #f3f4f6}
+.rel .pv-linha:last-child{border-bottom:0}
+.rel .pv-ch{display:inline-flex;align-items:center;justify-content:center;min-width:54px;border-radius:999px;font-weight:800;font-size:15px;padding:4px 10px;font-variant-numeric:tabular-nums}
+.rel .pv-alta{background:#dcfce7;color:#166534}.rel .pv-media{background:#fef9c3;color:#854d0e}.rel .pv-baixa{background:#fee2e2;color:#991b1b}.rel .pv-vencida{background:#f3f4f6;color:#6b7280}
+.rel .pv-mot{display:inline-block;font-size:12px;border-radius:999px;padding:2px 8px;margin:4px 4px 0 0;background:#f3f4f6;color:#374151}
+.rel .pv-mot.mais{background:#ecfdf5;color:#166534}.rel .pv-mot.menos{background:#fef2f2;color:#991b1b}
+.rel .pv-acao{font-size:13px;font-weight:700;color:#c2410c;margin-top:6px}
+.rel .pv-mes{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;align-items:center;margin-top:12px;font-size:13px}
+.rel .pv-barra{position:relative;background:#f3f4f6;border-radius:5px;height:18px;display:flex;overflow:visible}
+.rel .pv-barra > i{display:block;height:18px}
+.rel .pv-barra > i:first-child{border-radius:5px 0 0 5px}
+.rel .pv-ref{position:absolute;top:-4px;bottom:-4px;width:2px;background:#111827}
+.rel .pv-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:#4b5563;margin-top:12px}
+.rel .pv-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.rel .pv-sem{display:flex;align-items:stretch;gap:3px;height:150px;margin-top:14px}
+.rel .pv-sem > div{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+.rel .pv-sem .cima,.rel .pv-sem .baixo{flex:1;display:flex}
+.rel .pv-sem .cima{align-items:flex-end;border-bottom:1px solid #9ca3af}
+.rel .pv-sem .cima > i,.rel .pv-sem .baixo > i{display:block;width:100%}
+.rel .pv-sem .cima > i{background:#16a34a;border-radius:3px 3px 0 0}
+.rel .pv-sem .baixo > i{background:#dc2626;border-radius:0 0 3px 3px}
+.rel .pv-eixo{display:flex;gap:3px;font-size:10.5px;color:#6b7280;margin-top:3px}
+.rel .pv-eixo > span{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+.rel .pv-nota{font-size:12.5px;color:#6b7280;margin-top:10px;line-height:1.5}
+.rel details.pv-como{margin-top:10px;font-size:13px;color:#4b5563}
+.rel details.pv-como summary{cursor:pointer;font-weight:700;color:#374151}
+.rel .pv-sim{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:12px}
+.rel .pv-sim input[type=range]{width:100%;padding:0;border:0;accent-color:#ea580c}
+@media (max-width:560px){.rel .pv-mes{grid-template-columns:48px minmax(0,1fr)}.rel .pv-eixo{font-size:9px}}
 @media (max-width:560px){.rel .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rel .kpi b{font-size:17px}.rel td,.rel th{padding:6px 5px;font-size:12.5px}.rel th:first-child,.rel td:first-child{min-width:120px}}
 `;
 function injectCss() { if (document.getElementById('rel-css')) return; const st = document.createElement('style'); st.id = 'rel-css'; st.textContent = CSS; document.head.appendChild(st); }
@@ -326,7 +355,168 @@ function Compras({ qs }) {
 }
 
 // ===================== Página =====================
-const ABAS = [['visao', '🧭 Visão geral'], ['conferencia', '✅ Propostas × Financeiro'], ['eventos', '🎉 Eventos e propostas'], ['clientes', '👥 Clientes e pratos'], ['compras', '🛒 Compras e estoque']];
+
+// ===================== Previsões =====================
+const CONF = { baixa: ['Confiança baixa', 't-at'], media: ['Confiança média', 't-ab'], alta: ['Confiança alta', 't-ok'] };
+const Conf = ({ c }) => h('span', { className: 'tag ' + (CONF[c] || CONF.baixa)[1], 'data-conf': c }, (CONF[c] || CONF.baixa)[0]);
+const rotSem = s => s.slice(8, 10) + '/' + s.slice(5, 7);
+function PrevPropostas({ d, irPara }) {
+  const [vencidas, setVencidas] = useState(false), [todas, setTodas] = useState(false);
+  const p = d.propostas, am = p.amostra;
+  const lista = todas ? p.lista : p.lista.slice(0, 8);
+  const linha = x => h('div', { key: x.id, className: 'pv-linha', 'data-prop': x.titulo },
+    h('div', { style: { minWidth: 0 } },
+      h('div', { style: { fontWeight: 700, fontSize: 15 } }, x.cliente || x.titulo),
+      h('div', { className: 'muted' }, [x.cliente ? x.titulo : null, brl(x.valor), x.evento ? 'evento ' + fmtData(x.evento) : 'sem data', x.aberturas != null ? (x.aberturas === 0 ? 'link não aberto' : 'link aberto ' + x.aberturas + 'x') : null].filter(Boolean).join(' · ')),
+      h('div', null, x.motivos.map((m, i) => h('span', { key: i, className: 'pv-mot ' + (m.s === '+' ? 'mais' : 'menos') }, (m.s === '+' ? '▲ ' : '▼ ') + m.t))),
+      h('div', { className: 'pv-acao', style: x.cobrar ? null : { color: '#6b7280', fontWeight: 600 } }, (x.cobrar ? '👉 ' : '') + x.acao)),
+    h('div', { style: { textAlign: 'right' } },
+      h('span', { className: 'pv-ch pv-' + x.nivel, 'data-chance': x.chance }, x.nivel === 'vencida' ? '—' : x.chance + '%'),
+      x.nivel !== 'vencida' ? h('div', { className: 'muted', style: { marginTop: 4, fontSize: 12 } }, 'esperado ' + brl(x.esperado)) : null));
+  return h(Card, { titulo: '🎯 Chance de fechar cada proposta', testid: 'prev-propostas',
+    sub: h('span', null, 'Estimativa pelo seu histórico: ' + am.decididas + ' proposta(s) decidida(s), ' + am.ganhas + ' fechada(s). ', h(Conf, { c: p.confianca })),
+    acoes: h('div', { style: { display: 'flex', gap: 6 } },
+      h(BotaoCsv, { nome: 'chance-de-fechar', linhas: p.lista, cols: [['Cliente', 'cliente'], ['Proposta', 'titulo'], ['Valor', 'valor'], ['Evento', 'evento'], ['Chance %', 'chance'], ['Valor esperado', 'esperado'], ['Dias parada', 'parada'], ['O que fazer', 'acao']] }),
+      h('div', { role: 'button', className: 'btn', onClick: () => irPara('funil') }, 'Abrir o Funil →')) },
+    h('div', { className: 'kpis' },
+      h(Kpi, { t: 'Em aberto', v: brl(p.emAberto.valor), s: p.emAberto.n + ' proposta(s)', testid: 'pv-aberto' }),
+      h(Kpi, { t: 'Valor esperado', v: brl(p.emAberto.esperado), cor: '#15803d', s: 'cada proposta × a chance dela', testid: 'pv-esperado' }),
+      h(Kpi, { t: 'Dar retorno hoje', v: n0(p.cobrarHoje.n), cor: p.cobrarHoje.n ? '#c2410c' : null, s: 'valem ' + brl(p.cobrarHoje.esperado), testid: 'pv-cobrar' }),
+      h(Kpi, { t: 'Taxa de fechamento', v: p.taxaBase + '%', s: p.medianaDiasParaFechar != null ? 'fecham em ' + p.medianaDiasParaFechar + ' dia(s), em geral' : 'do seu histórico', testid: 'pv-taxa' })),
+    p.lista.length ? h('div', { style: { marginTop: 8 }, 'data-testid': 'pv-lista' }, lista.map(linha)) : h('div', { className: 'muted', style: { marginTop: 10 } }, 'Nenhuma proposta em aberto com valor.'),
+    p.lista.length > 8 ? h('div', { role: 'button', className: 'btn', style: { marginTop: 8 }, onClick: () => setTodas(!todas) }, todas ? 'Mostrar menos' : 'Ver todas (' + p.lista.length + ')') : null,
+    p.vencidas.length ? h('div', { style: { marginTop: 12 } },
+      h('div', { role: 'button', className: 'btn', 'data-testid': 'pv-vencidas', onClick: () => setVencidas(!vencidas) }, (vencidas ? '▾ ' : '▸ ') + p.vencidas.length + ' com a data do evento já passada'),
+      vencidas ? h('div', null, h('div', { className: 'pv-nota' }, 'Não entram na previsão. Marque como perdidas no Funil, com o motivo: as próximas estimativas ficam mais certas.'), p.vencidas.map(linha)) : null) : null,
+    h('details', { className: 'pv-como' }, h('summary', null, 'Como a chance é calculada'),
+      h('div', { style: { marginTop: 6, lineHeight: 1.6 } },
+        'Parte da sua taxa de fechamento (fechadas ÷ decididas; proposta enviada cuja data do evento passou conta como perdida). Com poucas propostas decididas, a taxa é puxada para 35%. ',
+        'Depois, cada dia sem resposta reduz a chance, de acordo com o tempo que as suas propostas fechadas levaram. Por fim entram os sinais de cada uma: etapa, aberturas do link, origem do cliente, tamanho do evento, cliente que já fechou e a data do evento. ',
+        'É uma estimativa para ordenar os retornos, não uma certeza.')));
+}
+function PrevFaturamento({ d }) {
+  const f = d.faturamento, ms = f.meses;
+  const max = Math.max(1, f.mediaMensal || 0, ...ms.map(m => m.otimista));
+  const w = v => Math.max(0, v) / max * 100 + '%';
+  return h(Card, { titulo: '📈 Faturamento dos próximos meses', testid: 'prev-faturamento',
+    sub: h('span', null, 'Eventos pela data do evento. ', h(Conf, { c: f.confianca })),
+    acoes: h(BotaoCsv, { nome: 'previsao-faturamento', linhas: ms, cols: [['Mês', 'mes'], ['Fechado', 'fechado'], ['Em aberto (esperado)', m => m.emAberto.esperado], ['Ainda deve entrar', 'aindaDeveEntrar'], ['PDV', 'pdv'], ['Provável', 'provavel'], ['Pessimista', 'pessimista'], ['Otimista', 'otimista'], ['Margem prevista', 'margemPrevista'], ['Mesmo mês do ano passado', 'mesmoMesAnoPassado']] }) },
+    h('div', { className: 'kpis' },
+      h(Kpi, { t: 'Média mensal', v: f.mediaMensal == null ? '—' : brl(f.mediaMensal), s: f.mesesNaMedia ? 'eventos, últimos ' + f.mesesNaMedia + ' meses' : 'ainda sem meses fechados', testid: 'pv-media' }),
+      h(Kpi, { t: 'Antecedência', v: f.antecedencia.medianaDias == null ? '—' : f.antecedencia.medianaDias + ' dias', s: 'entre fechar e o evento (' + f.antecedencia.n + ' eventos)', testid: 'pv-antecedencia' }),
+      h(Kpi, { t: 'Margem típica', v: pct(f.margemTipicaPct), s: 'eventos dos últimos 12 meses' })),
+    h('div', { 'data-testid': 'pv-meses' }, ms.map(m => h('div', { key: m.mes, className: 'pv-mes', 'data-mes': m.mes },
+      h('b', null, rotMes(m.mes)),
+      h('div', null,
+        h('div', { className: 'pv-barra' },
+          h('i', { title: 'Fechado ' + brl(m.fechado), style: { width: w(m.fechado), background: '#16a34a' } }),
+          h('i', { title: 'Em aberto (esperado) ' + brl(m.emAberto.esperado), style: { width: w(m.emAberto.esperado), background: '#f97316' } }),
+          h('i', { title: 'Ainda deve entrar ' + brl(m.aindaDeveEntrar || 0), style: { width: w(m.aindaDeveEntrar || 0), background: '#fdba74' } }),
+          h('i', { title: 'PDV ' + brl(m.pdv), style: { width: w(m.pdv), background: '#3b82f6' } }),
+          f.mediaMensal ? h('span', { className: 'pv-ref', title: 'Média mensal ' + brl(f.mediaMensal), style: { left: w(f.mediaMensal) } }) : null),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginTop: 4 } },
+          h('span', null, h('b', { 'data-provavel': m.provavel }, brl(m.provavel)), h('span', { className: 'muted' }, ' · de ' + brl(m.pessimista) + ' a ' + brl(m.otimista))),
+          h('span', { className: 'muted' }, [m.nFechados + ' fechado(s)', m.emAberto.n ? m.emAberto.n + ' em aberto' : null, m.mesmoMesAnoPassado != null ? 'ano passado ' + brl(m.mesmoMesAnoPassado) : null].filter(Boolean).join(' · '))))))),
+    h('div', { className: 'pv-leg' },
+      h('span', null, h('i', { style: { background: '#16a34a' } }), 'Fechado'),
+      h('span', null, h('i', { style: { background: '#f97316' } }), 'Propostas em aberto × chance'),
+      h('span', null, h('i', { style: { background: '#fdba74' } }), 'Ainda deve entrar'),
+      h('span', null, h('i', { style: { background: '#3b82f6' } }), 'PDV'),
+      f.mediaMensal ? h('span', null, h('i', { style: { background: '#111827', width: 2, borderRadius: 0 } }), 'Média mensal') : null),
+    h(Tabela, { linhas: ms, cols: [['Mês', 'mes', rotMes], ['Fechado', 'fechado', brl], ['Em aberto', m => m.emAberto.esperado, brl], ['Ainda deve entrar', 'aindaDeveEntrar', v => (v == null ? '—' : brl(v))], ['Provável', 'provavel', v => h('b', null, brl(v))], ['Margem prevista', 'margemPrevista', v => (v == null ? '—' : brl(v))]] }),
+    h('div', { className: 'pv-nota' },
+      '"Ainda deve entrar" é o que costuma fechar daqui até o evento, pela antecedência com que os seus clientes fecham. ',
+      f.antecedencia.n < 6 ? 'Aparece quando houver pelo menos 6 eventos fechados com data. ' : '',
+      'A faixa (pessimista a otimista) cobre 8 em cada 10 cenários das propostas em aberto.'));
+}
+function PrevCaixa({ d, irPara }) {
+  const c = d.caixa, ss = c.semanas, t = c.totais;
+  const maxPos = Math.max(0, ...ss.map(s => s.saldo)), maxNeg = Math.max(0, ...ss.map(s => -s.saldo));
+  const semSaldo = c.saldoHoje == null;
+  return h(Card, { titulo: '💰 Caixa das próximas 13 semanas', testid: 'prev-caixa',
+    sub: 'Contas a receber (com o atraso típico de cada cliente), contas a pagar, contas fixas e o custo orçado dos eventos fechados.',
+    acoes: h('div', { style: { display: 'flex', gap: 6 } },
+      h(BotaoCsv, { nome: 'caixa-13-semanas', linhas: ss, cols: [['Semana de', 'inicio'], ['Até', 'fim'], ['Entra', 'entra'], ['Sai', 'sai'], ['Custo dos eventos', 'custoEventos'], ['Saldo provável', 'saldo'], ['Saldo conservador', 'saldoConservador']] }),
+      h('div', { role: 'button', className: 'btn', onClick: () => irPara('financeiro') }, 'Abrir o Financeiro →')) },
+    semSaldo ? h('div', { className: 'alerta al-info', 'data-testid': 'pv-sem-saldo' }, h('div', { style: { fontSize: 18 } }, '🔵'),
+      h('div', { style: { flex: 1 } }, h('div', { style: { fontWeight: 700, fontSize: 14 } }, 'Informe o saldo inicial para ver o saldo de verdade'),
+        h('div', { className: 'muted' }, 'Sem ele, os valores abaixo mostram só quanto o caixa sobe ou desce a partir de hoje. Fica em Financeiro → Fluxo de caixa → saldo inicial.'))) : null,
+    h('div', { className: 'kpis' },
+      h(Kpi, { t: semSaldo ? 'Saldo hoje' : 'Saldo hoje', v: semSaldo ? '—' : brl(c.saldoHoje), s: semSaldo ? 'sem saldo inicial' : 'pelo Financeiro', testid: 'pv-saldo' }),
+      h(Kpi, { t: semSaldo ? 'Pior momento' : 'Menor saldo previsto', v: c.menorSaldo ? brl(c.menorSaldo.saldo) : '—', cor: c.menorSaldo && c.menorSaldo.saldo < 0 ? '#b91c1c' : '#15803d', s: c.menorSaldo ? 'semana de ' + rotSem(c.menorSaldo.inicio) : '', testid: 'pv-menor' }),
+      h(Kpi, { t: 'A receber', v: brl(t.aReceber), cor: '#15803d', s: t.atrasadoReceber ? brl(t.atrasadoReceber) + ' já vencido' : 'nas 13 semanas' }),
+      h(Kpi, { t: 'A pagar', v: brl(t.aPagar + t.custoEventos), cor: '#b91c1c', s: 'contas ' + brl(t.aPagar) + ' · eventos ' + brl(t.custoEventos) })),
+    h('div', { className: 'pv-sem', 'data-testid': 'pv-semanas', role: 'img', 'aria-label': 'Saldo previsto por semana' }, ss.map(s => h('div', { key: s.inicio, title: 'Semana de ' + rotSem(s.inicio) + ': ' + brl(s.saldo), 'data-saldo': s.saldo },
+      h('div', { className: 'cima', style: { flex: Math.max(maxPos, 0.0001) } }, s.saldo > 0 ? h('i', { style: { height: Math.max(2, s.saldo / maxPos * 100) + '%' } }) : null),
+      h('div', { className: 'baixo', style: { flex: Math.max(maxNeg, 0.0001) } }, s.saldo < 0 ? h('i', { style: { height: Math.max(2, -s.saldo / maxNeg * 100) + '%' } }) : null)))),
+    h('div', { className: 'pv-eixo' }, ss.map((s, i) => h('span', { key: s.inicio }, i % 2 === 0 ? rotSem(s.inicio) : ''))),
+    h(Tabela, { max: 6, linhas: ss, cols: [['Semana', s => rotSem(s.inicio) + ' a ' + rotSem(s.fim)], ['Entra', 'entra', brl], ['Sai', 'sai', brl], ['Eventos', 'custoEventos', brl],
+      [semSaldo ? 'Acumulado' : 'Saldo', 'saldo', v => h('b', { className: v < 0 ? 'down' : 'up' }, brl(v))], ['Conservador', 'saldoConservador', v => h('span', { className: v < 0 ? 'down' : '' }, brl(v))]] }),
+    c.maiores.entradas.length || c.maiores.saidas.length ? h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16, marginTop: 14 } },
+      h('div', null, h('b', { style: { fontSize: 14 } }, 'Maiores entradas esperadas'),
+        h(Tabela, { max: 5, linhas: c.maiores.entradas, vazio: 'Nada a receber.', cols: [['Conta', x => h('span', null, x.cliente || x.descricao, x.vencido ? h('span', { className: 'tag t-at', style: { marginLeft: 6 } }, 'vencida') : null)], ['Deve entrar', 'esperado', fmtData], ['Valor', 'valor', brl]] })),
+      h('div', null, h('b', { style: { fontSize: 14 } }, 'Maiores saídas'),
+        h(Tabela, { max: 5, linhas: c.maiores.saidas, vazio: 'Nada a pagar.', cols: [['Conta', x => h('span', null, x.descricao, x.vencido ? h('span', { className: 'tag t-at', style: { marginLeft: 6 } }, 'vencida') : null)], ['Vence', 'vencimento', fmtData], ['Valor', 'valor', brl]] }))) : null,
+    h('div', { className: 'pv-nota' },
+      c.atraso.amostra >= 5 ? 'Seus clientes pagam, em geral, ' + c.atraso.tipicoDias + ' dia(s) depois do vencimento (medido em ' + c.atraso.amostra + ' recebimentos). ' : 'Ainda há poucos recebimentos para medir o atraso dos clientes: as contas entram no vencimento. ',
+      'O cenário conservador deixa de fora o que já está vencido e atrasa o restante como os 25% que mais demoram. O custo dos eventos é o orçado na proposta (comida, apoio, equipe e transporte).'));
+}
+function PrevInsumos({ d }) {
+  const i = d.insumos, pr = i.proximos, sim = i.simulacao;
+  const [alvo, setAlvo] = useState('todos'), [alta, setAlta] = useState(10);
+  const ins = i.insumos.find(x => x.id === alvo);
+  const peso = alvo === 'todos' ? 1 : (ins ? ins.peso / 100 : 0);
+  const conta = sim ? (() => { const extra = sim.comida * peso * alta / 100, margem = sim.receita - sim.comida - sim.outros; return { extra, comida: sim.comida + extra, margem: margem - extra, pct: (margem - extra) / sim.receita * 100, repasse: extra / sim.receita * 100 }; })() : null;
+  const seta = s => (s === 'subindo' ? h('span', { className: 'tag t-at' }, '▲ subindo') : s === 'caindo' ? h('span', { className: 'tag t-ok' }, '▼ caindo') : s === 'estavel' ? h('span', { className: 'tag t-cz' }, 'estável') : h('span', { className: 'muted' }, 'sem mudança registrada'));
+  const sinal = v => (v == null ? '—' : (v > 0 ? '+' : '') + n0(v) + '%');
+  return h(Card, { titulo: '🥩 Insumos e margem', testid: 'prev-insumos', sub: 'O que mudou no custo desde que você fechou, quais insumos pesam mais e para onde os preços estão indo.' },
+    h('div', { className: 'kpis' },
+      h(Kpi, { t: 'Margem dos eventos fechados', v: pr.margemHojePct == null ? '—' : pct(pr.margemHojePct), cor: pr.quedaPontos >= 3 ? '#b91c1c' : null, s: pr.margemOrcadaPct == null ? 'sem eventos para comparar' : 'orçada ' + pct(pr.margemOrcadaPct) + ' · ' + pr.comparados + ' evento(s)', testid: 'pv-margem' }),
+      h(Kpi, { t: 'Perda desde o orçamento', v: pr.comparados ? brl(pr.margemOrcada - pr.margemHoje) : '—', cor: pr.margemOrcada - pr.margemHoje > 0 ? '#b91c1c' : '#15803d', s: pr.quedaPontos != null ? n0(pr.quedaPontos) + ' ponto(s) de margem' : '', testid: 'pv-perda' }),
+      h(Kpi, { t: 'Custo da comida em 30 dias', v: sinal(i.pressao30), cor: i.pressao30 > 0 ? '#b91c1c' : null, s: 'se os preços seguirem no ritmo dos últimos 90 dias', testid: 'pv-pressao' })),
+    h('div', { style: { marginTop: 14 } }, h('b', { style: { fontSize: 14 } }, 'Eventos fechados que ainda vão acontecer')),
+    h(Tabela, { max: 8, linhas: pr.eventos, vazio: 'Nenhum evento fechado à frente.', cols: [
+      ['Evento', e => h('span', null, h('b', null, e.cliente || e.titulo), h('div', { className: 'muted' }, fmtData(e.data) + ' · ' + brl(e.valor)), e.pratos.length ? h('div', { className: 'muted' }, e.pratos.map(x => x.nome + ' ' + sinal(x.variacao)).join(', ')) : null)],
+      ['Comida orçada', 'comidaOrcada', v => (v ? brl(v) : '—')], ['Comida hoje', 'comidaHoje', v => (v == null ? '—' : brl(v))],
+      ['Variação', 'variacaoComida', v => (v == null ? '—' : h('span', { className: v >= 3 ? 'down' : v <= -3 ? 'up' : '' }, sinal(v)))],
+      ['Margem orçada', 'margemOrcadaPct', (v, e) => (e.comidaOrcada ? pct(v) : '—')], ['Margem hoje', 'margemHojePct', v => (v == null ? '—' : h('b', null, pct(v)))]] }),
+    h('div', { style: { marginTop: 16 } }, h('b', { style: { fontSize: 14 } }, 'Insumos que mais pesam no custo dos seus eventos')),
+    h(Tabela, { max: 8, linhas: i.insumos, vazio: 'Ainda não há eventos fechados com pratos cadastrados para medir.', cols: [
+      ['Insumo', 'nome'], ['Peso no custo', 'peso', v => h('span', null, h('span', { className: 'barra', style: { width: Math.max(2, v * 0.6), background: '#f97316', marginRight: 6 } }), n0(v) + '%')],
+      ['90 dias', 'variacao90', v => (v == null ? '—' : h('span', { className: v >= 5 ? 'down' : v <= -5 ? 'up' : '' }, sinal(v)))], ['Ritmo para 30 dias', 'projecao30', sinal], ['Tendência', 'sentido', seta]] }),
+    i.outros.length ? h('div', { className: 'pv-nota', 'data-testid': 'pv-outros' }, 'Também mudaram de preço em 90 dias: ' + i.outros.map(o => o.nome + ' ' + sinal(o.variacao90)).join(', ') + '.') : null,
+    sim ? h('div', { className: 'pv-sim', 'data-testid': 'pv-sim' },
+      h('b', { style: { fontSize: 14 } }, 'E se o preço subir?'),
+      h('div', { className: 'muted' }, 'Base: ' + sim.eventos + (sim.base === 'proximos' ? ' evento(s) fechado(s) à frente' : ' evento(s) dos últimos 12 meses') + ', ' + brl(sim.receita) + ' de receita.'),
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12, marginTop: 10, alignItems: 'end' } },
+        h('label', { style: { fontSize: 13, fontWeight: 700 } }, 'Insumo',
+          h('select', { value: alvo, onChange: e => setAlvo(e.target.value), style: { display: 'block', width: '100%', marginTop: 4 }, 'data-testid': 'pv-sim-insumo' },
+            h('option', { value: 'todos' }, 'Todos os insumos'), i.insumos.map(x => h('option', { key: x.id, value: x.id }, x.nome + ' (' + n0(x.peso) + '% do custo)')))),
+        h('label', { style: { fontSize: 13, fontWeight: 700 } }, 'Variação do preço: ' + (alta > 0 ? '+' : '') + alta + '%',
+          h('input', { type: 'range', min: -20, max: 50, step: 1, value: alta, onChange: e => setAlta(+e.target.value), style: { display: 'block', marginTop: 8 }, 'data-testid': 'pv-sim-alta' }))),
+      h('div', { className: 'eq', 'data-testid': 'pv-sim-res' },
+        'Custo da comida: ', h('b', null, brl(sim.comida)), ' → ', h('b', null, brl(conta.comida)), ' (', (conta.extra >= 0 ? '+' : '') + brl(conta.extra), ')', h('br'),
+        'Margem: ', h('b', null, pct(sim.margemPct)), ' → ', h('b', { className: conta.pct < sim.margemPct ? 'down' : 'up' }, pct(Math.round(conta.pct * 10) / 10)), h('br'),
+        conta.extra > 0 ? h('span', null, 'Para manter a margem em reais, o preço dos eventos teria de subir ', h('b', null, n0(Math.round(conta.repasse * 10) / 10) + '%'), '.') : h('span', null, 'Sobra ', h('b', null, brl(-conta.extra)), ' de margem.'))) : null,
+    h('div', { className: 'pv-nota' }, 'O peso de cada insumo vem das fichas dos pratos usados nos eventos fechados dos últimos 12 meses e dos que estão à frente (' + i.amostra.eventos + ' eventos). A tendência usa as mudanças de preço que você registrou nos ingredientes; mudanças acima de 3× são tratadas como correção de cadastro.'));
+}
+function Previsoes({ irPara }) {
+  const [d, erro] = useDados('/api/reports/forecast');
+  if (!d) return h(Carregando, { erro });
+  const ir = al => { if (al.aba !== 'previsoes') return irPara(al.aba); const alvo = { prev_cobrar: 'prev-propostas', prev_mes_fraco: 'prev-faturamento', prev_caixa: 'prev-caixa', prev_margem: 'prev-insumos' }[al.k]; const el = alvo && document.querySelector('[data-rel="' + alvo + '"]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  return h('div', { 'data-testid': 'previsoes' },
+    d.alertas.length ? h(Card, { titulo: '💡 O que as previsões pedem agora', testid: 'prev-alertas' },
+      d.alertas.map(al => h('div', { key: al.k, className: 'alerta al-' + al.nivel, 'data-alerta': al.k },
+        h('div', { style: { fontSize: 18 } }, al.nivel === 'alto' ? '🔴' : al.nivel === 'medio' ? '🟡' : '🔵'),
+        h('div', { style: { flex: 1, minWidth: 0 } },
+          h('div', { style: { fontWeight: 700, fontSize: 14 } }, al.titulo, al.valor ? h('span', { style: { marginLeft: 6 } }, '· ' + brl(al.valor)) : null),
+          al.texto && h('div', { className: 'muted', style: { marginTop: 2 } }, al.texto)),
+        h('div', { role: 'button', className: 'btn', onClick: () => ir(al) }, 'Ver →')))) : null,
+    h(PrevPropostas, { d, irPara }), h(PrevFaturamento, { d }), h(PrevCaixa, { d, irPara }), h(PrevInsumos, { d }),
+    h('div', { className: 'pv-nota', style: { textAlign: 'center' } }, 'Previsões calculadas agora, com os dados da sua conta. São estimativas: quanto mais propostas, recebimentos e preços registrados, mais certas ficam.'));
+}
+
+const ABAS = [['visao', '🧭 Visão geral'], ['previsoes', '🔮 Previsões'], ['conferencia', '✅ Propostas × Financeiro'], ['eventos', '🎉 Eventos e propostas'], ['clientes', '👥 Clientes e pratos'], ['compras', '🛒 Compras e estoque']];
 function RelatoriosPage({ onIr }) {
   injectCss();
   const [aba, setAbaS] = useState(() => lsGet('rel_aba', 'visao'));
@@ -337,7 +527,7 @@ function RelatoriosPage({ onIr }) {
   const meses = (+ate.slice(0, 4) - +de.slice(0, 4)) * 12 + (+ate.slice(5) - +de.slice(5)) + 1;
   const qs = new URLSearchParams({ de, ate: meses > 12 ? somaMes(de, 11) : ate }).toString();
   const irPara = k => {
-    if (['conferencia', 'eventos', 'clientes', 'compras'].includes(k)) return setAba(k);
+    if (['previsoes', 'conferencia', 'eventos', 'clientes', 'compras'].includes(k)) return setAba(k);
     const app = { financeiro: 'finance', funil: 'pipeline', estoque: 'stock' }[k];
     if (app && onIr) onIr(app);
   };
@@ -345,9 +535,10 @@ function RelatoriosPage({ onIr }) {
     h('div', { className: 'card', style: { marginTop: 0 } },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
         h('h2', { style: { fontSize: 22, fontWeight: 800, margin: 0 } }, '📊 Relatórios'),
-        aba !== 'conferencia' ? h(Periodo, { p, setP }) : h('span', { className: 'muted' }, 'Todo o histórico (filtre pelo ano do evento)')),
+        aba === 'previsoes' ? h('span', { className: 'muted' }, 'Olhando para frente: 3 meses de faturamento e 13 semanas de caixa') : aba !== 'conferencia' ? h(Periodo, { p, setP }) : h('span', { className: 'muted' }, 'Todo o histórico (filtre pelo ano do evento)')),
       h('div', { className: 'seg', style: { marginTop: 12 } }, ABAS.map(([k, n]) => h('div', { key: k, className: aba === k ? 'on' : '', role: 'button', 'data-relaba': k, onClick: () => setAba(k) }, n)))),
     aba === 'visao' ? h(VisaoGeral, { qs, irPara }) :
+    aba === 'previsoes' ? h(Previsoes, { irPara }) :
     aba === 'conferencia' ? h(ConferenciaPanel, null) :
     aba === 'eventos' ? h(Eventos, { qs }) :
     aba === 'clientes' ? h(Clientes, { qs }) :

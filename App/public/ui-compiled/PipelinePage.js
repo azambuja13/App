@@ -237,6 +237,10 @@ function PipelinePage() {
             onClick: () => setRelatorios(true),
             className: 'crm-btn', style: { background: '#fff', color: '#1d4ed8', border: '1px solid #bfdbfe' }
           }, '📊 Relatórios'),
+          window.MarketingAgent && window.MarketingAgent.disponivel() && h('button', {
+            onClick: () => window.MarketingAgent.abrir(), 'data-testid': 'mk-abrir', title: 'Criar divulgação para Instagram e WhatsApp',
+            className: 'crm-btn', style: { background: '#fff', color: '#c2410c', border: '1px solid #fdba74' }
+          }, '📣 Divulgar'),
           h('button', {
             onClick: () => setNovoContato(true),
             className: 'crm-btn', style: { background: '#ea580c', color: '#fff' }

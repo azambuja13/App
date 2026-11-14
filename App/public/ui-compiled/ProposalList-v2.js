@@ -439,7 +439,13 @@ function ProposalList({
   }, "\uD83D\uDDD1\uFE0F Excluir Selecionadas (", selectedProposals.length, ")"), onEdit && /*#__PURE__*/React.createElement("button", {
     onClick: () => onEdit(null),
     className: "px-6 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 transition-colors font-bold shadow-md"
-  }, "\u2795 Nova Proposta"), /*#__PURE__*/React.createElement("select", {
+  }, "\u2795 Nova Proposta"), onEdit && window.QuoteAgent && window.QuoteAgent.disponivel() && /*#__PURE__*/React.createElement("button", {
+    // 🤖 Agente de orçamento (créditos à parte; Premium e Vitalício)
+    onClick: () => window.QuoteAgent.abrir(),
+    "data-testid": "abrir-agente",
+    title: "Descreva o pedido e o agente monta a proposta com os seus pratos",
+    className: "px-6 py-2 bg-white text-orange-700 border-2 border-orange-500 rounded-lg hover:bg-orange-50 transition-colors font-bold shadow-md"
+  }, "\uD83E\uDD16 Or\xE7amento com IA"), /*#__PURE__*/React.createElement("select", {
     value: sortBy,
     onChange: e => setSortBy(e.target.value),
     className: "px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
