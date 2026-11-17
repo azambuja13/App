@@ -194,6 +194,18 @@ function casca() {
   var box = o.querySelector('.mk-box'); if (box) box.scrollTop = 0;
   return o.querySelector('.mk-corpo');
 }
+// No app do iPhone não há compra nem link de compra de créditos
+function semCompra() { return !!(window.IAAviso && window.IAAviso.nativo()); }
+/** Primeira vez neste aparelho: explica o que vai para a IA e pede o "Concordo" */
+function telaAviso() {
+  var c = casca();
+  c.innerHTML = window.IAAviso.html('divulgacao') +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">' +
+    '<button type="button" class="mk-b mk-pri" id="mk-concordo" data-testid="ia-concordo">Concordo e continuar</button>' +
+    '<button type="button" class="mk-b mk-sec" id="mk-fechar">Agora não</button></div>';
+  c.querySelector('#mk-concordo').onclick = function () { window.IAAviso.aceitar('divulgacao'); telaPedido(); };
+  c.querySelector('#mk-fechar').onclick = fechar;
+}
 function linkComprar() {
   return 'https://wa.me/' + SUPORTE_WA + '?text=' + encodeURIComponent('Olá! Quero comprar créditos de IA da Calculadora de Precificação.');
 }
@@ -212,9 +224,10 @@ function telaPedido(erro) {
     (semCredito ? '<div class="mk-msg mk-av" data-testid="mk-sem-credito">Os seus créditos acabaram. Cada divulgação usa 1 crédito, o mesmo do agente de orçamento.</div>' : '') +
     '<label for="mk-txt">O que você quer divulgar?</label><textarea id="mk-txt" data-testid="mk-txt" maxlength="2000" rows="4" placeholder="Ex.: ' + esc(EXEMPLOS[0]) + '"></textarea>' +
     '<div class="mk-ex">Ideias: ' + EXEMPLOS.map(function (e, i) { return '<span data-ex="' + i + '">' + esc(e) + '</span>'; }).join('') + '</div>' +
+    (window.IAAviso ? '<div class="mk-ex" data-testid="ia-nota" style="margin-top:8px">' + window.IAAviso.nota('divulgacao') + '</div>' : '') +
     '<label>Tom do texto</label><div class="mk-tons" role="group" aria-label="Tom do texto">' + TONS.map(function (t) { return '<button type="button" data-tom="' + t[0] + '" aria-pressed="' + (estado.tone === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">' +
-      (semCredito ? '<a class="mk-b mk-pri" data-testid="mk-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>'
+      (semCredito ? (semCompra() ? '' : '<a class="mk-b mk-pri" data-testid="mk-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>')
                   : '<button type="button" class="mk-b mk-pri" id="mk-go" data-testid="mk-go">' + (estado.unlimited ? 'Criar divulgação' : 'Criar divulgação (1 crédito)') + '</button>') +
       (ultima ? '<button type="button" class="mk-b mk-sec" id="mk-ult" data-testid="mk-ultima">Ver a última divulgação</button>' : '') +
       '<button type="button" class="mk-b mk-sec" id="mk-fechar">Fechar</button></div>';
@@ -277,7 +290,7 @@ function telaResultado() {
     (d.photo ? '<div class="mk-cart"><h4>Foto ou vídeo para o post</h4><p style="margin:0" data-testid="mk-res-foto">' + esc(d.photo) + '</p></div>' : '') +
     (ct.bioUrl ? '' : '<div class="mk-msg mk-info" data-testid="mk-dica-bio">Quer receber os pedidos direto no Funil? Ligue a <b>página de orçamento</b> em Dados da Empresa → Divulgação e ponha o link na bio do Instagram.</div>') +
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">' +
-      (semCredito ? '<a class="mk-b mk-pri" data-testid="mk-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>'
+      (semCredito ? (semCompra() ? '' : '<a class="mk-b mk-pri" data-testid="mk-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>')
                   : '<button type="button" class="mk-b mk-pri" id="mk-outra" data-testid="mk-outra">' + (estado.unlimited ? 'Criar outra versão' : 'Criar outra versão (1 crédito)') + '</button>') +
       '<button type="button" class="mk-b mk-sec" id="mk-nova" data-testid="mk-nova">Nova divulgação</button>' +
       '<button type="button" class="mk-b mk-sec" id="mk-fechar">Fechar</button></div>';
@@ -309,7 +322,7 @@ function abrir() {
     var d = (rs[0] && rs[0].data) || {};
     estado.unlimited = !!d.unlimited; estado.credits = d.unlimited ? null : (Number(d.credits) || 0); estado.trial = Number(d.trialGranted) || 0;
     estado.perfil = rs[1];
-    telaPedido();
+    if (window.IAAviso && !window.IAAviso.aceito('divulgacao')) telaAviso(); else telaPedido();
   }).catch(function (e) {
     if (!estado) return;
     var c = casca();

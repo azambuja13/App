@@ -115,6 +115,18 @@ function casca(titulo) {
   c.style.display = !livre && n == null ? 'none' : '';
   return o.querySelector('.qa-corpo');
 }
+// No app do iPhone não há compra nem link de compra de créditos
+function semCompra() { return !!(window.IAAviso && window.IAAviso.nativo()); }
+/** Primeira vez neste aparelho: explica o que vai para a IA e pede o "Concordo" */
+function telaAviso() {
+  var c = casca('🤖 Orçamento com IA');
+  c.innerHTML = window.IAAviso.html('orcamento') +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">' +
+    '<button type="button" class="qa-b qa-pri" id="qa-concordo" data-testid="ia-concordo">Concordo e continuar</button>' +
+    '<button type="button" class="qa-b qa-sec" id="qa-fechar">Agora não</button></div>';
+  c.querySelector('#qa-concordo').onclick = function () { window.IAAviso.aceitar('orcamento'); telaPedido(''); };
+  c.querySelector('#qa-fechar').onclick = fechar;
+}
 function linkComprar() {
   return 'https://wa.me/' + SUPORTE_WA + '?text=' + encodeURIComponent('Olá! Quero comprar créditos do agente de orçamento da Calculadora de Precificação.');
 }
@@ -129,8 +141,9 @@ function telaPedido(textoInicial, erro) {
     (semCredito ? '<div class="qa-msg qa-av" data-testid="agente-sem-credito">Os seus créditos acabaram. Cada orçamento usa 1 crédito.</div>' : '') +
     '<label for="qa-txt">Pedido</label><textarea id="qa-txt" maxlength="3000" placeholder="Ex.: ' + esc(EXEMPLOS[0]) + '"></textarea>' +
     '<div class="qa-ex">Exemplos: ' + EXEMPLOS.map(function (e, i) { return '<span data-ex="' + i + '">' + esc(e.slice(0, 38)) + '…</span>'; }).join('') + '</div>' +
+    (window.IAAviso ? '<div class="qa-ex" data-testid="ia-nota" style="margin-top:8px">' + window.IAAviso.nota('orcamento') + '</div>' : '') +
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">' +
-      (semCredito ? '<a class="qa-b qa-pri" data-testid="agente-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>'
+      (semCredito ? (semCompra() ? '' : '<a class="qa-b qa-pri" data-testid="agente-comprar" target="_blank" rel="noopener" href="' + linkComprar() + '">Comprar créditos pelo WhatsApp</a>')
                   : '<button type="button" class="qa-b qa-pri" id="qa-go" data-testid="agente-montar">' + (estado.unlimited ? 'Montar orçamento' : 'Montar orçamento (1 crédito)') + '</button>') +
       '<button type="button" class="qa-b qa-sec" id="qa-fechar">Fechar</button></div>';
   var txt = c.querySelector('#qa-txt');
@@ -402,7 +415,7 @@ function abrir() {
     if (!estado) return;
     var d = (r && r.data) || {};
     estado.unlimited = !!d.unlimited; estado.credits = d.unlimited ? null : (Number(d.credits) || 0); estado.trial = Number(d.trialGranted) || 0;
-    telaPedido('');
+    if (window.IAAviso && !window.IAAviso.aceito('orcamento')) telaAviso(); else telaPedido('');
   }).catch(function (e) {
     if (!estado) return;
     var c = casca('🤖 Orçamento com IA');
