@@ -110,13 +110,16 @@ function pmRender(p, opts) {
   var total = Math.ceil(Number(p.finalTotal) || 0);
   var pp = guests > 0 ? Math.round(total * 100 / guests) / 100 : 0;
   var cliente = opts.clientName || p.clientName || 'Cliente';
-  var empresa = p.companyName || 'Proposta';
+  // O que aparece segue as caixas "o que mostrar" da proposta. Sem marcação gravada vale o mesmo padrão da tela:
+  // nome e contato aparecem; história, missão, visão, valores, frase e fotos da empresa não.
+  var liga = function (flag, padrao) { return p[flag] === undefined || p[flag] === null ? padrao : !!p[flag]; };
+  var empresa = liga('showCompanyName', true) ? String(p.companyName || '').trim() : '';
   var logo = img(opts.logo || p.companyLogo || '');
   var dishes = pmDishes(p);
-  var comFoto = p.includeDishPhotos !== false;
+  var comFoto = liga('includeDishPhotos', true);
   var fotoPrato = function (d) { var f = d.photos && d.photos[0]; return comFoto && f ? img(f.photoData || f.data || f.url || '') : ''; };
-  var fotoSobre = img(p.companyPhoto1 || '');
-  var fotoCapa = img(p.companyPhoto2 || '') || img(p.companyPhoto3 || '') || (dishes.map(fotoPrato).filter(Boolean)[0] || '');
+  var fotoSobre = liga('showCompanyPhoto1', false) ? img(p.companyPhoto1 || '') : '';
+  var fotoCapa = (liga('showCompanyPhoto2', false) && img(p.companyPhoto2 || '')) || (liga('showCompanyPhoto3', false) && img(p.companyPhoto3 || '')) || (dishes.map(fotoPrato).filter(Boolean)[0] || '');
   var inc = pmIncluded(p);
   var etapas = pmPayment(p.paymentMethod, total);
   var formas = [];
@@ -125,14 +128,14 @@ function pmRender(p, opts) {
   if (p.acceptCash) formas.push('Dinheiro');
   if (p.acceptTransfer) formas.push('Transferência');
   var contato = [];
-  if (p.showCompanyPhone !== false && p.companyPhone) contato.push(esc(p.companyPhone));
-  if (p.showCompanyEmail !== false && p.companyEmail) contato.push(esc(p.companyEmail));
-  if (p.showCompanyAddress !== false && p.companyAddress) contato.push(esc(p.companyAddress));
+  if (liga('showCompanyPhone', true) && p.companyPhone) contato.push(esc(p.companyPhone));
+  if (liga('showCompanyEmail', true) && p.companyEmail) contato.push(esc(p.companyEmail));
+  if (liga('showCompanyAddress', true) && p.companyAddress) contato.push(esc(p.companyAddress));
   var emitida = pmDate(p.createdAt || new Date().toISOString());
   var pagina = 1;
   var rodape = function () {
     pagina++;
-    return '<div class="pm-foot">' + (logo ? '<img src="' + logo + '" alt="">' : '') + '<span>' + esc(empresa) + (contato.length ? ' · ' + contato.join(' · ') : '') + '</span><b>' + String(pagina).padStart(2, '0') + '</b></div>';
+    return '<div class="pm-foot">' + (logo ? '<img src="' + logo + '" alt="">' : '') + '<span>' + (empresa ? [esc(empresa)] : []).concat(contato).join(' · ') + '</span><b>' + String(pagina).padStart(2, '0') + '</b></div>';
   };
 
   // Agrupar pratos
@@ -165,7 +168,7 @@ function pmRender(p, opts) {
   if (dishes.length) chips.push(dishes.length + ' pratos');
 
   // Sobre mim
-  var mostra = function (flag, txt) { return p[flag] !== false && txt && String(txt).trim(); };
+  var mostra = function (flag, txt) { return liga(flag, false) && txt && String(txt).trim(); };
   var hist = mostra('showCompanyHistory', p.companyHistory);
   var vals = [['Missão', mostra('showCompanyMission', p.companyMission)], ['Visão', mostra('showCompanyVision', p.companyVision)], ['Valores', mostra('showCompanyValues', p.companyValues)]].filter(function (v) { return v[1]; });
   var frase = mostra('showCompanyMotivation', p.companyMotivation);
@@ -192,9 +195,9 @@ function pmRender(p, opts) {
     (logo ? '<div class="pm-logo"><img src="' + logo + '" alt=""></div>' : '') +
     '<div class="pm-cbody"><div class="pm-kicker">Proposta gastronômica</div>' +
     '<h1>Para ' + esc(cliente) + '</h1>' +
-    (p.proposalName && !/^proposta\s*-/i.test(p.proposalName) ? '<div class="pm-sub">' + esc(p.proposalName) + '</div>' : '<div class="pm-sub">Preparada por ' + esc(empresa) + '</div>') +
+    (p.proposalName && !/^proposta\s*-/i.test(p.proposalName) ? '<div class="pm-sub">' + esc(p.proposalName) + '</div>' : (empresa ? '<div class="pm-sub">Preparada por ' + esc(empresa) + '</div>' : '')) +
     (chips.length ? '<div class="pm-chips">' + chips.map(function (c) { return '<span>' + c + '</span>'; }).join('') + '</div>' : '') + '</div>' +
-    '<div class="pm-sign"><div>Preparada por<b>' + esc(empresa) + '</b></div><div class="pm-r">' + (p.validityDays ? 'Válida por ' + esc(p.validityDays) + ' dias<br>' : '') + 'Emitida em ' + emitida + '</div></div></div>';
+    '<div class="pm-sign"><div>' + (empresa ? 'Preparada por<b>' + esc(empresa) + '</b>' : '') + '</div><div class="pm-r">' + (p.validityDays ? 'Válida por ' + esc(p.validityDays) + ' dias<br>' : '') + 'Emitida em ' + emitida + '</div></div></div>';
 
   // 2. Resumo
   var primeiro = String(cliente).split(' ')[0];
@@ -253,7 +256,7 @@ function pmRender(p, opts) {
     '<div class="pm-two"><div class="pm-box"><h4>Próximos passos</h4><ul>' + passos.map(function (s, i) { return '<li><span class="pm-num">' + (i + 1) + '</span>' + esc(s) + '</li>'; }).join('') + '</ul></div>' +
     '<div class="pm-box"><h4>Validade</h4><ul>' + (p.validityDays ? '<li>Proposta válida por ' + esc(p.validityDays) + ' dias</li>' : '') + '<li>Emitida em ' + emitida + '</li>' + (p.minConfirmationDays ? '<li>Confirmação mínima: ' + esc(p.minConfirmationDays) + ' dias antes</li>' : '') + '</ul></div></div>' +
     (inc.obs ? '<div class="pm-box pm-mt"><h4>Observações</h4><p class="pm-txt">' + esc(inc.obs).replace(/\n/g, '<br>') + '</p></div>' : '') +
-    '<div class="pm-signs"><div>' + esc(cliente) + '</div><div>' + esc(empresa) + '</div></div>' +
+    '<div class="pm-signs"><div>' + esc(cliente) + '</div><div>' + esc(empresa || 'Contratada') + '</div></div>' +
     '</div>' + rodape() + '</div>';
 
   html += '</div>';
