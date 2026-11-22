@@ -32,9 +32,8 @@
     <script src="vendor/react.production.min.js?v=18.3.1"></script>
     <script src="vendor/react-dom.production.min.js?v=18.3.1"></script>
 
-    <!-- jsPDF e html2canvas: SEMPRE CARREGADOS (necessário para WhatsApp) -->
-    <script src="vendor/jspdf.umd.min.js?v=2.5.1b"></script>
-    <script src="vendor/html2canvas.min.js?v=1.4.1"></script>
+    <!-- jsPDF e html2canvas (549 KB): fora da abertura desde nov/2026. O utils/lazy-loader.js carrega as duas
+         sozinho logo depois que a tela aparece (ou no primeiro toque); quem gera PDF espera LazyLoader.loadPdfLibs() -->
     <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js?v=1762564421"></script> -->
 
     <!-- Socket.io para WebSocket -->
@@ -94,7 +93,7 @@
     </script>
 
     <!-- API Client - Backend Integration (CLOUD only) -->
-    <script src="api-client.js?v=1797000000"></script>
+    <script src="api-client.js?v=1799800000"></script>
 
     <!-- Storage Adapters - Sistema de storage por plano -->
     <script src="adapters/StorageAdapter.js?v=1762564421"></script>
@@ -112,13 +111,13 @@
     <script src="utils/manager-helper.js?v=1762564421"></script>
 
     <!-- Lazy Loader - Carrega jsPDF/XLSX sob demanda -->
-    <script src="utils/lazy-loader.js?v=1793600000"></script>
+    <script src="utils/lazy-loader.js?v=1799400000"></script>
 
     <!-- Shopping List Generator - Gerador de lista de compras compartilhado -->
     <script type="module" src="utils/shopping-list-generator.js?v=1795800000"></script>
 
     <!-- Markdown to PDF Converter -->
-    <script src="utils/markdown-to-pdf.js?v=1791812000"></script>
+    <script src="utils/markdown-to-pdf.js?v=1799400000"></script>
 
     <!-- IMPORTANTE: IndexedDBStorageService DEVE ser carregado ANTES de session-auth.js -->
     <script src="adapters/IndexedDBStorageService.js?v=1762564421"></script>
@@ -196,7 +195,7 @@
     <script src="ui-compiled/UpgradeModal.js?v=1762564421"></script>
     <script src="ui-compiled/DishSale.js?v=1794100000"></script>
     <script src="ui-compiled/DishForm.js?v=1794000000"></script>
-    <script src="utils/share-file.js?v=1797900000"></script>
+    <script src="utils/share-file.js?v=1799400000"></script>
     <script src="utils/escpos.js?v=1798000000"></script>
     <script src="utils/order-print.js?v=1798000000"></script>
     <script src="utils/tab-order.js?v=1798200000"></script>
@@ -204,7 +203,11 @@
     <script src="utils/ia-aviso.js?v=1799300000"></script>
     <script src="utils/quote-agent.js?v=1799300000"></script>
     <script src="utils/marketing-agent.js?v=1799300000"></script>
-    <script src="utils/dish-sheet.js?v=1793800000"></script>
+    <!-- Sinal por PIX: chave do chef, campo na proposta e janela com QR / copia e cola -->
+    <script src="utils/pix-sinal.js?v=1799700000"></script>
+    <!-- Cancelar evento já fechado: motivo, data e reter/devolver o que foi recebido -->
+    <script src="utils/cancelar-evento.js?v=1799700000"></script>
+    <script src="utils/dish-sheet.js?v=1799400000"></script>
     <script src="ui-compiled/DishList.js?v=1795700000"></script>
     <script src="ui-compiled/DishesPage.js?v=1793100000"></script>
     <script src="ui-compiled/SaveMenuModal.js?v=1762564421"></script>
@@ -214,18 +217,18 @@
     <script src="ui-compiled/ProposalBuilder.js?v=1762564421"></script>
     <script src="ui-compiled/ClientsPage.js?v=1795700000"></script>
     <script src="ui-compiled/EventsPage.js?v=1797000000"></script>
-    <script src="ui-compiled/ProposalBuilderSimple.js?v=1798800000"></script>
+    <script src="ui-compiled/ProposalBuilderSimple.js?v=1799600000"></script>
     <script src="utils/proposal-modern.js?v=1799200000"></script>
     <script src="ui-compiled/ProposalPreview.js?v=1799200000"></script>
-    <script src="ui-compiled/ProposalList-v2.js?v=1798700000"></script>
+    <script src="ui-compiled/ProposalList-v2.js?v=1799700000"></script>
     <script src="ui-compiled/CalendarPage.js?v=1798400000"></script>
     <script src="ui-compiled/CrmShared.js?v=1797600000"></script>
     <script src="ui-compiled/CrmTasks.js?v=1795300000"></script>
     <script src="ui-compiled/CrmMessages.js?v=1797600000"></script>
     <script src="ui-compiled/ReportsPage.js?v=1791730000"></script>
-    <script src="ui-compiled/PipelinePage.js?v=1799000000"></script>
+    <script src="ui-compiled/PipelinePage.js?v=1799700000"></script>
     <script src="ui-compiled/SuppliersPage.js?v=1796700000"></script>
-    <script src="ui-compiled/StockPage.js?v=1796800000"></script>
+    <script src="ui-compiled/StockPage.js?v=1799800000"></script>
     <script src="ui-compiled/FinanceiroPage.js?v=1797200000"></script>
     <script src="ui-compiled/DREPanel.js?v=1796900000"></script>
     <script src="ui-compiled/RelatoriosPage.js?v=1799100000"></script>
@@ -257,11 +260,11 @@
 
     <!-- ===== HOOKS ===== -->
     <script src="ui/hooks/usePlanContext.js?v=1762564421"></script>
-    <script src="ui/hooks/useEventState.js?v=1794800000"></script>
+    <script src="ui/hooks/useEventState.js?v=1799800000"></script>
     <script src="ui/hooks/useCalculations.js?v=1794800000"></script>
 
     <!-- ===== APP FULL ===== -->
-    <script src="ui-compiled/App-Full.js?v=1799000000"></script>
+    <script src="ui-compiled/App-Full.js?v=1799600000"></script>
 
     <!-- Renderizar App -->
     <script>

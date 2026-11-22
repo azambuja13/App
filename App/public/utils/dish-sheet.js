@@ -309,8 +309,11 @@ function print(dish) {
   if (!dish) return Promise.resolve();
   if (isNative()) {
     var temIng = dish.ingredients && dish.ingredients.length;
-    if (temIng) { try { return Promise.resolve(compartilharPDF(dish)); } catch (e) { return Promise.reject(e); } }
-    return completo(dish).then(compartilharPDF);
+    // jsPDF carrega logo depois da abertura do app (utils/lazy-loader.js); se o toque veio antes, espera
+    var pronto = !!(window.jspdf && window.jspdf.jsPDF);
+    if (temIng && pronto) { try { return Promise.resolve(compartilharPDF(dish)); } catch (e) { return Promise.reject(e); } }
+    var libs = !pronto && window.LazyLoader && window.LazyLoader.loadJsPDF ? window.LazyLoader.loadJsPDF() : Promise.resolve();
+    return Promise.all([temIng ? dish : completo(dish), libs]).then(function (r) { return compartilharPDF(r[0]); });
   }
   // Abre a janela já no clique (evita bloqueio de pop-up) e preenche depois
   var janela = null;

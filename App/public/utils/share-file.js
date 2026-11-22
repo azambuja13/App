@@ -5,7 +5,7 @@
  *
  * O app do iPhone (Capacitor/WKWebView) não tem window.print(), não abre janela nova
  * e não baixa arquivos (<a download>). Nele:
- *   - impressão vira PDF (html2canvas + jsPDF, já carregados no index.html)
+ *   - impressão vira PDF (html2canvas + jsPDF, carregados logo depois da abertura por utils/lazy-loader.js)
  *   - o arquivo vai para a folha de compartilhamento do iOS (Imprimir / Salvar em Arquivos / WhatsApp)
  * Compartilha SÓ o arquivo: com "title"/"text" o iOS salva também um .txt.
  * Se o gesto do toque expirar (PDF demorou), mostra um botão para o usuário tocar de novo.
@@ -114,9 +114,13 @@ function esperarImagens(doc) {
 
 function elementToPdfFile(el, fileName, opts) {
   opts = opts || {};
-  if (typeof window.html2canvas !== 'function') return Promise.reject(new Error('html2canvas não carregado'));
   var ignore = opts.ignore || function (n) { return n.classList && (n.classList.contains('print:hidden') || n.classList.contains('no-print')); };
-  return esperarImagens(el.ownerDocument).then(function () {
+  // jsPDF e html2canvas carregam depois da abertura do app (utils/lazy-loader.js): se ainda não chegaram, espera
+  var libs = window.LazyLoader && window.LazyLoader.loadPdfLibs ? window.LazyLoader.loadPdfLibs() : Promise.resolve();
+  return libs.then(function () {
+    if (typeof window.html2canvas !== 'function') throw new Error('html2canvas não carregado');
+    return esperarImagens(el.ownerDocument);
+  }).then(function () {
     var w = el.scrollWidth, h = el.scrollHeight;
     return window.html2canvas(el, { scale: escala(w, h), useCORS: true, backgroundColor: '#ffffff', ignoreElements: ignore, windowWidth: Math.max(w, 794) });
   }).then(function (canvas) {

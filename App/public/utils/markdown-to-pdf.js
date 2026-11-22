@@ -11,7 +11,9 @@ class MarkdownToPDF {
     async loadLibraries() {
         if (this.isLibrariesLoaded) return;
         if (!window.jspdf) {
-            await this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+            // arquivo do próprio app (o CDN não funciona no app do iPhone nem sem internet)
+            if (window.LazyLoader && window.LazyLoader.loadJsPDF) await window.LazyLoader.loadJsPDF();
+            else await this.loadScript('vendor/jspdf.umd.min.js?v=2.5.1b');
         }
         this.isLibrariesLoaded = true;
     }

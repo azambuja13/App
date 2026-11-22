@@ -492,6 +492,8 @@ async function necessidadeDaProposta(p, db, support, horas) {
   const md = d.selectedMenuData || p.selectedMenuData || {};
   const pratos = (md.menuData && md.menuData.dishes) || md.dishes || [];
   const conv = parseInt(d.guests || p.guests) || 0;
+  // proposta resumida (lista): a ficha não veio. Melhor avisar do que sugerir compra a menos.
+  if (pratos.some(x => x && x.dishIngredients === '__lite__')) throw new Error('Não foi possível abrir as propostas completas para calcular a compra. Confira a internet e tente de novo.');
   if (!pratos.length || !conv || !window.menuManager || !window.ShoppingListGenerator || !window.calculateItems) return null;
   const lista = await window.menuManager.generateIngredientsListFromDishes(pratos, conv);
   const itens = window.ShoppingListGenerator.processIngredientsToItems(lista, conv, db);
@@ -543,7 +545,18 @@ function PlanoDialog({ catalogo, saldos, support, base, onClose, onComprar }) {
       const ate = new Date(hoje.getTime() + dias * 864e5);
       const doPeriodo = props.filter(p => { if (estagio(p) !== 'won') return false; const dt = dataISO((p.proposalData && p.proposalData.eventDate) || p.eventDate); if (!dt) return false; const t = new Date(dt + 'T12:00:00'); return t >= hoje && t <= ate; });
       const total = new Map(), usadas = [], semCardapio = [];
-      for (const p of doPeriodo) {
+      // A lista vem resumida (sem a ficha de ingredientes dos pratos): busca a proposta completa de cada
+      // evento fechado do período, 4 por vez.
+      const completas = [];
+      for (let i = 0; i < doPeriodo.length; i += 4) {
+        completas.push(...await Promise.all(doPeriodo.slice(i, i + 4).map(async p => {
+          if (!p._lite) return p;
+          const rr = await pm.getProposal(p.id); const full = rr && (rr.data || rr.proposal);
+          if (!full || full._lite) throw new Error('Não foi possível abrir as propostas completas para calcular a compra. Confira a internet e tente de novo.');
+          return full;
+        })));
+      }
+      for (const p of completas) {
         const nec = await necessidadeDaProposta(p, db, support, base && base.hours);
         const nome = p.title || (p.proposalData && p.proposalData.proposalName) || 'Proposta';
         const dt = dataISO((p.proposalData && p.proposalData.eventDate) || p.eventDate);

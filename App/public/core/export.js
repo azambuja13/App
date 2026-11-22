@@ -19,7 +19,8 @@ import { formatCurrency, formatDate } from './formatters.js';
  * @returns {Promise<void>}
  */
 export async function generateProposalPDF(eventData, costs, companyData = {}) {
-    // Verificar se jsPDF está disponível
+    // jsPDF carrega logo depois da abertura do app (utils/lazy-loader.js); se ainda não chegou, espera
+    if (typeof window.jspdf === 'undefined' && window.LazyLoader && window.LazyLoader.loadJsPDF) await window.LazyLoader.loadJsPDF();
     if (typeof window.jspdf === 'undefined') {
         console.error('jsPDF não está carregado');
         throw new Error('jsPDF não está disponível. Inclua o script no HTML.');
@@ -344,6 +345,7 @@ export async function importIngredientsFromExcel(file) {
  * @returns {Promise<Object>} Resultado da operação
  */
 export async function exportShoppingListPDF(items, eventData) {
+    if (typeof window.jspdf === 'undefined' && window.LazyLoader && window.LazyLoader.loadJsPDF) await window.LazyLoader.loadJsPDF();
     if (typeof window.jspdf === 'undefined') {
         throw new Error('jsPDF não está disponível');
     }

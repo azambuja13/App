@@ -342,6 +342,8 @@ function ProposalBuilderSimple({
         acceptCash: proposal.acceptCash !== undefined ? proposal.acceptCash : true,
         acceptCard: proposal.acceptCard !== undefined ? proposal.acceptCard : true,
         acceptPix: proposal.acceptPix !== undefined ? proposal.acceptPix : true,
+        // Sinal por PIX: proposta já existente não ganha sinal sozinha (null = sem sinal)
+        signal: proposal.signal && typeof proposal.signal === 'object' ? proposal.signal : null,
         // Opções de exibição
         includeDishPhotos: proposal.includeDishPhotos !== undefined ? proposal.includeDishPhotos : true
       };
@@ -1006,6 +1008,8 @@ function ProposalBuilderSimple({
         acceptCash: formData.acceptCash,
         acceptCard: formData.acceptCard,
         acceptPix: formData.acceptPix,
+        // Sinal por PIX (utils/pix-sinal.js): { tipo: 'pct' | 'valor', valor }
+        signal: formData.signal && Number(formData.signal.valor) > 0 ? formData.signal : null,
         // Opções de exibição
         includeDishPhotos: formData.includeDishPhotos,
         // Custos guardados NA PROPOSTA (editar depois não depende do evento aberto)
@@ -1538,7 +1542,12 @@ function ProposalBuilderSimple({
     min: "1",
     max: "30",
     className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }))), window.PixSinal && window.PixSinal.Campo ? /*#__PURE__*/React.createElement(window.PixSinal.Campo, {
+    sinal: formData.signal,
+    onChange: v => handleChange('signal', v),
+    paymentMethod: formData.paymentMethod,
+    total: (() => { try { const c = computeProposal(); return c.finalTotalRounded != null ? c.finalTotalRounded : c.finalTotal; } catch (e) { return 0; } })()
+  }) : null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "\uD83D\uDCB3 Formas de Pagamento Aceitas"), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-4"

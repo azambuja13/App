@@ -184,7 +184,7 @@ function PipelinePage() {
       it.subtitle && it.subtitle !== it.title && h('div', { className: 'crm-muted crm-break', style: { marginTop: 2 } }, it.subtitle),
       (it.date || it.guests) && h('div', { className: 'crm-muted', style: { marginTop: 4 } },
         [it.date && '📅 ' + C.fmtDate(it.date), it.guests ? '👥 ' + it.guests : null].filter(Boolean).join('  ·  ')),
-      it.stage === 'lost' && it.lostReason && h('div', { style: { marginTop: 4, fontSize: 12, color: '#b91c1c' } }, '✖ ' + it.lostReason),
+      it.stage === 'lost' && it.lostReason && h('div', { style: { marginTop: 4, fontSize: 12, color: '#b91c1c' } }, (/^cancelado(\b|:)/i.test(it.lostReason) ? '🚫 ' : '✖ ') + it.lostReason),
       (it.source || (it.tags && it.tags.length > 0)) && h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 } },
         it.source && C.SOURCE[it.source] && h('span', { className: 'crm-chip', style: { background: '#f3f4f6', color: '#374151' } }, C.SOURCE[it.source].icon + ' ' + C.SOURCE[it.source].label),
         (it.tags || []).map(tg => h('span', { key: tg, className: 'crm-chip', style: { background: '#fff7ed', color: '#c2410c' } }, tg))),

@@ -2878,7 +2878,7 @@ window.AppFull = function AppFull() {
     className: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500",
     placeholder: "Endere\xE7o da empresa",
     rows: "2"
-  })), window.MarketingAgent && window.MarketingAgent.Painel ? /*#__PURE__*/React.createElement(window.MarketingAgent.Painel, null) : null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  })), window.MarketingAgent && window.MarketingAgent.Painel ? /*#__PURE__*/React.createElement(window.MarketingAgent.Painel, null) : null, window.PixSinal && window.PixSinal.Painel ? /*#__PURE__*/React.createElement(window.PixSinal.Painel, null) : null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-medium text-gray-700 mb-1"
   }, "\uD83D\uDCD6 Hist\xF3ria da Empresa"), /*#__PURE__*/React.createElement("textarea", {
     value: state.proposalData.companyHistory || '',
@@ -3113,6 +3113,13 @@ window.AppFull = function AppFull() {
             if (window.MarketingAgent && window.MarketingAgent.salvarPainel) await window.MarketingAgent.salvarPainel();
           } catch (eDiv) {
             alert('⚠️ Dados da empresa salvos, mas a divulgação não: ' + ((eDiv && eDiv.message) || 'tente de novo') + '.');
+            return;
+          }
+          // Chave PIX do sinal: salva junto, se o chef mexeu nela
+          try {
+            if (window.PixSinal && window.PixSinal.salvarPainel) await window.PixSinal.salvarPainel();
+          } catch (ePix) {
+            alert('⚠️ Dados da empresa salvos, mas a chave PIX não: ' + ((ePix && ePix.message) || 'tente de novo') + '.');
             return;
           }
           alert('✅ Dados da empresa salvos com sucesso!');

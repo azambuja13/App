@@ -571,7 +571,10 @@ function ProposalCard({
   onSelectToggle
 }) {
   const [showMenu, setShowMenu] = React.useState(false);
-  const statusBadge = getStatusBadge(proposal.status);
+  // Evento cancelado depois de fechado (utils/cancelar-evento.js): selo próprio, não é "Rejeitada"
+  const eventoCancelado = !!(window.CancelarEvento && window.CancelarEvento.cancelada(proposal));
+  const podeCancelar = !!(window.CancelarEvento && window.CancelarEvento.fechada(proposal));
+  const statusBadge = eventoCancelado ? { label: 'Cancelado', color: 'bg-gray-200 text-gray-800', icon: '🚫' } : getStatusBadge(proposal.status);
 
   // Tipos de proposta
   const typeConfig = {
@@ -704,7 +707,12 @@ function ProposalCard({
     onClick: () => window.openContrato({ proposal }),
     title: "Contrato para o cliente assinar pelo celular",
     className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-  }, "\uD83D\uDCDD Contrato"), onSelect && /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCDD Contrato"), window.PixSinal && window.PixSinal.abrir && /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.PixSinal.abrir({ proposal }),
+    title: "QR e copia e cola do sinal, com a sua chave PIX",
+    "data-testid": "abrir-pix-sinal",
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+  }, "\uD83D\uDCA0 PIX do sinal"), onSelect && /*#__PURE__*/React.createElement("button", {
     onClick: () => onSelect(proposal),
     className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
   }, "Ver Detalhes"), /*#__PURE__*/React.createElement("button", {
@@ -726,7 +734,15 @@ function ProposalCard({
       setShowMenu(false);
     },
     className: "flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
-  }, "\uD83D\uDCCB Duplicar"), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCCB Duplicar"), podeCancelar && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.CancelarEvento.abrir({ proposal });
+      setShowMenu(false);
+    },
+    title: "Cancelar um evento já fechado: motivo e o que fazer com o que foi recebido",
+    "data-testid": "abrir-cancelar-evento",
+    className: "flex-1 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-medium"
+  }, "\uD83D\uDEAB Cancelar evento"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       onDelete();
       setShowMenu(false);

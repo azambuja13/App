@@ -54,23 +54,34 @@ const loadFromBackend = async () => {
             return null;
         }
 
-        const token = localStorage.getItem('accessToken');
-        const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
+        // ⚡ nov/2026: a abertura pedia /api/user-settings 3 vezes (aqui, de novo 1 s depois do login e na
+        // fase 2 do api-client). Pelo api.request, pedidos iguais ao mesmo tempo viram uma requisição só.
+        const cliente = window.PrecificacaoAPI && window.PrecificacaoAPI.api;
+        let result;
+        if (cliente && typeof cliente.request === 'function') {
+            result = await cliente.request('/api/user-settings');
+            // Sem internet o api.request devolve a cópia guardada; aqui continua valendo o que está
+            // neste aparelho (como antes, quando a leitura falhava e voltava vazio)
+            if (window.OfflineCache && window.OfflineCache.isOffline && window.OfflineCache.isOffline()) return null;
+        } else {
+            const token = localStorage.getItem('accessToken');
+            const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
-        const response = await fetch(`${backendURL}/api/user-settings`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+            const response = await fetch(`${backendURL}/api/user-settings`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('⚠️ [useEventState] Erro ao carregar do backend:', response.status);
+                return null;
             }
-        });
 
-        if (!response.ok) {
-            console.warn('⚠️ [useEventState] Erro ao carregar do backend:', response.status);
-            return null;
+            result = await response.json();
         }
-
-        const result = await response.json();
 
         if (result.success && result.data && result.data.settingsData) {
             console.log('☁️ [useEventState] Dados carregados do backend:', {
@@ -91,6 +102,27 @@ const loadFromBackend = async () => {
         return null;
     }
 };
+
+// Blocos das configurações que o auto-save mantém no servidor (user-settings)
+const BLOCOS_SINCRONIZADOS = ['ingredientsDatabase', 'support', 'labor', 'transport', 'proposalData'];
+// Texto do bloco com as chaves em ordem fixa: o banco devolve o JSON com as chaves reordenadas, então
+// comparar com JSON.stringify direto dava "mudou" em toda abertura (e reenviava ingredientes + dados da empresa).
+// As fotos e a logo da empresa moram na tabela da empresa. A cópia delas dentro das configurações nunca é
+// lida (na leitura os campos company* são ignorados) e era 3/4 do tamanho do user-settings, baixado a cada
+// abertura. O que vai para as configurações segue sem essas imagens; o estado e o WebSocket continuam com elas.
+const semFotosDaEmpresa = (pd) => {
+    if (!pd || typeof pd !== 'object' || Array.isArray(pd)) return pd;
+    const o = {};
+    Object.keys(pd).forEach(k => {
+        const v = pd[k];
+        if (k.startsWith('company') && typeof v === 'string' && v.length > 300 && v.startsWith('data:')) return;
+        o[k] = v;
+    });
+    return o;
+};
+const paraOServidor = (k, v) => (k === 'proposalData' ? semFotosDaEmpresa(v) : v);
+const textoEstavel = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.keys(x).sort().reduce((o, c) => { o[c] = x[c]; return o; }, {}) : x));
 
 // Helper: Salvar configurações no backend
 const saveToBackend = async (settingsData) => {
@@ -410,12 +442,24 @@ function useEventState() {
     // Carregar dados do storage na montagem
     // (Dados da empresa serão carregados DENTRO deste useEffect, após o storage)
     // ====================================
+    // ⚡ nov/2026: o que o servidor já tem de cada bloco das configurações (texto JSON). O auto-save só envia
+    // o bloco que mudou; antes mandava a base inteira de ingredientes + apoio + mão de obra + transporte +
+    // dados da empresa a cada alteração (até do número de convidados), pela API e de novo pelo WebSocket.
+    const ultimoEnvioRef = React.useRef({});
+    const ultimoWsRef = React.useRef(null); // o que já foi para os outros aparelhos (null = ainda não comparou)
+    // guarda o bloco como está no servidor: se ele ainda tiver as fotos da empresa, o próximo envio tira
+    const anotarServidor = (dados) => {
+        if (!dados || typeof dados !== 'object') return;
+        BLOCOS_SINCRONIZADOS.forEach(k => { if (dados[k] !== undefined) { try { ultimoEnvioRef.current[k] = textoEstavel(dados[k]); } catch (e) { /* ignore */ } } });
+    };
+
     useEffect(() => {
         const loadData = async () => {
             console.log('🔄 Iniciando carregamento...');
 
             // PASSO 1: Tentar carregar do backend primeiro (se modo cloud)
             let backendData = await loadFromBackend();
+            anotarServidor(backendData);
 
             // PASSO 2: Carregar do storage local (sempre, como fallback)
             let savedData = await loadFromStorage();
@@ -615,6 +659,7 @@ function useEventState() {
 
             // Carregar dados do backend
             const backendData = await loadFromBackend();
+            anotarServidor(backendData);
 
             if (backendData) {
                 console.log('☁️ [useEventState] Dados do backend recebidos após login');
@@ -788,13 +833,31 @@ function useEventState() {
                     proposalData  // Dados da empresa
                 };
 
-                await saveToBackend(currentSettingsToSync);
+                // Só o que mudou desde o último envio (ou desde o que veio do servidor)
+                const mudou = {}, textos = {}, mudouWs = {}, textosWs = {};
+                const primeiraVez = ultimoWsRef.current === null;
+                if (primeiraVez) ultimoWsRef.current = {};
+                BLOCOS_SINCRONIZADOS.forEach(k => {
+                    const cheio = currentSettingsToSync[k], http = paraOServidor(k, cheio);
+                    let t, tw;
+                    try { t = textoEstavel(http); tw = http === cheio ? t : textoEstavel(cheio); } catch (e) { t = tw = undefined; }
+                    if (t !== undefined && t !== ultimoEnvioRef.current[k]) { mudou[k] = http; textos[k] = t; }
+                    // WebSocket (outros aparelhos abertos): o bloco inteiro, só quando mudou depois que o app abriu
+                    if (tw !== undefined && tw !== ultimoWsRef.current[k]) { if (!primeiraVez) mudouWs[k] = cheio; textosWs[k] = tw; }
+                });
+                Object.assign(ultimoWsRef.current, textosWs);
+
+                // nada das configurações mudou: não chama o servidor
+                if (Object.keys(mudou).length > 0) {
+                    const enviado = await saveToBackend(mudou);
+                    if (enviado) Object.assign(ultimoEnvioRef.current, textos);
+                }
 
                 // PASSO 3: Sincronizar em tempo real via WebSocket
                 const ws = getWebSocketService();
-                if (ws && ws.isSocketConnected()) {
+                if (Object.keys(mudouWs).length > 0 && ws && ws.isSocketConnected()) {
                     console.log('🔌 Sincronizando via WebSocket em tempo real...');
-                    ws.syncSettings(currentSettingsToSync);
+                    ws.syncSettings(mudouWs);
                 }
             } catch (error) {
                 console.error('❌ Erro no auto-save:', error);

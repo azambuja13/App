@@ -561,7 +561,9 @@ class PrecificacaoAPI {
     // PROPOSTAS
     async getProposals() {
         // ⚡ Lista leve: sem fotos em base64; a proposta inteira vem em getProposal(id)
-        return this.request('/api/proposals?lite=1');
+        // lite=2 (nov/2026): além das fotos, sem a ficha de ingredientes de cada prato, que vinha três vezes por
+        // proposta (70% do tamanho da lista). Editar, duplicar e a compra sugerida buscam a proposta completa.
+        return this.request('/api/proposals?lite=2');
     }
 
     async getProposal(proposalId) {
