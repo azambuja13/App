@@ -152,7 +152,7 @@ class PrecificacaoAPI {
         const accessToken = localStorage.getItem('accessToken');
 
         // Tempo limite: consultas 20 s; envios 60 s; operações longas passam options.timeoutMs
-        const { timeoutMs: optTimeout, ...fetchOptions } = options;
+        const { timeoutMs: optTimeout, semCopiaOffline, ...fetchOptions } = options;
         const timeoutMs = optTimeout || (method === 'GET' ? 20000 : 60000);
 
         const config = {
@@ -246,7 +246,7 @@ class PrecificacaoAPI {
             }
 
             // Modo offline: guarda a última resposta de cada consulta
-            if (OC && method === 'GET') OC.put(endpoint, data);
+            if (OC && method === 'GET' && !semCopiaOffline) OC.put(endpoint, data);
             return data;
         } catch (error) {
             // Sem internet: consultas usam a última cópia guardada; salvar avisa
@@ -349,8 +349,45 @@ class PrecificacaoAPI {
     }
 
     // ⚡ OTIMIZADO: Buscar pratos com dados mínimos (sem ingredients/photos)
+    // ⚡ nov/2026: as fotos eram 2,6 dos 2,7 MB desta resposta e vinham de novo a cada abertura.
+    // Agora a lista vem só com o id da primeira foto (?fotos=ref) e cada foto fica guardada no aparelho
+    // pelo id (a foto de um id nunca muda). Só as que faltam são buscadas. Quem chama recebe a lista
+    // completa, com photoData, igual a antes. API antiga (ignora o parâmetro) ou aparelho sem a cópia
+    // local: tudo como era.
     async getDishSummary() {
-        return this.request('/api/dishes/summary');
+        // uma carga por vez: a segunda espera a primeira e já encontra as fotos na memória
+        if (this._resumoPratos) { try { await this._resumoPratos; } catch (e) { /* a de agora tenta de novo */ } }
+        const p = this._resumoDePratos(); this._resumoPratos = p;
+        try { return await p; } finally { if (this._resumoPratos === p) this._resumoPratos = null; }
+    }
+
+    async _resumoDePratos() {
+        const OC = window.OfflineCache;
+        if (!OC || !OC.get || !OC.put) return this.request('/api/dishes/summary');
+        const r = await this.request('/api/dishes/summary?fotos=ref');
+        const pratos = r && (r.data || r.dishes);
+        if (!r || r.fotos !== 'ref' || !Array.isArray(pratos)) return r;
+        if (!this._fotosPrato) this._fotosPrato = new Map();
+        const mem = this._fotosPrato, chave = id => 'foto-prato|' + id;
+        const fotos = []; pratos.forEach(d => (d.photos || []).forEach(f => { if (f && f.id && !f.photoData) fotos.push(f); }));
+        // 1) memória desta sessão, 2) cópia guardada no aparelho
+        await Promise.all(fotos.filter(f => !mem.has(f.id)).map(async f => {
+            const g = await OC.get(chave(f.id)); if (g && typeof g.data === 'string' && g.data) mem.set(f.id, g.data);
+        }));
+        // 3) o que falta vem do servidor, 20 fotos por chamada, 3 chamadas por vez (sem guardar a resposta inteira)
+        const faltam = [...new Set(fotos.filter(f => !mem.has(f.id)).map(f => f.id))];
+        const lotes = []; for (let i = 0; i < faltam.length; i += 20) lotes.push(faltam.slice(i, i + 20));
+        const buscar = async ids => {
+            try {
+                const resp = await this._request('/api/dishes/photos?ids=' + ids.join(','), { semCopiaOffline: true });
+                ((resp && resp.data) || []).forEach(f => { if (f && f.id && f.photoData) { mem.set(f.id, f.photoData); OC.put(chave(f.id), f.photoData); } });
+            } catch (e) { console.warn('⚠️ [Pratos] Não consegui buscar algumas fotos agora:', e && e.message); }
+        };
+        for (let i = 0; i < lotes.length; i += 3) await Promise.all(lotes.slice(i, i + 3).map(buscar));
+        fotos.forEach(f => { const v = mem.get(f.id); if (v) f.photoData = v; });
+        // foto que não veio (sem internet, por exemplo): o prato fica sem foto nesta carga, em vez de uma imagem quebrada
+        pratos.forEach(d => { if (Array.isArray(d.photos)) d.photos = d.photos.filter(f => !f || f.photoData || !f.id); });
+        return r;
     }
 
     // Buscar prato específico por ID (com ingredients e photos)
@@ -548,10 +585,60 @@ class PrecificacaoAPI {
 
     // EMPRESA (COMPANY)
     async getCompany() {
-        return this.request('/api/company');
+        const r = await this.request('/api/company');
+        this._lembrarFotosDaEmpresa(r);
+        return r;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Fotos da empresa por referência (nov/2026). Cada proposta guardava uma cópia das três fotos
+    // da empresa (~650 KB em base64), que ia e voltava a cada abrir e salvar. Com ?v=2 o servidor
+    // manda a marca "@empresa" no lugar da foto que é igual à do cadastro; aqui a marca vira a foto
+    // de verdade (que o app já carregou com os dados da empresa) antes de entregar a proposta para
+    // as telas, e a foto igual à do cadastro volta a ser marca antes de enviar. As telas não mudam.
+    // Foto diferente da atual (proposta antiga) vai e volta inteira, como sempre.
+    // ------------------------------------------------------------------------------------------
+    _lembrarFotosDaEmpresa(resposta) {
+        // Só envia a marca quando a API diz que entende; uma API antiga guardaria o texto "@empresa" no lugar da foto.
+        if (resposta && resposta.fotosPorReferencia === true) this._servidorEntendeMarca = true;
+        const c = resposta && (resposta.data || resposta.company);
+        if (c && typeof c === 'object' && ('photo1' in c || 'photo2' in c || 'photo3' in c)) {
+            this._fotosEmpresa = { companyPhoto1: c.photo1 || null, companyPhoto2: c.photo2 || null, companyPhoto3: c.photo3 || null };
+        }
+    }
+
+    _temMarcaDeFoto(p) {
+        return !!p && typeof p === 'object' && (p.companyPhoto1 === '@empresa' || p.companyPhoto2 === '@empresa' || p.companyPhoto3 === '@empresa');
+    }
+
+    /** Resposta do servidor → proposta com as fotos da empresa de verdade (para as telas) */
+    async _comFotosDaEmpresa(resposta) {
+        const p = resposta && (resposta.data || resposta.proposal);
+        if (!this._temMarcaDeFoto(p)) return resposta;
+        if (!this._fotosEmpresa) { try { await this.getCompany(); } catch (e) { /* sem internet e sem cópia: a marca fica e volta intacta ao salvar */ } }
+        const f = this._fotosEmpresa;
+        if (f) ['companyPhoto1', 'companyPhoto2', 'companyPhoto3'].forEach(k => { if (p[k] === '@empresa') p[k] = f[k] || null; });
+        return resposta;
+    }
+
+    /** Corpo do envio: foto igual à do cadastro da empresa vira a marca (cópia; não mexe no objeto da tela) */
+    _corpoSemFotosDaEmpresa(proposal) {
+        const f = this._fotosEmpresa, pd = proposal && proposal.proposalData;
+        if (!this._servidorEntendeMarca || !f || !pd || typeof pd !== 'object') return proposal;
+        let novo = null;
+        ['companyPhoto1', 'companyPhoto2', 'companyPhoto3'].forEach(k => {
+            if (typeof pd[k] === 'string' && pd[k].length > 300 && f[k] && pd[k] === f[k]) { novo = novo || { ...pd }; novo[k] = '@empresa'; }
+        });
+        return novo ? { ...proposal, proposalData: novo } : proposal;
     }
 
     async updateCompany(companyData) {
+        const r = await this._atualizarEmpresa(companyData);
+        if (r && r.success) this._lembrarFotosDaEmpresa(r);
+        return r;
+    }
+
+    async _atualizarEmpresa(companyData) {
         return this.request('/api/company', {
             method: 'PUT',
             body: JSON.stringify(companyData)
@@ -566,22 +653,24 @@ class PrecificacaoAPI {
         return this.request('/api/proposals?lite=2');
     }
 
+    // ⚡ ?v=2 (nov/2026): a resposta vem só com os campos soltos, sem a segunda cópia inteira em
+    // "proposalData" (com as fotos, dobrava o tamanho: até 3,2 MB por proposta). API antiga ignora o parâmetro.
     async getProposal(proposalId) {
-        return this.request(`/api/proposals/${proposalId}`);
+        return this._comFotosDaEmpresa(await this.request(`/api/proposals/${proposalId}?v=2`));
     }
 
     async createProposal(proposal) {
-        return this.request('/api/proposals', {
+        return this._comFotosDaEmpresa(await this.request('/api/proposals?v=2', {
             method: 'POST',
-            body: JSON.stringify(proposal)
-        });
+            body: JSON.stringify(this._corpoSemFotosDaEmpresa(proposal))
+        }));
     }
 
     async updateProposal(proposalId, proposal) {
-        return this.request(`/api/proposals/${proposalId}`, {
+        return this._comFotosDaEmpresa(await this.request(`/api/proposals/${proposalId}?v=2`, {
             method: 'PUT',
-            body: JSON.stringify(proposal)
-        });
+            body: JSON.stringify(this._corpoSemFotosDaEmpresa(proposal))
+        }));
     }
 
     async deleteProposal(proposalId) {
@@ -591,9 +680,9 @@ class PrecificacaoAPI {
     }
 
     async duplicateProposal(proposalId) {
-        return this.request(`/api/proposals/${proposalId}/duplicate`, {
+        return this._comFotosDaEmpresa(await this.request(`/api/proposals/${proposalId}/duplicate?v=2`, {
             method: 'POST'
-        });
+        }));
     }
 }
 
@@ -1894,19 +1983,12 @@ class ProposalManager {
             title: proposalData.proposalName || proposalData.title
         });
 
-        // Transformar campos do frontend para o formato do backend
-        const backendData = {
-            ...proposalData,
-            id: proposalData.id, // ✅ Garantir que ID está presente
-            title: proposalData.proposalName || proposalData.title, // Backend espera 'title'
-            proposalData: proposalData // Manter todos os dados originais também
-        };
-
         let result;
         if (isUpdate) {
             // ATUALIZAR proposta existente
-            result = await this.updateProposal(proposalData.id, backendData);
+            result = await this.updateProposal(proposalData.id, proposalData);
         } else {
+            const backendData = this.corpoDaProposta(proposalData, false);
             // CRIAR nova proposta (já com UUID gerado)
             result = await this.api.createProposal(backendData);
             if (result.success && result.data) {
@@ -1922,18 +2004,26 @@ class ProposalManager {
         return result;
     }
 
+    /**
+     * Corpo do salvamento (nov/2026). O servidor só lê id, clientId, title, description, status e
+     * proposalData. Antes a proposta inteira ia três vezes no mesmo envio (solta, dentro de proposalData e
+     * de novo dentro dela): com fotos, mais de 2 MB por salvamento. Agora vai uma vez. O que fica guardado
+     * no servidor é igual ao de antes.
+     */
+    corpoDaProposta(proposalData, atualizando) {
+        const { proposalData: _copiaAninhada, ...dados } = proposalData || {};
+        const title = dados.proposalName || dados.title; // Backend espera 'title'
+        if (atualizando) dados.title = title;
+        return { id: dados.id, clientId: dados.clientId, title, description: dados.description, status: dados.status, proposalData: dados };
+    }
+
     async updateProposal(proposalId, proposalData) {
-        // Transformar campos do frontend para o formato do backend
-        const backendData = {
-            ...proposalData,
-            title: proposalData.proposalName || proposalData.title, // Backend espera 'title'
-            proposalData: proposalData // Manter todos os dados originais também
-        };
+        const backendData = this.corpoDaProposta(proposalData, true);
 
         console.log('📤 [ProposalManager] Atualizando no backend:', {
             id: proposalId,
             title: backendData.title,
-            dishes: backendData.dishes?.length || 0
+            dishes: backendData.proposalData.dishes?.length || 0
         });
 
         const result = await this.api.updateProposal(proposalId, backendData);
@@ -1952,10 +2042,10 @@ class ProposalManager {
         // Só o status (PATCH /api/proposals/:id/status). Antes fazia PUT da proposta
         // inteira que estava no cache — se ela tinha sido editada em outro aparelho,
         // aprovar/enviar aqui voltava preço, convidados etc. para os valores antigos.
-        const result = await this.api.request(`/api/proposals/${proposalId}/status`, {
+        const result = await this.api._comFotosDaEmpresa(await this.api.request(`/api/proposals/${proposalId}/status?v=2`, {
             method: 'PATCH',
             body: JSON.stringify({ status: newStatus })
-        });
+        }));
         if (result && result.success) {
             const index = this.proposals.findIndex(p => p.id === proposalId);
             if (index !== -1) {

@@ -63,6 +63,7 @@ function ChangePassword({ onClose }) {
   const [enviando, setEnviando] = useState(false);
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [feito, setFeito] = useState(false);
+  const [outrosSairam, setOutrosSairam] = useState(false);
 
   useEffect(() => {
     const esc = e => { if (e.key === 'Escape') onClose(); };
@@ -93,6 +94,18 @@ function ChangePassword({ onClose }) {
     setEnviando(false);
     if (!r.ok) return setMsg({ ok: false, t: r.message || 'Não foi possível alterar a senha agora.' });
 
+    // 🔒 nov/2026: trocar a senha encerra os outros acessos da conta. A API devolve um login novo
+    // para este aparelho continuar; sem guardar, ele pediria a senha de novo em alguns minutos.
+    try {
+      const t = r.data || {};
+      if (t.accessToken && t.refreshToken) {
+        localStorage.setItem('accessToken', t.accessToken);
+        localStorage.setItem('refreshToken', t.refreshToken);
+        window.dispatchEvent(new CustomEvent('auth:tokenRefreshed', { detail: { accessToken: t.accessToken } }));
+        setOutrosSairam(true);
+      }
+    } catch (e) {}
+
     // Atualiza o acesso sem internet deste aparelho com a senha nova (só o hash fica guardado)
     try {
       const c = JSON.parse(localStorage.getItem('offline_credential') || 'null');
@@ -106,7 +119,9 @@ function ChangePassword({ onClose }) {
   const conteudo = feito
     ? h('div', null,
         h('h2', null, '✅ Senha alterada'),
-        h('p', { className: 'muted', style: { marginTop: 8 } }, 'Use a senha nova no próximo login, em todos os aparelhos.'),
+        h('p', { className: 'muted', style: { marginTop: 8 } }, outrosSairam
+          ? 'Este aparelho continua conectado. Nos outros aparelhos em que a conta estava aberta, o app vai pedir a senha nova em alguns minutos.'
+          : 'Use a senha nova no próximo login, em todos os aparelhos.'),
         h('div', { className: 'btn', role: 'button', onClick: onClose, style: { background: '#ea580c', color: '#fff', width: '100%', boxSizing: 'border-box', marginTop: 16 } }, 'Fechar'))
     : h('div', null,
         h('h2', null, '🔑 Alterar senha'),
