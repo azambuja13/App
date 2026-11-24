@@ -1,4 +1,6 @@
 (function() {
+// nov/2026: perda entre 0 e 99% (acima disso a conta deixava de aplicar a perda, sem avisar; a API também recusa)
+const __limitarPerda = v => (v === '' || v == null || isNaN(v)) ? v : Math.min(Math.max(Number(v), 0), 99);
 /**
  * IngredientsDatabase - Banco de dados de ingredientes com CRUD completo
  *
@@ -700,9 +702,12 @@ function IngredientsDatabase({
     className: "block text-sm font-medium text-gray-700 mb-2"
   }, "Perda (%)"), /*#__PURE__*/React.createElement("input", {
     type: "number",
+    min: "0",
+    max: "99",
+    step: "any",
     value: newIngredient.lossPercentage == null || newIngredient.lossPercentage === 0 || newIngredient.lossPercentage === '' ? '' : newIngredient.lossPercentage,
     onChange: e => {
-      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
+      const value = __limitarPerda(window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0);
       onNewIngredientChange({
         ...newIngredient,
         lossPercentage: value === '' ? 0 : value
@@ -899,9 +904,12 @@ function IngredientsDatabase({
     className: "px-4 py-3"
   }, /*#__PURE__*/React.createElement("input", {
     type: "number",
+    min: "0",
+    max: "99",
+    step: "any",
     value: editingIngredient.lossPercentage == null || editingIngredient.lossPercentage === 0 || editingIngredient.lossPercentage === '' ? '' : isNaN(editingIngredient.lossPercentage) ? '' : editingIngredient.lossPercentage,
     onChange: e => {
-      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
+      const value = __limitarPerda(window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0);
       onEditingChange({
         ...editingIngredient,
         lossPercentage: value === '' ? 0 : value,
@@ -1062,9 +1070,12 @@ function IngredientsDatabase({
     className: "ingredient-card-field-label"
   }, "Perda %"), /*#__PURE__*/React.createElement("input", {
     type: "number",
+    min: "0",
+    max: "99",
+    step: "any",
     value: editingIngredient.lossPercentage == null || editingIngredient.lossPercentage === 0 || editingIngredient.lossPercentage === '' ? '' : isNaN(editingIngredient.lossPercentage) ? '' : editingIngredient.lossPercentage,
     onChange: e => {
-      const value = window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0;
+      const value = __limitarPerda(window.handleNumberInput ? window.handleNumberInput(e.target.value) : parseFloat(e.target.value) || 0);
       onEditingChange({...editingIngredient, lossPercentage: value === '' ? 0 : value, loss: value === '' ? 0 : value});
     },
     placeholder: "0"

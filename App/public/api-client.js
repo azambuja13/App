@@ -43,12 +43,18 @@ class PrecificacaoAPI {
     async refreshAccessToken() {
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) {
-            throw new Error('Token inválido ou expirado');
+            throw Object.assign(new Error('Token inválido ou expirado'), { sessaoEncerrada: true });
         }
 
+        // nov/2026: a renovação pode falhar por três motivos diferentes, e cada um pede uma saída:
+        //  - sem internet (o fetch nem respondeu): segue o caminho do modo offline;
+        //  - o servidor recusou (401): a sessão acabou (7 dias desde a senha, senha trocada em outro
+        //    aparelho, pessoa da equipe desativada) → pedir a senha de novo, sem recarregar a tela;
+        //  - servidor com problema (5xx/429): erro passageiro, tentar de novo depois.
+        console.log('🔄 Tentando renovar accessToken...');
+        let response;
         try {
-            console.log('🔄 Tentando renovar accessToken...');
-            const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
+            response = await fetch(`${this.baseURL}/api/auth/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -56,29 +62,116 @@ class PrecificacaoAPI {
                 },
                 body: JSON.stringify({ refreshToken })
             });
-
-            const result = await response.json();
-
-            if (response.ok && result.success && result.data?.accessToken) {
-                localStorage.setItem('accessToken', result.data.accessToken);
-                if (result.data.refreshToken) {
-                    localStorage.setItem('refreshToken', result.data.refreshToken);
-                }
-                // Notificar consumidores que o token foi renovado (ex.: websocket)
-                try {
-                    window.dispatchEvent(new CustomEvent('auth:tokenRefreshed', {
-                        detail: { accessToken: result.data.accessToken }
-                    }));
-                } catch (_) {}
-                console.log('✅ AccessToken renovado com sucesso');
-                return result.data.accessToken;
-            } else {
-                throw new Error('Falha ao renovar token');
-            }
-        } catch (error) {
-            console.error('❌ Erro ao renovar token:', error);
-            throw new Error('Token inválido ou expirado');
+        } catch (e) {
+            console.warn('⚠️ Sem conexão para renovar o acesso:', e && e.message);
+            throw Object.assign(new Error('Sem internet: não foi possível renovar o acesso.'), { __network: true });
         }
+        let result = null;
+        try { result = await response.json(); } catch (e) { /* resposta sem JSON */ }
+
+        if (response.ok && result && result.success && result.data?.accessToken) {
+            localStorage.setItem('accessToken', result.data.accessToken);
+            if (result.data.refreshToken) {
+                localStorage.setItem('refreshToken', result.data.refreshToken);
+            }
+            // Notificar consumidores que o token foi renovado (ex.: websocket)
+            try {
+                window.dispatchEvent(new CustomEvent('auth:tokenRefreshed', {
+                    detail: { accessToken: result.data.accessToken }
+                }));
+            } catch (_) {}
+            console.log('✅ AccessToken renovado com sucesso');
+            return result.data.accessToken;
+        }
+        console.error('❌ Erro ao renovar token: status', response.status);
+        if (response.status === 400 || response.status === 401 || response.status === 403) {
+            throw Object.assign(new Error('Token inválido ou expirado'), { sessaoEncerrada: true });
+        }
+        throw new Error('Não foi possível renovar o acesso agora. Tente de novo em instantes.');
+    }
+
+    /** Só pede a senha de novo com o app já aberto (na tela de login quem cuida é o próprio login) */
+    _podePedirSenha() {
+        // app aberto = as abas já estão na tela (a marca 'authenticated' sozinha também aparece na tela de login)
+        try { return typeof document !== 'undefined' && !!document.body && sessionStorage.getItem('authenticated') === 'true' && !!document.querySelector('[data-tab]'); } catch (e) { return false; }
+    }
+
+    /** Dados do token guardado (sem conferir assinatura): só para saber de quem é a sessão */
+    _donoDoToken(token) {
+        try { const p = JSON.parse(atob(String(token).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return { id: p.id || null, mid: p.mid || null, email: p.email || '' }; }
+        catch (e) { return { id: null, mid: null, email: '' }; }
+    }
+
+    /**
+     * Renova o acesso; se a sessão acabou, pede a senha por cima da tela (uma janela só, mesmo com
+     * várias chamadas esperando). Resolve quando há um token novo; rejeita se a pessoa preferir sair.
+     */
+    async _renovarOuEntrar() {
+        try { return await this.refreshAccessToken(); }
+        catch (e) {
+            if (!e || !e.sessaoEncerrada || !this._podePedirSenha()) throw e;
+            const entrou = await this._entrarDeNovo();
+            if (entrou) return localStorage.getItem('accessToken');
+            throw Object.assign(new Error('Sua sessão venceu. Entre de novo para continuar.'), { sessaoEncerrada: true });
+        }
+    }
+
+    /** Janela "Sua sessão venceu": resolve true depois de entrar, false se a pessoa escolher sair */
+    _entrarDeNovo() {
+        if (this._pedindoSenha) return this._pedindoSenha;
+        const antes = this._donoDoToken(localStorage.getItem('accessToken'));
+        // pessoa da equipe entra com o próprio e-mail (o token leva o do dono da conta)
+        let emailInicial = antes.email;
+        if (antes.mid) { const eu = this.ultimo('/api/team/me'); emailInicial = (eu && eu.data && eu.data.member && eu.data.member.email) || ''; }
+        const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        this._pedindoSenha = new Promise(resolve => {
+            const ov = document.createElement('div');
+            ov.setAttribute('data-testid', 'sessao-vencida');
+            // o papel de janela fica no cartão: no celular o CSS do app põe margem e altura máxima em [role="dialog"]
+            ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(17,24,39,.72);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+            const campo = 'width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:12px;font-size:16px;margin-top:4px;color:#111827;background:#fff';
+            ov.innerHTML = '<form role="dialog" aria-modal="true" aria-labelledby="sv-titulo" style="background:#fff;color:#111827;border-radius:16px;max-width:400px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.35)" novalidate>' +
+                '<h2 id="sv-titulo" style="margin:0 0 6px;font-size:20px;font-weight:700">Sua sessão venceu</h2>' +
+                '<p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#4b5563">Digite a senha para continuar. O que está na tela continua aqui e a ação que você pediu é repetida depois de entrar.</p>' +
+                '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:10px">E-mail<input data-testid="sv-email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" style="' + campo + '" value="' + esc(emailInicial) + '"></label>' +
+                '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Senha<input data-testid="sv-senha" type="password" autocomplete="current-password" style="' + campo + '"></label>' +
+                '<div data-testid="sv-erro" role="alert" style="display:none;margin:8px 0 0;font-size:14px;color:#b91c1c"></div>' +
+                '<button data-testid="sv-entrar" type="submit" style="width:100%;margin-top:14px;padding:13px;border:0;border-radius:10px;background:#ea580c;color:#fff;font-size:16px;font-weight:700;cursor:pointer">Entrar</button>' +
+                '<button data-testid="sv-sair" type="button" style="width:100%;margin-top:8px;padding:11px;border:1px solid #d1d5db;border-radius:10px;background:#fff;color:#374151;font-size:15px;cursor:pointer">Sair (o que não foi salvo se perde)</button>' +
+                '</form>';
+            const q = t => ov.querySelector('[data-testid="' + t + '"]');
+            const erro = msg => { const e = q('sv-erro'); e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; };
+            const fim = ok => { try { ov.remove(); } catch (e) {} this._pedindoSenha = null; resolve(ok); };
+            q('sv-sair').onclick = () => { fim(false); try { sessionStorage.removeItem('authenticated'); } catch (e) {} try { location.reload(); } catch (e) {} };
+            ov.querySelector('form').onsubmit = async ev => {
+                ev.preventDefault();
+                const email = q('sv-email').value.trim().toLowerCase(), senha = q('sv-senha').value;
+                if (!email || !senha) { erro('Digite o e-mail e a senha.'); return; }
+                const botao = q('sv-entrar'); botao.disabled = true; botao.textContent = 'Entrando…'; erro('');
+                try {
+                    const r = await fetch(`${this.baseURL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: senha }) });
+                    let j = null; try { j = await r.json(); } catch (e) { /* sem JSON */ }
+                    const d = j && j.data;
+                    if (r.ok && j && j.success && d && d.accessToken) {
+                        const novo = this._donoDoToken(d.accessToken);
+                        // Outra conta: os dados na tela são da conta anterior; trocar de conta é pelo "Sair"
+                        if (antes.id && (novo.id !== antes.id || (novo.mid || null) !== (antes.mid || null))) {
+                            erro('Este e-mail é de outra conta. Para trocar de conta, toque em "Sair".');
+                        } else {
+                            localStorage.setItem('accessToken', d.accessToken);
+                            if (d.refreshToken) localStorage.setItem('refreshToken', d.refreshToken);
+                            try { window.dispatchEvent(new CustomEvent('auth:tokenRefreshed', { detail: { accessToken: d.accessToken } })); } catch (_) {}
+                            fim(true); return;
+                        }
+                    } else if (r.status === 429) erro('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+                    else erro((j && j.message) || 'Não foi possível entrar. Confira o e-mail e a senha.');
+                } catch (e) { erro('Sem internet. Confira a conexão e tente de novo.'); }
+                botao.disabled = false; botao.textContent = 'Entrar';
+            };
+            document.body.appendChild(ov);
+            setTimeout(() => { try { (emailInicial ? q('sv-senha') : q('sv-email')).focus(); } catch (e) {} }, 50);
+        });
+        return this._pedindoSenha;
     }
 
     /**
@@ -105,7 +198,7 @@ class PrecificacaoAPI {
             let premium = false;
             try { const peek = await response.clone().json(); premium = !!(peek && peek.code === 'PREMIUM_REQUIRED'); } catch (e) {}
             if (!premium) {
-                await this.refreshAccessToken();
+                await this._renovarOuEntrar();
                 response = await doFetch();
             }
         }
@@ -210,13 +303,15 @@ class PrecificacaoAPI {
             if (response.status === 403 && !isRetry && !premiumBlock) {
                 console.warn('⚠️ Token expirado (403) - tentando renovar...');
                 try {
-                    await this.refreshAccessToken();
-                    // Tentar novamente com novo token
-                    return this.request(endpoint, options, true);
+                    await this._renovarOuEntrar();
                 } catch (refreshError) {
-                    console.error('❌ Falha ao renovar token:', refreshError);
-                    throw new Error('Token inválido ou expirado');
+                    console.error('❌ Falha ao renovar token:', refreshError && refreshError.message);
+                    // sem internet e "preferiu sair" seguem com o próprio texto; o resto como antes
+                    if (refreshError && (refreshError.__network || refreshError.sessaoEncerrada && this._podePedirSenha())) throw refreshError;
+                    throw new Error(refreshError && !refreshError.sessaoEncerrada && refreshError.message ? refreshError.message : 'Token inválido ou expirado');
                 }
+                // Tentar novamente com novo token
+                return this.request(endpoint, options, true);
             }
 
             // Tentar fazer parse do JSON
