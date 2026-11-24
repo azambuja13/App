@@ -67,7 +67,7 @@ const loadFromBackend = async () => {
             const token = localStorage.getItem('accessToken');
             const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
-            const response = await fetch(`${backendURL}/api/user-settings`, {
+            const response = await fetch(`${backendURL}/api/user-settings?sem=ingredientsDatabase,emMontagem`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -105,6 +105,10 @@ const loadFromBackend = async () => {
 
 // Blocos das configurações que o auto-save mantém no servidor (user-settings)
 const BLOCOS_SINCRONIZADOS = ['ingredientsDatabase', 'support', 'labor', 'transport', 'proposalData'];
+// ⚡ nov/2026: a base de ingredientes não vai mais para as configurações. Era uma cópia da tabela de
+// ingredientes (227 KB na conta medida) reenviada a cada ingrediente alterado, e na abertura ela é trocada
+// pela lista que vem de /api/ingredients. Para os outros aparelhos abertos (WebSocket) nada muda.
+const SO_ENTRE_APARELHOS = ['ingredientsDatabase'];
 // Texto do bloco com as chaves em ordem fixa: o banco devolve o JSON com as chaves reordenadas, então
 // comparar com JSON.stringify direto dava "mudou" em toda abertura (e reenviava ingredientes + dados da empresa).
 // As fotos e a logo da empresa moram na tabela da empresa. A cópia delas dentro das configurações nunca é
@@ -124,6 +128,47 @@ const paraOServidor = (k, v) => (k === 'proposalData' ? semFotosDaEmpresa(v) : v
 const textoEstavel = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)
     ? Object.keys(x).sort().reduce((o, c) => { o[c] = x[c]; return o; }, {}) : x));
 
+// nov/2026 — dois aparelhos na mesma conta. O salvamento envia o bloco inteiro (mão de obra, transporte,
+// dados da proposta). Se o outro aparelho mudou um campo e este mudou outro, quem gravava por último apagava
+// a mudança do primeiro. Aqui os dois são juntados campo a campo: "base" é o que o servidor tinha quando este
+// aparelho sincronizou pela última vez; campo que este aparelho mexeu fica o daqui, os outros vêm do servidor.
+// Lista de itens com id (itens de apoio) é juntada item a item, pela mesma regra.
+// Devolve null quando não dá para juntar (lista sem id): aí fica o deste aparelho.
+const mesclarLista = (base, local, remoto) => {
+    const comId = l => Array.isArray(l) && l.every(i => i && typeof i === 'object' && i.id !== undefined && i.id !== null);
+    if (!comId(local) || !comId(remoto)) return null;
+    const mapa = l => { const m = new Map(); (comId(l) ? l : []).forEach(i => m.set(String(i.id), i)); return m; };
+    const b = mapa(base), l = mapa(local), r = mapa(remoto);
+    const igual = (x, y) => textoEstavel(x) === textoEstavel(y);
+    const out = [];
+    remoto.forEach(item => {
+        const id = String(item.id);
+        if (!l.has(id)) { if (!b.has(id)) out.push(item); return; }        // apagado aqui: sai; novo no outro: entra
+        out.push(b.has(id) && !igual(l.get(id), b.get(id)) ? l.get(id) : item); // mexido aqui: fica o daqui
+    });
+    local.forEach(item => {
+        const id = String(item.id);
+        if (r.has(id)) return;
+        if (!b.has(id) || !igual(item, b.get(id))) out.push(item);          // criado aqui, ou mexido aqui e apagado lá: fica
+    });
+    return out;
+};
+const mesclarBloco = (baseTxt, local, remoto) => {
+    const obj = v => v && typeof v === 'object' && !Array.isArray(v);
+    let base;
+    try { base = JSON.parse(baseTxt || 'null'); } catch (e) { base = null; }
+    if (Array.isArray(local) && Array.isArray(remoto)) return mesclarLista(base, local, remoto);
+    if (!obj(local) || !obj(remoto)) return null;
+    if (!obj(base)) base = {};
+    const out = { ...remoto };
+    Object.keys({ ...base, ...local }).forEach(k => {
+        if (textoEstavel(local[k]) === textoEstavel(base[k])) return; // este aparelho não mexeu neste campo
+        if (local[k] === undefined) delete out[k]; else out[k] = local[k];
+    });
+    return out;
+};
+if (typeof window !== 'undefined') window.__mesclarBloco = mesclarBloco;
+
 // Helper: Salvar configurações no backend
 const saveToBackend = async (settingsData) => {
     try {
@@ -136,7 +181,7 @@ const saveToBackend = async (settingsData) => {
         const backendURL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
 
         // PATCH = mescla com o que já está salvo (não apaga outras configurações, ex.: custos da empresa)
-        const response = await fetch(`${backendURL}/api/user-settings`, {
+        const response = await fetch(`${backendURL}/api/user-settings?sem=ingredientsDatabase,emMontagem`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -447,6 +492,48 @@ function useEventState() {
     // dados da empresa a cada alteração (até do número de convidados), pela API e de novo pelo WebSocket.
     const ultimoEnvioRef = React.useRef({});
     const ultimoWsRef = React.useRef(null); // o que já foi para os outros aparelhos (null = ainda não comparou)
+    // valores atuais dos blocos, para quem roda fora do ciclo de desenho (WebSocket, volta ao app)
+    const blocosRef = React.useRef({});
+    blocosRef.current = { support, labor, transport, proposalData };
+    /**
+     * Chegou do servidor (ao voltar para o app) ou de outro aparelho (WebSocket) uma versão dos blocos.
+     * - bloco igual ao que este aparelho já conhecia: nada a fazer;
+     * - este aparelho não mexeu no bloco desde a última sincronização: fica o que chegou;
+     * - os dois mexeram: junta campo a campo (mesclarBloco); o salvamento automático envia o resultado.
+     * Devolve os nomes dos blocos atualizados.
+     */
+    const receberBlocos = (dados, origem) => {
+        if (!dados || typeof dados !== 'object') return [];
+        const aplicar = { support: setSupport, labor: setLabor, transport: setTransport };
+        const mudaram = [];
+        ['support', 'labor', 'transport', 'proposalData'].forEach(k => {
+            const remoto = dados[k];
+            if (remoto === undefined || remoto === null) return;
+            if (k === 'support' && !(Array.isArray(remoto) && remoto.length > 0)) return; // como na abertura: lista vazia não apaga a daqui
+            let tr, tl;
+            try { tr = textoEstavel(paraOServidor(k, remoto)); tl = textoEstavel(paraOServidor(k, blocosRef.current[k])); } catch (e) { return; }
+            const base = ultimoEnvioRef.current[k];
+            if (tr === base && origem !== 'ws') return;   // o servidor não mudou desde a última sincronização
+            if (tr === tl) { ultimoEnvioRef.current[k] = tr; return; } // já está igual
+            const intacto = base === undefined || tl === base;
+            let novo = remoto;
+            if (!intacto) {
+                novo = mesclarBloco(base, paraOServidor(k, blocosRef.current[k]), paraOServidor(k, remoto));
+                if (novo === null) { console.log(`🔀 [dois aparelhos] ${k}: alterado nos dois e sem como juntar, fica o deste aparelho`); ultimoEnvioRef.current[k] = tr; return; }
+                console.log(`🔀 [dois aparelhos] ${k}: juntei o que mudou aqui com o que veio (${origem})`);
+            }
+            if (k === 'proposalData') {
+                // dados da empresa (company*) vêm só da tabela da empresa; nunca das configurações
+                const semEmpresa = {}; Object.keys(novo).forEach(c => { if (!c.startsWith('company')) semEmpresa[c] = novo[c]; });
+                if (origem === 'ws' && intacto) setProposalData(remoto); else setProposalData(prev => ({ ...prev, ...semEmpresa }));
+            } else aplicar[k](novo);
+            ultimoEnvioRef.current[k] = tr; // é o que o servidor tem agora; se o daqui ficou diferente, o salvamento envia
+            mudaram.push(k);
+        });
+        return mudaram;
+    };
+    const receberBlocosRef = React.useRef(receberBlocos);
+    receberBlocosRef.current = receberBlocos;
     // guarda o bloco como está no servidor: se ele ainda tiver as fotos da empresa, o próximo envio tira
     const anotarServidor = (dados) => {
         if (!dados || typeof dados !== 'object') return;
@@ -660,6 +747,8 @@ function useEventState() {
             // Carregar dados do backend
             const backendData = await loadFromBackend();
             anotarServidor(backendData);
+            // quem precisa das configurações na abertura (aviso de cardápio em montagem) usa esta leitura, sem pedir outra
+            if (backendData) { try { window.dispatchEvent(new CustomEvent('configuracoes-conferidas', { detail: { motivo: 'abertura', mudaram: [], dados: backendData } })); } catch (e) { /* ignore */ } }
 
             if (backendData) {
                 console.log('☁️ [useEventState] Dados do backend recebidos após login');
@@ -710,6 +799,10 @@ function useEventState() {
 
                 // Marcar como carregado para evitar reload múltiplo
                 backendLoadedRef.current = true;
+                // nov/2026: o salvamento automático só ligava quando já havia dados guardados neste aparelho;
+                // na primeira sessão de um aparelho novo, o que a pessoa mudava (apoio, mão de obra, transporte)
+                // não ia para a conta. Com o estado já igual ao do servidor, só o que mudar daqui em diante é enviado.
+                setIsInitializing(false);
             } else {
                 console.log('ℹ️ [useEventState] Nenhum dado no backend para este usuário');
             }
@@ -841,7 +934,7 @@ function useEventState() {
                     const cheio = currentSettingsToSync[k], http = paraOServidor(k, cheio);
                     let t, tw;
                     try { t = textoEstavel(http); tw = http === cheio ? t : textoEstavel(cheio); } catch (e) { t = tw = undefined; }
-                    if (t !== undefined && t !== ultimoEnvioRef.current[k]) { mudou[k] = http; textos[k] = t; }
+                    if (t !== undefined && t !== ultimoEnvioRef.current[k] && !SO_ENTRE_APARELHOS.includes(k)) { mudou[k] = http; textos[k] = t; }
                     // WebSocket (outros aparelhos abertos): o bloco inteiro, só quando mudou depois que o app abriu
                     if (tw !== undefined && tw !== ultimoWsRef.current[k]) { if (!primeiraVez) mudouWs[k] = cheio; textosWs[k] = tw; }
                 });
@@ -886,6 +979,36 @@ function useEventState() {
     ]);
 
     // ====================================
+    // Volta ao app / conexão de volta: pega o que mudou em outro aparelho enquanto este estava parado
+    // (com a tela apagada o WebSocket não entrega nada; sem isto, a próxima alteração daqui regravava o
+    // bloco inteiro com os valores velhos)
+    // ====================================
+    useEffect(() => {
+        let saiuEm = 0, conferindo = false, ultima = 0;
+        const conferir = async (motivo) => {
+            if (conferindo || !backendLoadedRef.current || !isCloudMode() || !isAuthenticated()) return;
+            if (Date.now() - ultima < 15000) return;
+            conferindo = true; ultima = Date.now();
+            try {
+                const dados = await loadFromBackend();
+                const mudaram = receberBlocosRef.current(dados, motivo);
+                if (mudaram.length) console.log(`🔄 [dois aparelhos] ${motivo}: atualizei ${mudaram.join(', ')}`);
+                window.dispatchEvent(new CustomEvent('configuracoes-conferidas', { detail: { motivo, mudaram, dados } }));
+            } catch (e) { /* sem conexão: tenta na próxima volta */ } finally { conferindo = false; }
+        };
+        const visivel = () => {
+            if (document.visibilityState === 'hidden') { saiuEm = Date.now(); return; }
+            if (saiuEm && Date.now() - saiuEm > 30000) conferir('volta');
+            saiuEm = 0;
+        };
+        const conexao = () => conferir('conexão');
+        document.addEventListener('visibilitychange', visivel);
+        window.addEventListener('online', conexao);
+        window.__conferirConfiguracoes = conferir; // para teste e para o aviso de cardápio em montagem
+        return () => { document.removeEventListener('visibilitychange', visivel); window.removeEventListener('online', conexao); };
+    }, []);
+
+    // ====================================
     // WebSocket - Sincronização em tempo real
     // ====================================
     useEffect(() => {
@@ -916,25 +1039,10 @@ function useEventState() {
                 setIngredientsDatabase(data.ingredientsDatabase);
             }
 
-            if (data.support) {
-                console.log(`📦 Atualizando ${data.support.length} itens de apoio do WebSocket`);
-                setSupport(data.support);
-            }
-
-            if (data.labor) {
-                console.log('📦 Atualizando labor do WebSocket');
-                setLabor(data.labor);
-            }
-
-            if (data.transport) {
-                console.log('📦 Atualizando transport do WebSocket');
-                setTransport(data.transport);
-            }
-
-            if (data.proposalData) {
-                console.log('📦 Atualizando proposalData do WebSocket');
-                setProposalData(data.proposalData);
-            }
+            // nov/2026: antes cada bloco recebido trocava o deste aparelho inteiro, e o que a pessoa tinha acabado
+            // de digitar aqui (ainda não enviado) se perdia. Agora junta campo a campo (receberBlocos).
+            const mudaram = receberBlocosRef.current(data, 'ws');
+            if (mudaram.length) console.log('📦 Blocos atualizados pelo WebSocket:', mudaram.join(', '));
         });
 
         // Cleanup: Desconectar quando o componente desmontar

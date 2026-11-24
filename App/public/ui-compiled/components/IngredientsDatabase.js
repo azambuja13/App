@@ -64,6 +64,35 @@ function IngredientsDatabase({
   } = React;
   const [showNewForm, setShowNewForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // nov/2026: a aba montava a tabela E os cartões de todos os ingredientes ao mesmo tempo (um dos dois
+  // escondido por CSS): 198 ingredientes = 10.671 elementos e 116 telas de altura no iPhone.
+  // Agora monta só o formato que aparece. No celular e no iPad as categorias abrem ao toque e mostram
+  // 20 por vez. No computador a tabela continua inteira. Para imprimir, volta tudo como era.
+  const ING_POR_VEZ = 20;
+  const __mq = '(max-width: 1279px)'; // o mesmo corte do mobile-optimizations.css
+  const [emCartoes, setEmCartoes] = useState(() => !!(window.matchMedia && window.matchMedia(__mq).matches));
+  const [imprimindo, setImprimindo] = useState(false);
+  const [abertas, setAbertas] = useState({});
+  const [limites, setLimites] = useState({});
+  const __vistos = React.useRef(null);
+  const __fixos = React.useRef({});
+  const __abrir = React.useRef([]);
+  React.useEffect(() => {
+    if (!window.matchMedia) return;
+    const m = window.matchMedia(__mq);
+    const muda = e => setEmCartoes(!!e.matches);
+    const agora = f => (window.ReactDOM && window.ReactDOM.flushSync ? window.ReactDOM.flushSync(f) : f());
+    const antes = () => agora(() => setImprimindo(true));
+    const depois = () => setImprimindo(false);
+    m.addEventListener ? m.addEventListener('change', muda) : m.addListener(muda);
+    window.addEventListener('beforeprint', antes);
+    window.addEventListener('afterprint', depois);
+    return () => {
+      m.removeEventListener ? m.removeEventListener('change', muda) : m.removeListener(muda);
+      window.removeEventListener('beforeprint', antes);
+      window.removeEventListener('afterprint', depois);
+    };
+  }, []);
   const [showTemplates, setShowTemplates] = useState(false);
   const [updatingPrices, setUpdatingPrices] = useState(false);
   const [priceUpdateProgress, setPriceUpdateProgress] = useState(null); // { processed, total, percent }
@@ -115,7 +144,7 @@ function IngredientsDatabase({
         const unitSize = parseFloat(ing.unitSize) || 0;
         // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
         // lossPercentage já é %; "loss" (decimal) só quando não há lossPercentage
-        const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
+        const lossPercentage = window.PerdaRendimento.perdaEmPorcento(ing.lossPercentage, ing.loss);
         const yieldMultiplier = parseFloat(ing.yieldMultiplier) || 1.0;
         return {
           'ID': ing.id || '',
@@ -319,6 +348,38 @@ function IngredientsDatabase({
   // Contar total de ingredientes filtrados
   const totalFiltered = Object.values(filteredGroupedIngredients).flat().length;
   const totalOriginal = Object.values(groupedIngredients).flat().length;
+
+  // ingrediente recém-criado aparece mesmo que caia depois do limite, e a categoria dele abre
+  const __todos = Object.values(groupedIngredients).flat().filter(Boolean);
+  if (__vistos.current === null) {
+    __vistos.current = {};
+    __todos.forEach(i => { __vistos.current[i.id] = 1; });
+  } else {
+    const novos = __todos.filter(i => !__vistos.current[i.id]);
+    novos.forEach(i => { __vistos.current[i.id] = 1; });
+    if (novos.length > 0 && novos.length <= 5) novos.forEach(i => { __fixos.current[i.id] = 1; __abrir.current.push(i.category); });
+  }
+  React.useEffect(() => {
+    if (!__abrir.current.length) return;
+    const cats = __abrir.current.splice(0);
+    setAbertas(a => { const n = { ...a }; cats.forEach(c => { if (c) n[c] = true; }); return n; });
+  }, [totalOriginal]);
+  const __buscando = !!(searchTerm && searchTerm.trim());
+  const __mostraTabela = imprimindo || !emCartoes;
+  const __mostraCartoes = imprimindo || emCartoes;
+  const __poucos = totalOriginal <= 12;
+  const __aberta = cat => imprimindo || __buscando || __poucos || !!abertas[cat];
+  const __alternar = cat => setAbertas(a => ({ ...a, [cat]: !a[cat] }));
+  const __visiveis = (cat, lista) => {
+    const v = lista.filter(Boolean);
+    if (imprimindo) return v;
+    const lim = limites[cat] || ING_POR_VEZ;
+    const edit = editingIngredient && editingIngredient.id;
+    const mostra = v.filter((i, k) => k < lim || i.id === edit || __fixos.current[i.id]);
+    const faltam = v.length - mostra.length;
+    return faltam > 0 ? mostra.concat([{ __mais: true, id: '__mais-' + cat, faltam, cat, lim }]) : mostra;
+  };
+  const __nenhumaAberta = emCartoes && !imprimindo && !__buscando && !__poucos && !Object.keys(filteredGroupedIngredients).some(__aberta);
 
   // Handler para processar seleção de template
   const handleSelectTemplate = async (ingredients) => {
@@ -794,16 +855,29 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "plus",
     className: "w-5 h-5"
-  }), "Adicionar Ingrediente")), Object.entries(filteredGroupedIngredients).map(([category, ingredients]) => /*#__PURE__*/React.createElement("div", {
+  }), "Adicionar Ingrediente")), __nenhumaAberta && /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-gray-600 no-print",
+    "data-testid": "ing-dica",
+    style: { margin: '0 4px' }
+  }, "Toque numa categoria para ver os ingredientes, ou use a busca."), Object.entries(filteredGroupedIngredients).map(([category, ingredients]) => /*#__PURE__*/React.createElement("div", {
     key: category,
     className: "bg-white rounded-xl shadow-lg overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4"
+    className: "bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4" + (emCartoes && !__buscando && !__poucos ? " cursor-pointer" : ""),
+    "data-testid": "ing-categoria",
+    "data-cat": category,
+    ...(emCartoes && !__buscando && !__poucos ? {
+      role: "button",
+      tabIndex: 0,
+      "aria-expanded": __aberta(category) ? "true" : "false",
+      onClick: () => __alternar(category),
+      onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); __alternar(category); } }
+    } : {})
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold text-white flex items-center justify-between"
   }, /*#__PURE__*/React.createElement("span", null, category), /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-normal text-orange-100"
-  }, ingredients.length, " ingredientes"))), /*#__PURE__*/React.createElement("div", {
+  }, ingredients.length, " ingredientes", emCartoes && !__buscando && !__poucos && !imprimindo ? (__aberta(category) ? " \u25B2" : " \u25BC") : ""))), __mostraTabela && /*#__PURE__*/React.createElement("div", {
     className: "ingredients-table-wrapper overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
     className: "w-full"
@@ -1003,7 +1077,7 @@ function IngredientsDatabase({
     className: "px-4 py-3 text-gray-700"
   }, (() => {
     // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
-    const lossPercent = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
+    const lossPercent = window.PerdaRendimento.perdaEmPorcento(ing.lossPercentage, ing.loss);
     return (lossPercent > 0 && lossPercent < 1 ? lossPercent.toFixed(1).replace('.', ',') : lossPercent.toFixed(0)) + "%";
   })()), /*#__PURE__*/React.createElement("td", {
     className: "px-4 py-3 text-gray-700"
@@ -1031,9 +1105,21 @@ function IngredientsDatabase({
   }, /*#__PURE__*/React.createElement(Icon, {
     type: "trash",
     className: "w-5 h-5"
-  })))))))))), /*#__PURE__*/React.createElement("div", {
+  })))))))))), __mostraCartoes && __aberta(category) && /*#__PURE__*/React.createElement("div", {
     className: "ingredients-mobile-cards"
-  }, ingredients.filter(Boolean).map(ing => editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement("div", {
+  }, __visiveis(category, ingredients).map(ing => ing.__mais ? /*#__PURE__*/React.createElement("div", {
+    key: ing.id,
+    className: "no-print",
+    style: { display: 'flex', gap: 8, padding: '12px' }
+  }, /*#__PURE__*/React.createElement("button", {
+    "data-testid": "ing-mais",
+    onClick: () => setLimites(l => ({ ...l, [ing.cat]: ing.lim + ING_POR_VEZ })),
+    style: { flex: 1, background: '#fff7ed', color: '#c2410c', border: '1px solid #fdba74' }
+  }, "Mostrar mais ", Math.min(ING_POR_VEZ, ing.faltam), " (faltam ", ing.faltam, ")"), ing.faltam > ING_POR_VEZ && /*#__PURE__*/React.createElement("button", {
+    "data-testid": "ing-todos",
+    onClick: () => setLimites(l => ({ ...l, [ing.cat]: 100000 })),
+    style: { background: '#fff', color: '#374151', border: '1px solid #d1d5db' }
+  }, "Todos")) : editingIngredient && editingIngredient.id === ing.id ? /*#__PURE__*/React.createElement("div", {
     key: ing.id,
     className: "ingredient-card ingredient-edit-card"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1150,7 +1236,7 @@ function IngredientsDatabase({
     className: "ingredient-card-field-value"
   }, (() => {
     // Suportar tanto lossPercentage (já em %) quanto loss (decimal 0-1)
-    const lossPercent = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, ing.loss);
+    const lossPercent = window.PerdaRendimento.perdaEmPorcento(ing.lossPercentage, ing.loss);
     return (lossPercent > 0 && lossPercent < 1 ? lossPercent.toFixed(1).replace('.', ',') : lossPercent.toFixed(0)) + "%";
   })())), /*#__PURE__*/React.createElement("div", {
     className: "ingredient-card-field"

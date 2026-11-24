@@ -244,9 +244,7 @@
                     const liquidQty = this.convertToGrams(dishIng.quantity, dishIng.unit) * portionFactor;
 
                     // Usar módulo de cálculo de perda para aplicar fórmula inversa
-                    const qtyToBuy = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
-                        ? window.lossCalculations.calculateQuantityWithLoss(liquidQty, lossPercent)
-                        : (lossPercent > 0 && lossPercent < 1 ? liquidQty / (1 - lossPercent) : liquidQty);
+                    const qtyToBuy = window.PerdaRendimento.brutoPelaPerda(liquidQty, lossPercent); // utils/perda-rendimento.js
 
                     console.log(`📋 [${dishIng.ingredientName}] Líquido: ${liquidQty}g, Perda: ${(lossPercent * 100).toFixed(0)}%, Comprar: ${qtyToBuy.toFixed(2)}g`);
 

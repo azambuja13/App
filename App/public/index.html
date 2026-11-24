@@ -93,7 +93,7 @@
     </script>
 
     <!-- API Client - Backend Integration (CLOUD only) -->
-    <script src="api-client.js?v=1799900005"></script>
+    <script src="api-client.js?v=1799900012"></script>
 
     <!-- Storage Adapters - Sistema de storage por plano -->
     <script src="adapters/StorageAdapter.js?v=1762564421"></script>
@@ -176,7 +176,9 @@
 
     <!-- Managers Premium -->
     <script type="module" src="init-managers.js?v=1762700472"></script>
-    <script src="core/MenuManager-standalone.js?v=1793010858"></script>
+    <!-- nov/2026: a conta de perda e rendimento, num lugar só (vem antes de quem calcula) -->
+    <script src="utils/perda-rendimento.js?v=1799900014"></script>
+    <script src="core/MenuManager-standalone.js?v=1799900014"></script>
     <!-- ClientManager carregado via init-managers.js -->
     <!-- <script src="core/ClientManager.js?v=1762564421"></script> -->
     <script src="core/CustomTemplateManager.js?v=1762564421"></script>
@@ -184,7 +186,7 @@
     <!-- ===== UI COMPONENTS - PREMIUM ===== -->
     <script src="utils/pricing-rules.js?v=1794800000"></script>
     <script src="utils/client-supply.js?v=1794800000"></script>
-    <script src="utils/menu-refresh.js?v=1795000000"></script>
+    <script src="utils/menu-refresh.js?v=1799900014"></script>
     <script src="utils/support-rules.js?v=1794800000"></script>
     <script src="ui-compiled/FeatureGate.js?v=1797600000"></script>
     <script src="ui-compiled/PricingSettings.js?v=1795500000"></script>
@@ -194,11 +196,11 @@
     <script src="ui-compiled/ContratosPage.js?v=1797700000"></script>
     <script src="ui-compiled/UpgradeModal.js?v=1762564421"></script>
     <script src="ui-compiled/DishSale.js?v=1794100000"></script>
-    <script src="ui-compiled/DishForm.js?v=1794000000"></script>
+    <script src="ui-compiled/DishForm.js?v=1799900014"></script>
     <script src="utils/share-file.js?v=1799400000"></script>
     <script src="utils/escpos.js?v=1798000000"></script>
     <script src="utils/order-print.js?v=1798000000"></script>
-    <script src="utils/tab-order.js?v=1798200000"></script>
+    <script src="utils/tab-order.js?v=1799900010"></script>
     <script src="utils/agenda.js?v=1798400000"></script>
     <script src="utils/ia-aviso.js?v=1799300000"></script>
     <script src="utils/quote-agent.js?v=1799300000"></script>
@@ -217,10 +219,10 @@
     <script src="ui-compiled/ProposalBuilder.js?v=1762564421"></script>
     <script src="ui-compiled/ClientsPage.js?v=1795700000"></script>
     <script src="ui-compiled/EventsPage.js?v=1797000000"></script>
-    <script src="ui-compiled/ProposalBuilderSimple.js?v=1799600000"></script>
+    <script src="ui-compiled/ProposalBuilderSimple.js?v=1799900013"></script>
     <script src="utils/proposal-modern.js?v=1799200000"></script>
     <script src="ui-compiled/ProposalPreview.js?v=1799200000"></script>
-    <script src="ui-compiled/ProposalList-v2.js?v=1799700000"></script>
+    <script src="ui-compiled/ProposalList-v2.js?v=1799900010"></script>
     <script src="ui-compiled/CalendarPage.js?v=1798400000"></script>
     <script src="ui-compiled/CrmShared.js?v=1797600000"></script>
     <script src="ui-compiled/CrmTasks.js?v=1795300000"></script>
@@ -233,7 +235,7 @@
     <script src="ui-compiled/DREPanel.js?v=1796900000"></script>
     <script src="ui-compiled/RelatoriosPage.js?v=1799100000"></script>
     <script src="ui-compiled/VendasPage.js?v=1798100000"></script>
-    <script src="ui-compiled/ClientDetail.js?v=1797600000"></script>
+    <script src="ui-compiled/ClientDetail.js?v=1799900010"></script>
     <script src="ui-compiled/WhatsAppSettings.js?v=1792200000"></script>
     <script src="ui-compiled/UnitConverter.js?v=1795600000"></script>
 
@@ -243,11 +245,11 @@
     <script src="ui-compiled/components/EventForm.js?v=1791900000"></script>
     <script src="ui-compiled/ClientSupplyPanel.js?v=1794800000"></script>
     <script src="ui-compiled/components/CostsSummary.js?v=1794800000"></script>
-    <script src="ui-compiled/components/ItemsList.js?v=1796600000"></script>
+    <script src="ui-compiled/components/ItemsList.js?v=1799900014"></script>
     <script src="ui-compiled/components/IngredientTemplates.js?v=1762564421"></script>
     <script src="ui-compiled/components/RecipeImporter.js?v=1793900000"></script>
     <script src="ui-compiled/components/MenuGenerator.js?v=1792500000"></script>
-    <script src="ui-compiled/components/IngredientsDatabase.js?v=1799900005"></script>
+    <script src="ui-compiled/components/IngredientsDatabase.js?v=1799900014"></script>
     <script src="ui-compiled/components/SupportList.js?v=1794800000"></script>
     <script src="ui-compiled/components/TransportForm.js?v=1793600000"></script>
     <script src="ui-compiled/components/LaborForm.js?v=1793600000"></script>
@@ -260,11 +262,15 @@
 
     <!-- ===== HOOKS ===== -->
     <script src="ui/hooks/usePlanContext.js?v=1762564421"></script>
-    <script src="ui/hooks/useEventState.js?v=1799800000"></script>
+    <script src="ui/hooks/useEventState.js?v=1799900014"></script>
     <script src="ui/hooks/useCalculations.js?v=1794800000"></script>
 
     <!-- ===== APP FULL ===== -->
-    <script src="ui-compiled/App-Full.js?v=1799600000"></script>
+    <script src="ui-compiled/App-Full.js?v=1799900012"></script>
+    <!-- nov/2026: continuar em outro aparelho o cardápio em montagem -->
+    <script src="utils/continuar-montagem.js?v=1799900014"></script>
+    <!-- nov/2026: roteiro de primeiro uso (some quando a conta já fez os cinco passos) -->
+    <script src="utils/primeiros-passos.js?v=1799900013"></script>
 
     <!-- Renderizar App -->
     <script>

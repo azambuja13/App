@@ -46,7 +46,7 @@ const APP_CONFIG = {
 
     // Versão da aplicação: a mesma da App Store. No app do iPhone, o publicar-ios-1.2.sh grava aqui a
     // versão que está sendo publicada; na web, troque este valor junto com cada versão nova da loja.
-    version: '2.9.6',
+    version: '2.9.7',
 
     // Features disponíveis baseadas no modo
     features: {

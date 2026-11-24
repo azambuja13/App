@@ -39,7 +39,7 @@ function ClientDetail({ clientId, onClose }) {
     const api = C.api();
     if (!api) return;
     try {
-      const [rc, ra] = await Promise.all([api.getClient(clientId), api.getClientActivities(clientId).catch(() => null)]);
+      const [rc, ra] = await Promise.all([api.getClient(clientId, { lite: true }), api.getClientActivities(clientId).catch(() => null)]);
       setCliente((rc && rc.data) || null);
       setAtividades((ra && ra.data) || []);
       setErro(null);

@@ -32,15 +32,67 @@ function ordem() {
   if (!l) { try { l = window.userSettings && window.userSettings.tabOrder; } catch (e) {} }
   return normalizar(l);
 }
+// nov/2026: no celular a barra mostra as 4 primeiras abas da ordem escolhida e o botão "Mais", que abre as
+// outras. Antes eram as 16 em duas linhas (131 px, 20% de uma tela de 664 px), e o que abria no fim da tela
+// ficava escondido atrás dela. As abas que o perfil da equipe não vê não contam para as 4.
+const NA_BARRA = 4;
+function escondidasPeloPerfil() {
+  const st = document.getElementById('equipe-css');
+  const out = []; const re = /\[data-tab="([^"]+)"\]/g; let m;
+  while (st && (m = re.exec(st.textContent || ''))) out.push(m[1]);
+  return out;
+}
+function abaAtiva() {
+  const el = document.querySelector('.abas-mobile [data-tab].text-orange-600');
+  return el ? el.getAttribute('data-tab') : null;
+}
+let restoAtual = [];
+function botaoMais() {
+  const barra = document.querySelector('.abas-mobile');
+  if (!barra) return null;
+  let b = barra.querySelector('.abas-mais');
+  if (!b) {
+    b = document.createElement('button');
+    b.type = 'button'; b.className = 'abas-mais'; b.setAttribute('data-testid', 'abas-mais'); b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', e => { e.stopPropagation(); const aberto = barra.classList.toggle('mais-aberto'); b.setAttribute('aria-expanded', aberto ? 'true' : 'false'); pintarMais(); });
+    barra.appendChild(b);
+    // tocar numa aba fecha a lista
+    barra.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-tab]')) { barra.classList.remove('mais-aberto'); b.setAttribute('aria-expanded', 'false'); setTimeout(pintarMais, 0); } });
+  }
+  return b;
+}
+function pintarMais(ativaAgora) {
+  const b = botaoMais(); if (!b) return;
+  const barra = b.parentElement, aberto = barra.classList.contains('mais-aberto');
+  const ativa = ativaAgora || abaAtiva();
+  const dentro = !aberto && ativa && restoAtual.includes(ativa) && INFO[ativa];
+  b.classList.toggle('ativa', !!dentro);
+  b.innerHTML = aberto ? '<span class="am-i">✕</span><span class="am-t">Fechar</span>'
+    : dentro ? `<span class="am-i">${INFO[ativa][1]}</span><span class="am-t">${INFO[ativa][2]} ▴</span>`
+      : '<span class="am-i">⋯</span><span class="am-t">Mais</span>';
+  b.setAttribute('aria-label', aberto ? 'Fechar a lista de abas' : 'Mais abas');
+}
 function aplicar(lista) {
   const o = normalizar(lista || ordem());
   let st = document.getElementById('tab-order-css');
   if (!st) { st = document.createElement('style'); st.id = 'tab-order-css'; document.head.appendChild(st); }
   const regras = o.map((t, i) => `.abas-desktop>[data-tab="${t}"],.abas-mobile [data-tab="${t}"]{order:${i + 1}}`).join('');
+  const fora = escondidasPeloPerfil();
+  const visiveis = o.filter(t => !fora.includes(t));
+  restoAtual = visiveis.slice(NA_BARRA);
+  const esconder = restoAtual.map(t => `.abas-mobile:not(.mais-aberto) [data-tab="${t}"]`).join(',');
   st.textContent = regras +
-    '.abas-desktop>.abas-reordenar{order:999}' +
-    '@media (max-width:1023px){.abas-mobile{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr));row-gap:2px;padding:4px 2px}' +
-    '.abas-mobile>div{display:contents!important}.abas-mobile [data-tab]{min-width:0}}';
+    '.abas-desktop>.abas-reordenar{order:999}.abas-mais{display:none}' +
+    '@media (max-width:1023px){.abas-mobile{display:grid!important;grid-template-columns:repeat(' + (restoAtual.length ? NA_BARRA + 1 : Math.max(visiveis.length, 1)) + ',minmax(0,1fr));row-gap:2px;padding:4px 2px}' +
+    '.abas-mobile>div{display:contents!important}.abas-mobile [data-tab]{min-width:0}' +
+    (esconder ? esconder + '{display:none!important}' : '') +
+    (restoAtual.length ? '.abas-mais{display:flex;order:900;flex-direction:column;align-items:center;justify-content:center;min-height:44px;min-width:0;border:0;background:transparent;color:#4b5563;border-radius:8px;padding:6px 2px;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+      '.abas-mais .am-i{font-size:16px;line-height:16px}.abas-mais .am-t{font-size:10px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
+      '.abas-mais.ativa{color:#ea580c;background:#fff7ed}' +
+      '.abas-mobile.mais-aberto{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:6px;padding:10px 6px}.abas-mobile.mais-aberto .abas-mais{order:999}' +
+      '.mobile-nav-spacer{padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}.menu-actions-sticky{bottom:calc(60px + env(safe-area-inset-bottom))!important}' : '') +
+    '}';
+  pintarMais();
 }
 async function salvar(lista) {
   const o = normalizar(lista);
@@ -108,7 +160,7 @@ function Reordenar({ onClose }) {
   return h('div', { className: 'to-bg', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
     h('div', { className: 'to', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Reordenar o menu', 'data-testid': 'reordenar' },
       h('div', { className: 'to-hd' }, h('b', null, '⇅ Ordem do menu'),
-        h('p', null, 'Arraste pelo ⠿ ou use as setas. No celular, as 8 primeiras ficam na linha de cima.')),
+        h('p', null, 'Arraste pelo ⠿ ou use as setas. No celular, as 4 primeiras ficam na barra e as outras em "Mais".')),
       h('div', { className: 'to-ls', ref },
         lista.flatMap((t, i) => [
           i === 0 ? h('div', { key: 's1', className: 'to-sep' }, 'Linha de cima') : null,
@@ -160,6 +212,10 @@ function mount() {
     if (ReactDOM.createRoot) ReactDOM.createRoot(el).render(h(Host)); else ReactDOM.render(h(Host), el);
   }
   toqueLongo();
+  // "Mais": acompanha a troca de aba, o perfil da equipe e a barra que só existe depois do login
+  window.addEventListener('tab-changed', e => pintarMais(e && e.detail));
+  window.addEventListener('equipe-changed', () => aplicar());
+  let tentativas = 0; const espera = setInterval(() => { if (botaoMais() || ++tentativas > 120) { clearInterval(espera); aplicar(); } }, 500);
   // As configurações da conta chegam depois do login: reaplica se este aparelho ainda não tem ordem própria
   [2000, 6000, 15000].forEach(ms => setTimeout(() => aplicar(), ms));
 }

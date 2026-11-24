@@ -119,10 +119,8 @@ export function calculateItems(items, ingredients, guests, opts = {}) {
             const totalUnitsNeeded = unitsPerPerson * (parseFloat(guests) || 0);
 
             // Aplicar perda (ex: 5% de pães quebrados)
-            const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-            let unitsWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
-                ? window.lossCalculations.calculateQuantityWithLoss(totalUnitsNeeded, lossDecimal)
-                : (lossDecimal > 0 && lossDecimal < 1 ? totalUnitsNeeded / (1 - lossDecimal) : totalUnitsNeeded);
+            const lossDecimal = window.PerdaRendimento.perdaEmFracao(item.loss); // utils/perda-rendimento.js
+            let unitsWithLoss = window.PerdaRendimento.brutoPelaPerda(totalUnitsNeeded, lossDecimal);
 
             // Margem de segurança (proteínas): compra e custo X% maiores
             const safetyF = safetyFor(ingredient, item);
@@ -188,15 +186,13 @@ export function calculateItems(items, ingredients, guests, opts = {}) {
             const totalQtyNeeded = qtyInGramsMl * (parseFloat(guests) || 0);
 
             // ✅ Aplicar perda INVERSA (para calcular quantidade bruta a comprar)
-            const lossDecimal = (item.loss || 0) >= 1 ? (item.loss || 0) / 100 : (item.loss || 0);
-            const qtyWithLoss = window.lossCalculations && window.lossCalculations.calculateQuantityWithLoss
-                ? window.lossCalculations.calculateQuantityWithLoss(totalQtyNeeded, lossDecimal)
-                : (lossDecimal > 0 && lossDecimal < 1 ? totalQtyNeeded / (1 - lossDecimal) : totalQtyNeeded);
+            const lossDecimal = window.PerdaRendimento.perdaEmFracao(item.loss); // utils/perda-rendimento.js
+            const qtyWithLoss = window.PerdaRendimento.brutoPelaPerda(totalQtyNeeded, lossDecimal);
 
             // ✅ Aplicar rendimento INVERSO (para calcular quantidade crua a comprar)
             // Se rende 150% (1.5x), para 150g preparado preciso 100g cru → dividir por 1.5
-            const yieldMultiplier = parseFloat(item.yieldMultiplier) || 1;
-            const qtyWithLossAndYieldBase = yieldMultiplier > 0 ? qtyWithLoss / yieldMultiplier : qtyWithLoss;
+            const yieldMultiplier = window.PerdaRendimento.rendimento(item.yieldMultiplier);
+            const qtyWithLossAndYieldBase = window.PerdaRendimento.brutoPeloRendimento(qtyWithLoss, yieldMultiplier);
 
             // Margem de segurança (proteínas): compra e custo X% maiores, depois de perda e rendimento
             const safetyF = safetyFor(ingredient, item);

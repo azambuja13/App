@@ -211,6 +211,9 @@ class PrecificacaoAPI {
      * Também guarda a última resposta de cada consulta (ultimo) para as telas abrirem na hora.
      */
     async request(endpoint, options = {}, isRetry = false) {
+        // ⚡ nov/2026: as configurações vêm sem a cópia dos ingredientes (227 de 233 KB na conta medida);
+        // os ingredientes já vêm de /api/ingredients. API antiga ignora o parâmetro e responde como antes.
+        if (endpoint === '/api/user-settings') endpoint = '/api/user-settings?sem=ingredientsDatabase,emMontagem';
         const method = String(options.method || 'GET').toUpperCase();
         if (!this._gets) { this._gets = new Map(); this._ultimo = new Map(); }
         if (method !== 'GET') { this._gets.clear(); return this._request(endpoint, options, isRetry); }
@@ -586,8 +589,9 @@ class PrecificacaoAPI {
     }
 
     // CRM (etapa 1): funil e linha do tempo
-    async getClient(clientId) {
-        return this.request(`/api/clients/${clientId}`);
+    // opts.lite: propostas do cliente só com título, etapa, data e valor (ficha do cliente)
+    async getClient(clientId, opts) {
+        return this.request(`/api/clients/${clientId}` + (opts && opts.lite ? '?lite=1' : ''));
     }
 
     async updateClientStage(clientId, stage, lostReason) {

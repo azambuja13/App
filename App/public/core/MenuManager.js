@@ -631,7 +631,7 @@ export class MenuManager {
 
                 // Perda em % (lossPercentage). O campo "loss" é decimal (0,2 = 20%) e só vale quando não há lossPercentage.
                 // Dados antigos com 0 < % < 1 foram convertidos pelo scripts/normalize-small-loss.js da API.
-                const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(dishIng.lossPercentage, dishIng.loss);
+                const lossPercentage = window.PerdaRendimento.perdaEmPorcento(dishIng.lossPercentage, dishIng.loss); // utils/perda-rendimento.js
                 const yieldMultiplier = dishIng.yieldMultiplier || 1;
 
                 console.log(`🔍 [MenuManager] Usando valores salvos no prato para ${dishIng.ingredientName}: loss=${lossPercentage}%, yield=${yieldMultiplier}x`);
@@ -645,8 +645,7 @@ export class MenuManager {
                         // Para ingredientes por unidade, somar diretamente (não converter)
                         const rawQty = dishIng.quantity;
                         // Aplicar perda e rendimento para obter quantidade preparada
-                        const lossMultiplier = 1 - (lossPercentage / 100);
-                        const preparedQty = rawQty * lossMultiplier * yieldMultiplier;
+                        const preparedQty = window.PerdaRendimento.pesoPronto(rawQty, lossPercentage, yieldMultiplier);
                         const liquidQty = preparedQty * portionFactor;
                         existing.totalQuantity += liquidQty;
                         existing.totalGrossQty = (existing.totalGrossQty || 0) + rawQty * portionFactor;
@@ -659,8 +658,7 @@ export class MenuManager {
                         // Para ingredientes por peso, converter para gramas
                         const qtyInGrams = this.convertToGrams(dishIng.quantity, dishIng.unit);
                         // Aplicar perda e rendimento para obter quantidade preparada
-                        const lossMultiplier = 1 - (lossPercentage / 100);
-                        const preparedQtyInGrams = qtyInGrams * lossMultiplier * yieldMultiplier;
+                        const preparedQtyInGrams = window.PerdaRendimento.pesoPronto(qtyInGrams, lossPercentage, yieldMultiplier);
                         const liquidQty = preparedQtyInGrams * portionFactor;
                         existing.totalQuantity += liquidQty;
                         existing.totalGrossQty = (existing.totalGrossQty || 0) + qtyInGrams * portionFactor;
@@ -684,8 +682,7 @@ export class MenuManager {
                     if (isUnitType) {
                         // Ingrediente por unidade - aplicar perda/rendimento para obter quantidade preparada
                         const rawQty = dishIng.quantity;
-                        const lossMultiplier = 1 - (lossPercentage / 100);
-                        const preparedQty = rawQty * lossMultiplier * yieldMultiplier;
+                        const preparedQty = window.PerdaRendimento.pesoPronto(rawQty, lossPercentage, yieldMultiplier);
                         const liquidQty = preparedQty * portionFactor;
 
                         const ingredientData = {
@@ -718,8 +715,7 @@ export class MenuManager {
                     } else {
                         // Ingrediente por peso - aplicar perda/rendimento para obter quantidade preparada
                         const qtyInGrams = this.convertToGrams(dishIng.quantity, dishIng.unit);
-                        const lossMultiplier = 1 - (lossPercentage / 100);
-                        const preparedQtyInGrams = qtyInGrams * lossMultiplier * yieldMultiplier;
+                        const preparedQtyInGrams = window.PerdaRendimento.pesoPronto(qtyInGrams, lossPercentage, yieldMultiplier);
                         const liquidQty = preparedQtyInGrams * portionFactor;
 
                         const ingredientData = {
@@ -766,7 +762,7 @@ export class MenuManager {
                 // Perda/rendimento EFETIVOS: preparado ÷ bruto somados de todos os pratos.
                 // Assim a lista de compras volta exatamente à quantidade bruta das receitas
                 // (a média ponderada antiga comprava menos quando os pratos tinham perdas diferentes).
-                const eff = ing.totalGrossQty > 0 ? ing.totalQuantity / ing.totalGrossQty : (1 - avgLoss / 100) * avgYield;
+                const eff = ing.totalGrossQty > 0 ? ing.totalQuantity / ing.totalGrossQty : window.PerdaRendimento.pesoPronto(1, avgLoss, avgYield);
                 const effLoss = (1 - eff) * 100;
                 const usarPerda = effLoss >= 1 && effLoss < 100;
                 return {

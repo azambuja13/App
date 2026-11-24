@@ -42,7 +42,7 @@ function ingredienteSalvo(ing, cadastro) {
   let f = null;
   if (ing.ingredientId) f = cadastro.find(i => i.id === ing.ingredientId) || null;
   if (!f && nome) f = cadastro.find(i => String(i.name || i.ingredientName || '').toLowerCase() === nome.toLowerCase()) || null;
-  const lp = num(ing.lossPercentage) > 0 ? num(ing.lossPercentage) : (num(ing.loss) > 0 ? (num(ing.loss) < 1 ? num(ing.loss) * 100 : num(ing.loss)) : 0);
+  const lp = window.PerdaRendimento.perdaEmPorcento(ing.lossPercentage, ing.loss); // utils/perda-rendimento.js
   return {
     quantity: num(ing.quantity), unit: ing.unit, ingredientId: ing.ingredientId, ingredientName: nome,
     name: (f && f.name) || nome,

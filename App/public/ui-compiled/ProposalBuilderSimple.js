@@ -110,6 +110,14 @@ function ProposalBuilderSimple({
   });
   const [savedMenus, setSavedMenus] = useState([]);
   const [showMenuSelector, setShowMenuSelector] = useState(false);
+  // nov/2026: montar o cardápio sem sair da proposta. Antes, com o cardápio vazio, era preciso ir à aba
+  // Pratos, adicionar um a um, e voltar. Aqui a lista de pratos abre dentro da proposta; cada toque põe ou
+  // tira o prato do cardápio em montagem (o mesmo da aba Cardápio), que a proposta já sabia usar.
+  const [showDishPicker, setShowDishPicker] = useState(false);
+  const [pratosLista, setPratosLista] = useState(null);
+  const [buscaPrato, setBuscaPrato] = useState('');
+  const [pratoOcupado, setPratoOcupado] = useState(null);
+  const [noCardapio, setNoCardapio] = useState({});
   const [costs, setCosts] = useState(null);
   const [backendReady, setBackendReady] = useState(false);
   const selectedMenuIdRef = useRef(null);
@@ -487,6 +495,98 @@ function ProposalBuilderSimple({
       selectedMenuId: null,
       selectedMenuData: null
     }));
+  };
+  const marcarNoCardapio = async () => {
+    try {
+      const m = await window.menuManager.getMenu();
+      const o = {};
+      (m || []).forEach(i => { if (i && i.dishId) o[i.dishId] = i.id; });
+      setNoCardapio(o);
+    } catch (e) { /* sem gerenciador de cardápio */ }
+  };
+  // a proposta passa a usar o cardápio em montagem (mesma estrutura do "Cardápio do Evento")
+  const usarCardapioEmMontagem = async () => {
+    const mm = window.menuManager;
+    if (!mm) return;
+    const ativo = await mm.getActiveMenu();
+    legacySigRef.current = null;
+    if (!ativo || ativo.length === 0) { setFormData(prev => prev.selectedMenuId === 'active-menu' ? { ...prev, selectedMenuId: null, selectedMenuData: null } : prev); return; }
+    const statistics = await mm.getStatistics();
+    setFormData(prev => ({
+      ...prev,
+      selectedMenuId: 'active-menu',
+      selectedMenuData: {
+        id: 'active-menu',
+        name: (prev.selectedMenuId === 'active-menu' && prev.selectedMenuData && prev.selectedMenuData.name) || eventData?.linkedMenuName || 'Cardápio do Evento',
+        description: '',
+        menuData: { dishes: ativo, eventType: 'custom' },
+        dishes: ativo,
+        stats: statistics || { totalCost: 0, totalPrice: 0, totalDishes: ativo.length }
+      }
+    }));
+  };
+  const abrirEscolhaDePratos = async () => {
+    const abrir = !showDishPicker;
+    setShowDishPicker(abrir);
+    setShowMenuSelector(false);
+    if (!abrir) return;
+    marcarNoCardapio();
+    if (pratosLista !== null) return;
+    try {
+      const dm = (window.ManagerHelper && window.ManagerHelper.getDishManager && window.ManagerHelper.getDishManager()) || (window.PrecificacaoAPI && window.PrecificacaoAPI.dishManager) || window.dishManager;
+      let lista = dm && Array.isArray(dm.dishes) && dm.dishes.length ? dm.dishes : null;
+      if (!lista && window.PrecificacaoAPI && window.PrecificacaoAPI.api) { const r = await window.PrecificacaoAPI.api.request('/api/dishes'); lista = (r && (r.data || r.dishes)) || []; }
+      setPratosLista((lista || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR')));
+    } catch (e) { setPratosLista([]); }
+  };
+  const alternarPrato = async dish => {
+    if (pratoOcupado) return;
+    const mm = window.menuManager;
+    if (!mm) return;
+    setPratoOcupado(dish.id);
+    try {
+      if (noCardapio[dish.id]) {
+        await mm.removeDishFromMenu(noCardapio[dish.id]);
+      } else {
+        let completo = dish;
+        if (!completo.ingredients || completo.ingredients.length === 0) {
+          if (window.PrecificacaoAPI && window.PrecificacaoAPI.api) { const r = await window.PrecificacaoAPI.api.getDish(dish.id); completo = (r && r.data) || r; }
+          else { const dm = (window.ManagerHelper && window.ManagerHelper.getDishManager && window.ManagerHelper.getDishManager()) || window.dishManager; completo = await dm.getById(dish.id); }
+        }
+        if (!completo || !completo.ingredients || completo.ingredients.length === 0) { alert('⚠️ Este prato não tem ingredientes cadastrados. Cadastre os ingredientes na aba Pratos.'); return; }
+        const res = await mm.addDishToMenu(completo, 1.0); // 1 porção por pessoa, como na aba Pratos
+        if (!res || !res.success) { alert((res && res.message) || 'Erro ao adicionar o prato ao cardápio'); return; }
+        window.dispatchEvent(new CustomEvent('menu-updated', { detail: { action: 'add', dishId: dish.id } }));
+      }
+      await marcarNoCardapio();
+      await usarCardapioEmMontagem();
+    } catch (e) {
+      console.error('❌ [ProposalBuilderSimple] Erro ao mudar o cardápio pela proposta:', e);
+      alert('Não consegui mudar o cardápio agora. Tente de novo.');
+    } finally { setPratoOcupado(null); }
+  };
+  const painelDePratos = () => {
+    const h = React.createElement;
+    const termo = String(buscaPrato || '').trim().toLowerCase();
+    const lista = (pratosLista || []).filter(d => !termo || String(d.name || '').toLowerCase().includes(termo) || String(d.category || '').toLowerCase().includes(termo));
+    const quantos = Object.keys(noCardapio).length;
+    return h('div', { 'data-testid': 'prop-pratos', className: 'mt-4 border-2 border-orange-200 rounded-lg p-3 bg-orange-50' },
+      h('div', { className: 'flex items-start justify-between gap-2 mb-2' },
+        h('div', null,
+          h('p', { className: 'font-semibold text-gray-800' }, 'Toque nos pratos para montar o cardápio desta proposta'),
+          h('p', { className: 'text-xs text-gray-600' }, 'Cada prato entra com 1 porção por pessoa. As porções podem ser ajustadas depois, na aba Cardápio.')),
+        h('button', { type: 'button', 'data-testid': 'prop-pratos-pronto', onClick: () => setShowDishPicker(false), className: 'px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold' }, quantos ? `Pronto (${quantos})` : 'Fechar')),
+      h('input', { type: 'text', value: buscaPrato, onChange: e => setBuscaPrato(e.target.value), placeholder: 'Buscar prato...', 'data-testid': 'prop-pratos-busca', className: 'w-full px-3 py-2 border border-gray-300 rounded-lg mb-2' }),
+      pratosLista === null ? h('p', { className: 'text-center text-gray-500 py-4' }, 'Carregando os pratos...')
+        : pratosLista.length === 0 ? h('p', { className: 'text-center text-gray-600 py-4' }, 'Nenhum prato cadastrado ainda. Cadastre o primeiro na aba Pratos.')
+        : lista.length === 0 ? h('p', { className: 'text-center text-gray-500 py-4' }, 'Nenhum prato com esse nome.')
+        : h('div', { className: 'max-h-80 overflow-y-auto space-y-1' }, lista.map(d => {
+            const dentro = !!noCardapio[d.id];
+            return h('button', { key: d.id, type: 'button', 'data-testid': 'prop-prato', 'data-dentro': dentro ? '1' : '0', disabled: pratoOcupado === d.id, onClick: () => alternarPrato(d),
+              className: 'w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg border ' + (dentro ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200') },
+              h('span', null, h('span', { className: 'font-medium text-gray-800' }, d.name), d.category ? h('span', { className: 'block text-xs text-gray-500' }, d.category) : null),
+              h('span', { className: 'text-sm font-semibold whitespace-nowrap ' + (dentro ? 'text-green-700' : 'text-orange-700') }, pratoOcupado === d.id ? '…' : dentro ? '✓ No cardápio' : '+ Adicionar'));
+          })));
   };
   // ✅ Cálculo pela PRÓPRIA proposta: cardápio escolhido × convidados da proposta
   //    + apoio/mão de obra/transporte guardados na proposta (regras em utils/pricing-rules.js)
@@ -1393,10 +1493,20 @@ function ProposalBuilderSimple({
             className: "text-xs text-gray-500"
           }, "\u26A0\uFE0F Configure margem nos pratos para ativar")
     ))));
-  })()) : /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowMenuSelector(!showMenuSelector),
+  })()) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => { setShowMenuSelector(!showMenuSelector); setShowDishPicker(false); },
     className: "w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors"
-  }, "\u2795 Selecionar Card\xE1pio Salvo"), !formData.serviceOnly && showMenuSelector && !formData.selectedMenuData && /*#__PURE__*/React.createElement("div", {
+  }, "\u2795 Selecionar Card\xE1pio Salvo"), !proposal && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    "data-testid": "prop-montar-aqui",
+    onClick: abrirEscolhaDePratos,
+    className: "w-full mt-2 px-4 py-3 border-2 border-dashed border-orange-300 text-orange-800 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors"
+  }, "\uD83C\uDF7D\uFE0F Montar o card\xE1pio aqui (escolher pratos)")), !formData.serviceOnly && !proposal && formData.selectedMenuId === 'active-menu' && formData.selectedMenuData && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    "data-testid": "prop-mudar-pratos",
+    onClick: abrirEscolhaDePratos,
+    className: "w-full mt-2 px-4 py-2 border border-orange-300 text-orange-800 bg-white rounded-lg hover:bg-orange-50 text-sm font-medium"
+  }, showDishPicker ? "Fechar a lista de pratos" : "\u2795 Adicionar ou tirar pratos"), !formData.serviceOnly && !proposal && showDishPicker && (!formData.selectedMenuData || formData.selectedMenuId === 'active-menu') && painelDePratos(), !formData.serviceOnly && showMenuSelector && !formData.selectedMenuData && /*#__PURE__*/React.createElement("div", {
     className: "mt-4 max-h-96 overflow-y-auto space-y-2"
   }, savedMenus.length === 0 ? /*#__PURE__*/React.createElement("p", {
     className: "text-center text-gray-500 py-4"

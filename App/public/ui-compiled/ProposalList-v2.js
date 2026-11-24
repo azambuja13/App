@@ -1,3 +1,40 @@
+
+// nov/2026: no celular cada cartão passava de uma tela (5 quadros de números e 10 botões, um por linha).
+// Agora mostra lucro, valor e valor por pessoa numa linha e só as ações da etapa, lado a lado; o "⋮" abre o resto.
+(function () {
+  if (typeof document === 'undefined' || document.getElementById('prop-card-css')) return;
+  const st = document.createElement('style'); st.id = 'prop-card-css';
+  const f = '.prop-card:not(.acoes-abertas)';
+  const some = (etapa, quais) => f + etapa + ' :is(' + quais + '){display:none!important}';
+  st.textContent = '@media (max-width:1023px){' +
+    // a tela perdia 68 px de cada lado em margens, uma dentro da outra; onde o navegador não entende :has fica como era
+    '.p-8:has(.proposal-list){padding:12px 4px!important}' +
+    'div:has(>.proposal-list){padding:8px!important}' +
+    '.prop-card{padding:4px!important;min-height:0!important}' +
+    '.prop-card .prop-titulo{gap:6px!important;margin-bottom:4px!important}' +
+    '.prop-card .prop-titulo h3{font-size:17px!important;line-height:1.25!important;flex:1 1 100%}' +
+    // quadros do tamanho do número (valor em reais nunca é cortado); se não couber, passa para a linha de baixo
+    '.prop-card .prop-stats{display:flex!important;flex-wrap:wrap;gap:6px!important;margin-bottom:10px!important}' +
+    '.prop-card .prop-stats>*{padding:6px 8px!important;flex:1 1 auto!important}' +
+    '.prop-card .prop-stats p{font-size:11px!important;line-height:1.35!important;margin:0!important;white-space:nowrap}' +
+    '.prop-card .prop-stats p+p{font-size:14px!important}' +
+    f + ' .prop-stats>:nth-child(-n+2){display:none}' +
+    f + ' .prop-pratos{display:none}' +
+    '.prop-card .prop-acoes{padding-top:10px!important;gap:5px!important;justify-content:flex-start!important}' +
+    '.prop-card .prop-acoes>div{display:contents}' +
+    '.prop-card .prop-acoes .relative{display:flex}' +
+    '.prop-card .prop-acoes>div>button{min-height:42px!important;padding:8px 4px!important;font-size:13px!important;flex:1 1 auto;white-space:nowrap;margin:0!important}' +
+    '.prop-card .prop-acoes .pa-mais{min-height:42px!important;min-width:40px;padding:8px 0!important;font-size:16px!important;margin:0!important}' +
+    '.prop-card .prop-menu{flex-wrap:wrap;margin-top:6px!important;padding-top:8px!important}' +
+    '.prop-card .prop-menu button{min-height:42px!important;padding:8px 10px!important;font-size:13px!important;white-space:nowrap}' +
+    some('[data-st="draft"]', '.pa-wa,.pa-link,.pa-contrato,.pa-pix,.pa-detalhes') +
+    some('[data-st="sent"]', '.pa-wa,.pa-link,.pa-contrato,.pa-pix,.pa-editar,.pa-detalhes') +
+    some('[data-st="accepted"]', '.pa-agenda,.pa-ver,.pa-wa,.pa-link,.pa-editar,.pa-detalhes') +
+    some(':not([data-st="draft"]):not([data-st="sent"]):not([data-st="accepted"])', '.pa-wa,.pa-link,.pa-contrato,.pa-pix,.pa-editar,.pa-detalhes') +
+    '}' +
+    '@media (max-width:380px){.prop-card .prop-acoes>div>button{font-size:12px!important;padding:8px 3px!important}}';
+  document.head.appendChild(st);
+})();
 (function() {
 const __brlPL = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /**
@@ -598,7 +635,8 @@ function ProposalCard({
   return /*#__PURE__*/React.createElement("div", {
     className: `bg-white rounded-lg shadow hover:shadow-xl transition-all ${isSelected ? 'ring-4 ring-blue-500' : ''}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: "p-6 min-h-[320px]"
+    className: "p-6 min-h-[320px] prop-card" + (showMenu ? " acoes-abertas" : ""),
+    "data-st": proposal.status || ""
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-start justify-between mb-4"
   }, /*#__PURE__*/React.createElement("div", {
@@ -612,7 +650,7 @@ function ProposalCard({
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex-1"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center gap-3 mb-2"
+    className: "flex flex-wrap items-center gap-3 mb-2 prop-titulo"
   }, /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-bold text-gray-800"
   }, proposal.proposalName), /*#__PURE__*/React.createElement("span", {
@@ -628,7 +666,7 @@ function ProposalCard({
     className: `inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer ${linkInfo.views ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`
   }, window.PropostaLinks.texto(linkInfo))))), /*#__PURE__*/React.createElement("div", {
     // ✅ Grade que quebra em linhas: no celular os 5 quadros (Pratos, Custo, Margem, Valor Final, Por Pessoa) saíam da tela
-    className: "grid gap-2 mb-4",
+    className: "grid gap-2 mb-4 prop-stats",
     style: { gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))' }
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-gray-50 rounded-lg p-2 flex-1"
@@ -661,7 +699,7 @@ function ProposalCard({
   }, "Por Pessoa"), /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-bold text-orange-800"
   }, __brlPL(proposal.guests > 0 ? proposal.finalTotal / proposal.guests : 0)))), proposal.dishes && proposal.dishes.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "mb-4"
+    className: "mb-4 prop-pratos"
   }, /*#__PURE__*/React.createElement("p", {
     className: "text-sm font-medium text-gray-700 mb-2"
   }, "Pratos inclusos:"), /*#__PURE__*/React.createElement("div", {
@@ -672,7 +710,7 @@ function ProposalCard({
   }, dish.dishName, (dish.quantity || dish.portionsPerPerson) ? " (" + (dish.quantity || dish.portionsPerPerson) + "x)" : "")), proposal.dishes.length > 5 && /*#__PURE__*/React.createElement("span", {
     className: "px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-medium"
   }, "+", proposal.dishes.length - 5, " mais"))), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-wrap items-center justify-between gap-2 pt-4 border-t"
+    className: "flex flex-wrap items-center justify-between gap-2 pt-4 border-t prop-acoes"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center gap-2"
   }, proposal.status === 'draft' && /*#__PURE__*/React.createElement("button", {
@@ -689,45 +727,47 @@ function ProposalCard({
     onClick: () => window.Agenda.abrir({ proposal }),
     title: "Salvar na agenda (Calendário do iPhone ou Google Agenda)",
     "data-testid": "agenda-proposta",
-    className: "px-3 py-1 bg-white text-green-700 border border-green-300 rounded-lg hover:bg-green-50 text-sm font-medium"
+    className: "px-3 py-1 bg-white text-green-700 border border-green-300 rounded-lg hover:bg-green-50 text-sm font-medium pa-agenda"
   }, "\uD83D\uDCC5 Agenda")), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onPreview,
-    className: "px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 text-sm font-medium"
+    className: "px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 text-sm font-medium pa-ver"
   }, "\uD83D\uDC41\uFE0F Visualizar"), window.CRM && window.CRM.openMessage && /*#__PURE__*/React.createElement("button", {
     onClick: () => window.CRM.openMessage({ proposal }),
     title: "Mensagem pronta no WhatsApp",
-    className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+    className: "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm pa-wa"
   }, "\uD83D\uDCAC WhatsApp"), window.openPropostaLink && /*#__PURE__*/React.createElement("button", {
     onClick: () => window.openPropostaLink({ proposal }),
     title: "Link da proposta: avisa quando o cliente abrir",
-    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm pa-link"
   }, "\uD83D\uDD17 Link"), window.openContrato && /*#__PURE__*/React.createElement("button", {
     onClick: () => window.openContrato({ proposal }),
     title: "Contrato para o cliente assinar pelo celular",
-    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm pa-contrato"
   }, "\uD83D\uDCDD Contrato"), window.PixSinal && window.PixSinal.abrir && /*#__PURE__*/React.createElement("button", {
     onClick: () => window.PixSinal.abrir({ proposal }),
     title: "QR e copia e cola do sinal, com a sua chave PIX",
     "data-testid": "abrir-pix-sinal",
-    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+    className: "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm pa-pix"
   }, "\uD83D\uDCA0 PIX do sinal"), onSelect && /*#__PURE__*/React.createElement("button", {
     onClick: () => onSelect(proposal),
-    className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+    className: "px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm pa-detalhes"
   }, "Ver Detalhes"), /*#__PURE__*/React.createElement("button", {
     onClick: () => onEdit(proposal),
-    className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+    className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm pa-editar"
   }, "\u270F\uFE0F Editar"), /*#__PURE__*/React.createElement("div", {
     className: "relative"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenu(!showMenu),
-    className: "px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-  }, "\u22EE"))), showMenu && /*#__PURE__*/React.createElement("div", {
+    className: "px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 pa-mais",
+    "aria-label": showMenu ? "Menos ações" : "Mais ações",
+    "aria-expanded": showMenu ? "true" : "false"
+  }, showMenu ? "\u2715" : "\u22EE"))), showMenu && /*#__PURE__*/React.createElement("div", {
     // ✅ FIX: opções do "⋮" agora abrem numa linha própria, abaixo dos botões
     // (dentro do fluxo da página), em vez de um menu flutuante (absolute) que
     // ficava por cima dos botões/conteúdo no iPhone e não fechava ao tocar fora.
-    className: "w-full flex gap-2 mt-3 pt-3 border-t border-gray-100"
+    className: "w-full flex gap-2 mt-3 pt-3 border-t border-gray-100 prop-menu"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       onDuplicate(proposal.id);

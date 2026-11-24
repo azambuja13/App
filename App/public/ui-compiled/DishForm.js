@@ -99,7 +99,7 @@ const DishForm = React.memo(function DishForm({
 
         // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
         // lossPercentage já é % (0,5 = 0,5%); lossFromDB é o campo decimal "loss" (0,2 = 20%)
-        const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ing.lossPercentage, lossFromDB);
+        const lossPercentage = window.PerdaRendimento.perdaEmPorcento(ing.lossPercentage, lossFromDB);
 
         // ✅ FIX: Converter quantidade para gramas antes de calcular custo
         let quantityInGrams = quantity;
@@ -113,7 +113,7 @@ const DishForm = React.memo(function DishForm({
         const ingredientCost = quantityInGrams * unitCost;
         return {
           ...ing,
-          loss: lossPercentage / 100,
+          loss: window.PerdaRendimento.porcentoParaFracao(lossPercentage),
           // Decimal para compatibilidade (0.20)
           lossPercentage: lossPercentage,
           // ✅ Porcentagem normalizada (20)
@@ -266,9 +266,8 @@ const DishForm = React.memo(function DishForm({
       const quantityInGrams = convertToGrams(ing.quantity, ing.unit);
 
       // ✅ Aplicar perda e rendimento - peso final = quantidade × (1 - perda%) × rendimento
-      const lossMultiplier = 1 - ((ing.lossPercentage || 0) / 100);
-      const yieldFactor = parseFloat(ing.yieldMultiplier) || 1;
-      const finalWeight = quantityInGrams * lossMultiplier * yieldFactor;
+      const yieldFactor = window.PerdaRendimento.rendimento(ing.yieldMultiplier);
+      const finalWeight = window.PerdaRendimento.pesoPronto(quantityInGrams, ing.lossPercentage || 0, yieldFactor); // utils/perda-rendimento.js
 
       return sum + finalWeight;
     }, 0);
@@ -592,7 +591,7 @@ const DishForm = React.memo(function DishForm({
     console.log('📝 [handleAddIngredient] totalCost:', totalCost);
     // ✅ Normalizar lossPercentage: garantir que está em formato de porcentagem (20) e não decimal (0.20)
     // lossPercentage do ingrediente já é %; "loss" (decimal) só quando não há lossPercentage
-    const lossPercentage = (function (lp, lossDec) { var p = parseFloat(lp); if (p > 0) return p; var d = parseFloat(lossDec); return d > 0 ? (d < 1 ? d * 100 : d) : 0; })(ingredient.lossPercentage, ingredient.loss);
+    const lossPercentage = window.PerdaRendimento.perdaEmPorcento(ingredient.lossPercentage, ingredient.loss);
 
     const newIngredient = {
       id: `ing_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -607,7 +606,7 @@ const DishForm = React.memo(function DishForm({
       // Custo por grama/ml OU por unidade
       ingredientCost: totalCost,
       // Custo total considerando perda
-      loss: lossPercentage / 100,
+      loss: window.PerdaRendimento.porcentoParaFracao(lossPercentage),
       // Decimal para compatibilidade (0.20)
       lossPercentage: lossPercentage,
       // ✅ Porcentagem normalizada (20)

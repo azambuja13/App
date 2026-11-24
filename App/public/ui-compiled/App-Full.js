@@ -578,7 +578,7 @@ window.AppFull = function AppFull() {
               try {
                 console.log('🔍 Cache miss - carregando configurações via HTTP');
                 const API_URL = window.APP_CONFIG?.backend?.baseURL || 'https://precificacao-api-production.up.railway.app';
-                const response = await fetch(`${API_URL}/api/user-settings`, {
+                const response = await fetch(`${API_URL}/api/user-settings?sem=ingredientsDatabase,emMontagem`, {
                   headers: {
                     'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
@@ -673,6 +673,13 @@ window.AppFull = function AppFull() {
   }, [authenticated]); // Removido state.licenseKey para evitar inicialização duplicada
 
   // useEffect separado para detectar mudança de licença (COM DEBOUNCE)
+  // Avisos da conferência do e-mail na tela de login (guardados para limpar só o aviso que esta conferência pôs)
+  const __avisoConferencia = React.useRef({
+    atual: '',
+    rede: '⚠️ Sem conexão com o servidor. Confira a internet e tente de novo; a sua senha continua a mesma.',
+    servidor: '⚠️ Não foi possível conferir este e-mail agora. Tente entrar com a sua senha; se não der, tente de novo em alguns minutos.',
+    limite: '⚠️ Muitas consultas em pouco tempo. Tente entrar com a sua senha ou aguarde alguns minutos.'
+  }).current;
   React.useEffect(() => {
     // Só verificar se já passou pela inicialização
     if (isLoadingAuth) return;
@@ -710,15 +717,21 @@ window.AppFull = function AppFull() {
             // Licença existe E tem senha configurada
             console.log('✅ Licença existente com senha - mostrar "Validar Senha"');
             setPasswordSet(true);
+            if (__avisoConferencia.atual && state.licenseError === __avisoConferencia.atual) state.setLicenseError('');
           } else {
             // Licença nova OU sem senha
             console.log('🆕 Licença nova ou sem senha - mostrar "Criar Senha"');
             setPasswordSet(false);
+            if (__avisoConferencia.atual && state.licenseError === __avisoConferencia.atual) state.setLicenseError('');
           }
         } else {
-          // Erro na API - assumir licença nova
-          console.log('⚠️ Erro na API - assumir licença nova');
-          setPasswordSet(false);
+          // nov/2026: a API recusou a consulta (limite de tentativas, servidor ocupado). Antes isso virava
+          // "Criar Senha", e quem já tinha conta achava que tinha perdido a senha. Agora fica o "Entrar"
+          // de sempre, com o aviso; o login em si não depende desta consulta.
+          console.log('⚠️ Erro na API ao conferir o e-mail:', response.status);
+          setPasswordSet(true);
+          __avisoConferencia.atual = response.status === 429 ? __avisoConferencia.limite : __avisoConferencia.servidor;
+          state.setLicenseError(__avisoConferencia.atual);
         }
       } catch (error) {
         console.error('❌ Erro ao verificar licença na API:', error);
@@ -731,8 +744,11 @@ window.AppFull = function AppFull() {
             return;
           }
         } catch (e) {}
-        // Em caso de erro, deixar o usuário tentar criar senha
-        setPasswordSet(false);
+        // Sem resposta do servidor e sem login guardado neste aparelho: não dá para saber se a conta
+        // existe. Mostra o "Entrar" com o aviso, em vez de "Criar Senha".
+        setPasswordSet(true);
+        __avisoConferencia.atual = __avisoConferencia.rede;
+        state.setLicenseError(__avisoConferencia.atual);
       }
     }, 500); // Esperar 500ms após última mudança
 
