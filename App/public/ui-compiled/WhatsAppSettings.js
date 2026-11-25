@@ -141,7 +141,7 @@ function WhatsAppSettings() {
       }) });
       if (data && data.data) { window.whatsappSettings = data.data; aplicar(data.data); }
       setTestInfo(null);
-      alert('✅ Token removido. O envio pelo WhatsApp está desligado.');
+      (window.avisarSucesso || alert)('✅ Token removido. O envio pelo WhatsApp está desligado.');
     } catch (error) {
       alert(`Erro ao remover: ${error.message}`);
     } finally {

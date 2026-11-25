@@ -222,12 +222,12 @@ function MessageDialog({ ctx, onClose }) {
         const prm = parametrosDoVinculo(vinc, varsFor(cliente, proposta, dados && dados.reviewLink, proposta && links[proposta.id]));
         await api.request('/api/company/whatsapp/send-template', { method: 'POST', body: JSON.stringify({ to: telefone, name: vinc.name, language: vinc.language, ...prm }) });
         registrar();
-        alert('✅ Enviado pelo modelo da Meta "' + vinc.name + '" (vai o texto aprovado do modelo, com os dados do cliente).');
+        (window.avisarSucesso || alert)('✅ Enviado pelo modelo da Meta "' + vinc.name + '" (vai o texto aprovado do modelo, com os dados do cliente).');
         onClose();
       } else {
         await api.request('/api/company/whatsapp/send-text', { method: 'POST', body: JSON.stringify({ to: telefone, text: texto }) });
         registrar();
-        alert('✅ Mensagem aceita pela Meta.\n\nAtenção: texto livre só é ENTREGUE se o cliente falou com você nas últimas 24 h. Para chegar sempre, ligue esta mensagem a um modelo da Meta em "✏️ Editar modelos".');
+        (window.avisarSucesso || alert)('✅ Mensagem aceita pela Meta.\n\nAtenção: texto livre só é ENTREGUE se o cliente falou com você nas últimas 24 h. Para chegar sempre, ligue esta mensagem a um modelo da Meta em "✏️ Editar modelos".');
         onClose();
       }
     } catch (e) {

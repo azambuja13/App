@@ -181,7 +181,7 @@ function EventsPage({
           const result = await savedEventsManager.deleteEvent(eventId);
           console.log('📊 Resultado da exclusão:', result);
           if (result.success) {
-            alert('✅ Evento excluído com sucesso!');
+            (window.avisarSucesso || alert)('✅ Evento excluído com sucesso!');
             console.log('🔄 Recarregando lista de eventos...');
             await loadSavedEvents();
           } else {

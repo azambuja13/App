@@ -183,7 +183,7 @@ function SavedMenusList() {
           ingredients: mappedIngredients
         }, dish.portionsPerPerson || 1);
       }
-      alert(`✅ Cardápio "${result.data.menu.name}" carregado com sucesso!\n\n${result.data.dishes.length} pratos adicionados.`);
+      (window.avisarSucesso || alert)(`✅ Cardápio "${result.data.menu.name}" carregado com sucesso!\n\n${result.data.dishes.length} pratos adicionados.`);
 
       // Despachar evento para atualizar MenuPage
       window.dispatchEvent(new CustomEvent('menu-loaded', {
@@ -233,7 +233,7 @@ function SavedMenusList() {
       const result = await manager.duplicateMenu(menuId);
       if (result.success) {
         loadMenus();
-        alert(`✅ ${result.message}`);
+        (window.avisarSucesso || alert)(`✅ ${result.message}`);
       } else {
         alert(`❌ ${result.message}`);
       }
@@ -273,7 +273,7 @@ function SavedMenusList() {
       if (result && result.success) {
         console.log('✅ [SavedMenusList] Cardápio excluído com sucesso, recarregando lista...');
         await loadMenus();
-        alert(`✅ Cardápio "${menuName}" excluído com sucesso`);
+        (window.avisarSucesso || alert)(`✅ Cardápio "${menuName}" excluído com sucesso`);
       } else {
         const errorMsg = result?.message || 'Erro desconhecido ao excluir cardápio';
         console.error('❌ [SavedMenusList] Falha na exclusão:', errorMsg);
@@ -376,7 +376,7 @@ function SavedMenusList() {
       console.log('✅ [SavedMenusList] Lista de compras atualizada:', {
         ingredientsCount: ingredientsList.length
       });
-      alert(`✅ Lista de compras gerada a partir do cardápio salvo "${menu.name}"!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento para ${guests} pessoas.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
+      (window.avisarSucesso || alert)(`✅ Lista de compras gerada a partir do cardápio salvo "${menu.name}"!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento para ${guests} pessoas.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
       alert('❌ Erro ao gerar lista de compras. Veja o console.');

@@ -33,6 +33,8 @@ const DishList = React.memo(function DishList({
   const [filteredDishes, setFilteredDishes] = React.useState([]);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('all');
+  // nov/2026: ver só os pratos que já estão no cardápio (vale junto com a busca e a categoria)
+  const [soNoCardapio, setSoNoCardapio] = React.useState(false);
   const [sortBy, setSortBy] = React.useState('name'); // name, cost, date
   const [viewMode, setViewMode] = React.useState(() => {
     // Carregar preferência salva ou usar 'grid' como padrão
@@ -186,6 +188,11 @@ const DishList = React.memo(function DishList({
       filtered = filtered.filter(dish => dish.category === categoryFilter);
     }
 
+    // Só os que estão no cardápio
+    if (soNoCardapio) {
+      filtered = filtered.filter(dish => dishesInUse.has(dish.id));
+    }
+
     // Ordenação
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -200,13 +207,17 @@ const DishList = React.memo(function DishList({
       }
     });
     setFilteredDishes(filtered);
-  }, [dishes, searchTerm, categoryFilter, sortBy]);
+  }, [dishes, searchTerm, categoryFilter, sortBy, soNoCardapio, dishesInUse]);
 
   // Aplicar filtros e resetar página quando dependências mudarem
   React.useEffect(() => {
     applyFilters();
-    setCurrentPage(1); // Resetar para página 1 quando filtros mudarem
   }, [applyFilters]);
+  // Volta para a página 1 quando a lista ou um filtro muda. Pôr um prato no cardápio não conta:
+  // quem está na página 3 adicionando pratos continua na página 3.
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [dishes, searchTerm, categoryFilter, sortBy, soNoCardapio]);
 
   // ⚡ Performance: Memoizar callbacks para evitar re-renders desnecessários
   const handleToggleFavorite = React.useCallback(async (dishId) => {
@@ -317,7 +328,17 @@ const DishList = React.memo(function DishList({
             dishId: dish.id
           }
         }));
-        alert(`✅ Prato "${dish.name}" adicionado ao cardápio!\n\nVá para a aba "Cardápio" para ajustar as porções por pessoa.`);
+        // nov/2026: aviso que some sozinho, no lugar da caixa "OK" que travava a tela a cada prato
+        if (window.AvisoRapido) {
+          let quantos = 0;
+          try { quantos = (await menuManager.getMenu()).length; } catch (e) { quantos = 0; }
+          const total = quantos > 1 ? ` · ${quantos} pratos` : '';
+          window.AvisoRapido.mostrar(`✓ "${dish.name}" no cardápio${total}`, {
+            acao: { rotulo: 'Ver cardápio', aoTocar: () => { const s = window.eventState; if (s && typeof s.setActiveTab === 'function') s.setActiveTab('menu'); } }
+          });
+        } else {
+          alert(`✅ Prato "${dish.name}" adicionado ao cardápio!\n\nVá para a aba "Cardápio" para ajustar as porções por pessoa.`);
+        }
       } else {
         alert(result.message || 'Erro ao adicionar prato ao cardápio');
       }
@@ -498,7 +519,18 @@ const DishList = React.memo(function DishList({
     key: cat.value,
     onClick: () => setCategoryFilter(cat.value),
     className: `px-3 py-1 rounded-full text-sm font-medium transition-colors ${categoryFilter === cat.value ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`
-  }, cat.icon, " ", cat.label))), /*#__PURE__*/React.createElement("select", {
+  }, cat.icon, " ", cat.label)), (() => {
+    const noCardapio = Array.isArray(dishes) ? dishes.filter(d => dishesInUse.has(d.id)).length : 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: "no-cardapio",
+      type: "button",
+      "data-testid": "pratos-so-cardapio",
+      "aria-pressed": soNoCardapio ? "true" : "false",
+      onClick: () => setSoNoCardapio(v => !v),
+      title: soNoCardapio ? "Mostrar todos os pratos" : "Mostrar s\xF3 os pratos que est\xE3o no card\xE1pio",
+      className: `px-3 py-1 rounded-full text-sm font-medium transition-colors border ${soNoCardapio ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-700 border-green-400 hover:bg-green-50'}`
+    }, "\u2713 No card\xE1pio (", noCardapio, ")");
+  })()), /*#__PURE__*/React.createElement("select", {
     value: sortBy,
     onChange: e => setSortBy(e.target.value),
     className: "px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -550,9 +582,9 @@ const DishList = React.memo(function DishList({
     className: "text-6xl mb-4"
   }, "\uD83C\uDF7D\uFE0F"), /*#__PURE__*/React.createElement("h3", {
     className: "text-xl font-semibold text-gray-700 mb-2"
-  }, searchTerm || categoryFilter !== 'all' ? 'Nenhum prato encontrado' : 'Nenhum prato cadastrado'), /*#__PURE__*/React.createElement("p", {
+  }, soNoCardapio && !searchTerm && categoryFilter === 'all' ? 'Nenhum prato no card\xE1pio ainda' : searchTerm || categoryFilter !== 'all' || soNoCardapio ? 'Nenhum prato encontrado' : 'Nenhum prato cadastrado'), /*#__PURE__*/React.createElement("p", {
     className: "text-gray-500 mb-6"
-  }, searchTerm || categoryFilter !== 'all' ? 'Tente ajustar os filtros de busca' : 'Comece criando seu primeiro prato reutilizável')), showDeleteConfirm && /*#__PURE__*/React.createElement("div", {
+  }, soNoCardapio && !searchTerm && categoryFilter === 'all' ? 'Toque em "No card\xE1pio" de novo para ver todos e adicionar.' : searchTerm || categoryFilter !== 'all' || soNoCardapio ? 'Tente ajustar os filtros de busca' : 'Comece criando seu primeiro prato reutilizável')), showDeleteConfirm && /*#__PURE__*/React.createElement("div", {
     className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
   }, /*#__PURE__*/React.createElement("div", {
     className: "bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
@@ -685,9 +717,11 @@ const DishCard = React.memo(function DishCard({
       className: "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
     }, "Selecionar") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
       onClick: () => onAddToMenu(dish),
-      className: "px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium",
-      title: "Adicionar ao Card\xE1pio"
-    }, "\uD83C\uDF7D\uFE0F Card\xE1pio"), PDFButton ? /*#__PURE__*/React.createElement("div", {
+      "data-testid": "prato-cardapio",
+      "data-no-cardapio": isInMenu ? "1" : "0",
+      className: (isInMenu ? "px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" : "px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700") + " transition-colors text-sm font-medium",
+      title: isInMenu ? "J\xE1 est\xE1 no card\xE1pio. Ajuste as por\xE7\xF5es na aba Card\xE1pio" : "Adicionar ao Card\xE1pio"
+    }, isInMenu ? "\u2713 No card\xE1pio" : "\uD83C\uDF7D\uFE0F Card\xE1pio"), PDFButton ? /*#__PURE__*/React.createElement("div", {
       className: "inline-block",
       onClick: e => e.stopPropagation()
     }, /*#__PURE__*/React.createElement(PDFButton, {
@@ -843,9 +877,11 @@ const DishCard = React.memo(function DishCard({
     className: "space-y-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => onAddToMenu(dish),
-    className: "w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium",
-    title: "Adicionar ao Card\xE1pio do Evento"
-  }, "\uD83C\uDF7D\uFE0F Adicionar ao Card\xE1pio"), PDFButton ? /*#__PURE__*/React.createElement(PDFButton, {
+    "data-testid": "prato-cardapio",
+    "data-no-cardapio": isInMenu ? "1" : "0",
+    className: (isInMenu ? "w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" : "w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700") + " transition-colors font-medium",
+    title: isInMenu ? "J\xE1 est\xE1 no card\xE1pio. Ajuste as por\xE7\xF5es na aba Card\xE1pio" : "Adicionar ao Card\xE1pio do Evento"
+  }, isInMenu ? "\u2713 No card\xE1pio" : "\uD83C\uDF7D\uFE0F Adicionar ao Card\xE1pio"), PDFButton ? /*#__PURE__*/React.createElement(PDFButton, {
     onClick: () => onPrintTechnicalSheet(dish),
     label: "\uD83D\uDDA8\uFE0F Imprimir Ficha T\xE9cnica",
     featureName: "Impress\xE3o de Ficha T\xE9cnica",

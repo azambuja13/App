@@ -191,7 +191,7 @@ function ModeloEditor({ onBack }) {
   };
   const salvar = async (t) => {
     setSalvando(true); setErro('');
-    try { const r = await api().request('/api/contracts/modelo', { method: 'PUT', body: JSON.stringify({ texto: t }) }); setM(r.data); setTexto(r.data.texto); alert('✅ Modelo salvo. Vale para os próximos contratos.'); }
+    try { const r = await api().request('/api/contracts/modelo', { method: 'PUT', body: JSON.stringify({ texto: t }) }); setM(r.data); setTexto(r.data.texto); (window.avisarSucesso || alert)('✅ Modelo salvo. Vale para os próximos contratos.'); }
     catch (e) { setErro(e.message); } finally { setSalvando(false); }
   };
   return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },

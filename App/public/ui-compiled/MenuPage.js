@@ -144,12 +144,31 @@ function MenuPage({
     }
   };
   const handleRemoveDish = async menuItemId => {
-    if (!confirm('Remover este prato do cardápio?')) return;
+    // nov/2026: sem a pergunta "Remover este prato do cardápio?". O prato sai na hora e o aviso embaixo
+    // traz "Desfazer", que o devolve no mesmo lugar, com as mesmas porções.
     try {
       const menuManager = window.menuManager;
+      let antes = [];
+      try { antes = await menuManager.getMenu(); } catch (e) { antes = []; }
+      const posicao = antes.findIndex(i => i && i.id === menuItemId);
+      const tirado = posicao >= 0 ? antes[posicao] : null;
       const result = await menuManager.removeDishFromMenu(menuItemId);
       if (result.success) {
         await loadMenu();
+        if (window.AvisoRapido && tirado) {
+          window.AvisoRapido.mostrar(`"${tirado.dishName || tirado.name || 'Prato'}" saiu do cardápio`, {
+            ms: 6000,
+            acao: { rotulo: 'Desfazer', aoTocar: async () => {
+              try {
+                const agora = await menuManager.getMenu();
+                if (agora.some(i => i && i.id === tirado.id)) return;
+                const novo = agora.slice(); novo.splice(Math.min(posicao, novo.length), 0, tirado);
+                await menuManager.restoreMenu(novo);
+                await loadMenu();
+              } catch (e) { console.error('Erro ao desfazer a remoção do prato:', e); alert('Não consegui devolver o prato. Adicione de novo pela aba Pratos.'); }
+            } }
+          });
+        }
       } else {
         alert(result.message);
       }
@@ -210,7 +229,7 @@ function MenuPage({
 
       // Substituir itens do evento
       state.setItems(newItems);
-      alert(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
+      (window.avisarSucesso || alert)(`✅ Lista de compras gerada!\n\n${ingredientsList.length} ingredientes adicionados aos Itens do Evento.${aviso}\n\nNa aba Itens, cada ingrediente mostra de qual prato veio.`);
     } catch (error) {
       console.error('Erro ao gerar lista de compras:', error);
       alert('Erro ao gerar lista de compras. Veja o console.');
@@ -446,7 +465,7 @@ function MenuPage({
           console.log('📋 [MenuPage] Cardápio vinculado ao evento:', savedId, savedName);
         }
 
-        alert(`✅ Cardápio "${savedName}" ${action} com sucesso!`);
+        (window.avisarSucesso || alert)(`✅ Cardápio "${savedName}" ${action} com sucesso!`);
         setShowSaveModal(false);
       } else {
         const errorMsg = result?.message || 'Erro desconhecido ao salvar cardápio';
@@ -528,6 +547,7 @@ function MenuPage({
   });
   const removeBtn = item => /*#__PURE__*/React.createElement("button", {
     onClick: () => handleRemoveDish(item.id),
+    "data-testid": "cardapio-tirar",
     className: "px-2 py-1 rounded-lg hover:bg-red-50 text-red-600 text-sm",
     title: "Remover do card\xE1pio",
     "aria-label": "Remover " + (item.dishName || 'prato')

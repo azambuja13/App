@@ -261,9 +261,9 @@ function ProposalList({
         if (newStatus === 'accepted' && window.Agenda && window.Agenda.aoAprovar(propostaAntes || { id: proposalId })) {
           // a janela da agenda já avisa que a proposta foi aprovada
         } else if (newStatus === 'sent') {
-          alert(`✅ Proposta marcada como "Enviada"!\n\n📱 Em breve você poderá enviar propostas diretamente pelo WhatsApp.`);
+          (window.avisarSucesso || alert)(`✅ Proposta marcada como "Enviada"!\n\n📱 Em breve você poderá enviar propostas diretamente pelo WhatsApp.`);
         } else {
-          alert(`✅ Proposta marcada como "${statusLabels[newStatus] || newStatus}"!`);
+          (window.avisarSucesso || alert)(`✅ Proposta marcada como "${statusLabels[newStatus] || newStatus}"!`);
         }
       } else {
         console.error('❌ [ProposalList] Erro ao atualizar status:', result.message);
@@ -369,7 +369,7 @@ function ProposalList({
         console.error(`❌ ${failCount} proposta(s) falharam`);
         alert(`⚠️ ${successCount} proposta(s) excluída(s), ${failCount} falharam`);
       } else {
-        alert(`✅ ${successCount} proposta(s) excluída(s) com sucesso!`);
+        (window.avisarSucesso || alert)(`✅ ${successCount} proposta(s) excluída(s) com sucesso!`);
       }
       await loadProposals();
       setSelectedProposals([]);

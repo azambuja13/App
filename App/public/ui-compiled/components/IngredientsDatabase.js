@@ -196,7 +196,7 @@ function IngredientsDatabase({
       console.log('📥 Iniciando download:', fileName);
       window.XLSX.writeFile(wb, fileName);
       console.log('✅ Ingredientes exportados com sucesso:', ingredientsData.length);
-      alert(`✅ Exportados ${ingredientsData.length} ingredientes para ${fileName}`);
+      (window.avisarSucesso || alert)(`✅ Exportados ${ingredientsData.length} ingredientes para ${fileName}`);
     } catch (error) {
       console.error('❌ Erro ao exportar:', error);
       alert('❌ Erro ao exportar: ' + error.message);
@@ -413,7 +413,7 @@ function IngredientsDatabase({
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    alert(`✅ Template aplicado!\n\n✓ ${added} ingredientes adicionados\n⏭️ ${skipped} ingredientes já existiam ou não foram salvos`);
+    (window.avisarSucesso || alert)(`✅ Template aplicado!\n\n✓ ${added} ingredientes adicionados\n⏭️ ${skipped} ingredientes já existiam ou não foram salvos`);
   };
 
   // Polling fallback para quando WebSocket não está disponível
@@ -499,7 +499,7 @@ function IngredientsDatabase({
           // Resposta imediata (ex: 0 ingredientes)
           setUpdatingPrices(false);
           setPriceUpdateProgress(null);
-          alert(`✅ ${result.message}`);
+          (window.avisarSucesso || alert)(`✅ ${result.message}`);
           return;
         }
 

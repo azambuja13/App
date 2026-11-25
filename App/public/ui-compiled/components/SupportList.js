@@ -223,7 +223,7 @@ const SupportList = React.memo(function SupportList({
     if (!n) { alert('Dê um nome ao kit (ex.: Casamento 150 pessoas).'); return; }
     if (!ativos.length) { alert('Marque os itens que entram no kit.'); return; }
     setSalvandoKit(true);
-    try { await onSaveKit(n); setNomeKit(''); forcar(x => x + 1); alert('✅ Kit "' + n + '" salvo.'); }
+    try { await onSaveKit(n); setNomeKit(''); forcar(x => x + 1); (window.avisarSucesso || alert)('✅ Kit "' + n + '" salvo.'); }
     catch (e) { alert(e.message || 'Não foi possível salvar o kit.'); }
     finally { setSalvandoKit(false); }
   };

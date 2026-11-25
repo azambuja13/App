@@ -503,7 +503,7 @@ function ProposalPreview({
           console.log('🔄 [ProposalPreview] Fechando preview...');
           onClose();
         }
-        alert('✅ Proposta excluída com sucesso!');
+        (window.avisarSucesso || alert)('✅ Proposta excluída com sucesso!');
       } else {
         console.error('❌ Erro ao excluir proposta:', result.message);
         alert(`❌ ${result.message || 'Erro ao excluir proposta'}`);
@@ -565,7 +565,7 @@ function ProposalPreview({
       }
 
       if (result.success) {
-        alert(`✅ ${result.message}\n\nWhatsApp enviado para: ${clientPhone}`);
+        (window.avisarSucesso || alert)(`✅ ${result.message}\n\nWhatsApp enviado para: ${clientPhone}`);
         console.log('✅ [WhatsApp] Enviado com sucesso:', result);
       } else {
         alert(`❌ Erro ao enviar: ${result.message}`);

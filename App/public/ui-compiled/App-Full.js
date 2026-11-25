@@ -1583,7 +1583,7 @@ window.AppFull = function AppFull() {
       state.setActiveTab('items');
 
       console.log('✅ Evento carregado com sucesso!');
-      alert('✅ Evento carregado com sucesso!');
+      (window.avisarSucesso || alert)('✅ Evento carregado com sucesso!');
     } else {
       console.error('❌ [handleLoadEvent] Evento não encontrado! ID:', eventId);
       console.error('❌ Verifique se o evento existe no IndexedDB');
@@ -3138,7 +3138,7 @@ window.AppFull = function AppFull() {
             alert('⚠️ Dados da empresa salvos, mas a chave PIX não: ' + ((ePix && ePix.message) || 'tente de novo') + '.');
             return;
           }
-          alert('✅ Dados da empresa salvos com sucesso!');
+          (window.avisarSucesso || alert)('✅ Dados da empresa salvos com sucesso!');
         } catch (error) {
           console.error('❌ [Botão Salvar] Erro ao salvar:', error);
           alert('❌ Erro ao salvar: ' + error.message);

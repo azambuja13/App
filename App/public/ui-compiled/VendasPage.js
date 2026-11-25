@@ -233,7 +233,7 @@ function ImpressaoDialog({ onClose }) {
   const testarRede = async () => {
     if (!String(rede.host || '').trim()) return alert('Informe o IP da impressora.');
     setTestandoRede(true);
-    try { await window.EscPos.enviarRede(window.EscPos.teste({ colunas: (c.escpos || {}).colunas || 48, cortar: (c.escpos || {}).cortar !== false, codepage: (c.escpos || {}).codepage }), { host: rede.host, porta: rede.porta }); alert('✅ Enviado para a impressora ' + rede.host + '.'); }
+    try { await window.EscPos.enviarRede(window.EscPos.teste({ colunas: (c.escpos || {}).colunas || 48, cortar: (c.escpos || {}).cortar !== false, codepage: (c.escpos || {}).codepage }), { host: rede.host, porta: rede.porta }); (window.avisarSucesso || alert)('✅ Enviado para a impressora ' + rede.host + '.'); }
     catch (err) { alert('❌ ' + ((err && err.message) || 'Não foi possível imprimir.')); }
     setTestandoRede(false);
   };

@@ -1180,7 +1180,7 @@ function ProposalBuilderSimple({
       const result = await proposalManager.saveProposal(proposalData);
       console.log('📦 Resultado do saveProposal:', result);
       if (result.success) {
-        alert(prefill && prefill.fromAgent && !formData.id ? '✅ Proposta criada como rascunho.\n\nConfira o valor na lista e ajuste ou envie quando quiser.' : '✅ Proposta salva com sucesso!');
+        (window.avisarSucesso || alert)(prefill && prefill.fromAgent && !formData.id ? '✅ Proposta criada como rascunho.\n\nConfira o valor na lista e ajuste ou envie quando quiser.' : '✅ Proposta salva com sucesso!');
         // ✅ FIX: Usar result.data (resposta do backend) que contém o ID correto
         onSave(result.data || result.proposal);
       } else {
@@ -1199,7 +1199,7 @@ function ProposalBuilderSimple({
             };
             const retryResult = await proposalManager.saveProposal(dataWithoutPhotos);
             if (retryResult.success) {
-              alert('✅ Proposta salva sem fotos!');
+              (window.avisarSucesso || alert)('✅ Proposta salva sem fotos!');
               onSave(retryResult.proposal);
             } else {
               alert('❌ Ainda não foi possível salvar. Por favor, remova propostas antigas.');
